@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Motion &middot; Manovella docs</title>
+<meta name="description" content="Manovella motion: thirteen headline styles, twenty-four transitions in four families, eight of them shaders, and the pace and shutter that tune them." />
+<link rel="canonical" href="https://manovella.mov/guide/motion.html" />
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="Manovella" />
+<meta property="og:title" content="Motion &middot; Manovella docs" />
+<meta property="og:description" content="Manovella motion: thirteen headline styles, twenty-four transitions in four families, eight of them shaders, and the pace and shutter that tune them." />
+<meta property="og:url" content="https://manovella.mov/guide/motion.html" />
+<meta property="og:image" content="https://manovella.mov/og.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Manovella: product films, written as code" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Motion &middot; Manovella docs" />
+<meta name="twitter:description" content="Manovella motion: thirteen headline styles, twenty-four transitions in four families, eight of them shaders, and the pace and shutter that tune them." />
+<meta name="twitter:image" content="https://manovella.mov/og.png" />
+<link rel="preload" href="../fonts/geist/geist-100-900-latin.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="stylesheet" href="../base.css" />
+<link rel="stylesheet" href="style.css" />
+<script src="docs.js" defer></script>
+</head>
+<body data-page="motion" data-title="Motion">
+<div class="layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main">
+    <header class="topbar" id="topbar"></header>
+    <main class="doc">
+      <article class="page">
+        <p class="eyebrow">Catalogue</p>
+        <h1>Motion</h1>
+        <p class="lead">Thirteen ways for a headline to arrive and twenty-four transitions in four families, with the pace and the shutter that set how they feel.</p>
+
+        <h2 id="headlines">Headlines</h2>
+        <p><code>TYPE.draw(ctx, t, { lines, x, y, size, family, weight, style, at, out, pace, emphasis })</code> (<code>type.js</code>) draws how the words arrive and leave: one style per film, a pure function of <code>t</code> like everything else. There are thirteen styles: <code>rise</code>, <code>focus</code>, <code>settle</code>, <code>track</code>, <code>wipe</code>, <code>cascade</code>, <code>weight</code>, <code>split</code>, <code>flap</code>, <code>type</code>, <code>swap</code>, <code>odometer</code> and <code>decode</code>. An emphasis marks the claim&rsquo;s one word, and a pace sets the speed. Each still is a third of the way in:</p>
+        <figure class="shot">
+          <div class="frame">
+            <img src="../img/text.jpg" alt="Thirteen ways for a headline to arrive" width="1600" height="1000" loading="lazy" />
+          </div>
+          <figcaption>Thirteen ways for a headline to arrive.</figcaption>
+        </figure>
+
+        <h2 id="transitions">Transitions</h2>
+        <p>Twenty-four, on the timeline between scenes, in four families:</p>
+        <ul>
+          <li><b>Quiet</b>: <code>fade</code>, <code>dip</code>, <code>blur</code>, <code>wipe</code>.</li>
+          <li><b>Move</b>: <code>push</code>, <code>cover</code>, <code>split</code>, <code>stripes</code>, <code>snap</code> (a cut on the move, the two scenes&rsquo; speeds matched where they meet) and <code>whip</code> (a whip pan).</li>
+          <li><b>Depth</b>: <code>zoom</code>, <code>window</code> (a card opening into the next scene), <code>zoomblur</code> (a dive, the speed drawn in), <code>flip</code> (the frame turns over like a card), <code>cube</code> (the next face of a box) and <code>page</code> (a page curling off its corner).</li>
+          <li><b>Reveal</b>: <code>iris</code> (from a click, or a portal through a letter&rsquo;s counter), <code>shape</code> (through the product&rsquo;s own mark), <code>frost</code> (a pane of glass sliding across), <code>sweep</code> (a line in the accent), <code>tiles</code>, <code>ripple</code> (from where the cursor clicked), <code>halftone</code> (dots in the accent) and <code>liquid</code> (one scene melting into the next).</li>
+        </ul>
+        <p>Eight of them are fragment shaders (<code>whip</code>, <code>zoomblur</code>, <code>liquid</code>, <code>ripple</code>, <code>halftone</code>, <code>flip</code>, <code>cube</code>, <code>page</code>): what a 2D canvas cannot draw, a displacement, a noise front, a surface in perspective. They share one WebGL2 context a page, are pure functions of their progress like the rest, and return the leaving scene exactly at 0 and the arriving one exactly at 1. A cut made of them costs about twice a 2D one while it lasts (half a second of <code>reel.html</code>: 93 s with <code>cube</code>, 50 s with <code>push</code>) and nothing before or after.</p>
+        <figure class="shot">
+          <div class="frame">
+            <img src="../img/transitions.jpg" alt="Every transition, half done" width="1600" height="1000" loading="lazy" />
+          </div>
+          <figcaption>Every transition at its half-way point, from the stage to an end card.</figcaption>
+        </figure>
+        <p><code>studio/transcheck.mjs</code> plays every transition on the stage and holds each to the pixel: its first frame is the scene it leaves, its last the scene it brings, both ways, and its shader compiles.</p>
+
+        <h2 id="pace">Pace and shutter</h2>
+        <ul>
+          <li><b>Pace</b> is a factor for the headlines, the camera&rsquo;s springs and the length of a cut: calm 0.8, measured 1, brisk 1.25.</li>
+          <li><b>Shutter</b> is how many degrees of each frame the motion blur gathers: 360 (the default, the smoothest), 270, or 180, a film camera&rsquo;s, crisper, at the same cost. See <a href="rendering.html#quality">Rendering</a>.</li>
+        </ul>
+
+        <div class="pager">
+          <a href="type.html"><small>Previous</small><b>&larr; Type</b></a>
+          <a class="next" href="parts.html"><small>Next</small><b>Parts and tutorials &rarr;</b></a>
+        </div>
+      </article>
+    </main>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,554 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Release film</title>
+<style>
+/* Self-host the brand's faces beside the page, then list them in FONT_FACES below:
+@font-face{font-family:'Display';src:url(fonts/Display.woff2) format('woff2');font-weight:200 900;}
+*/
+html,body{margin:0;background:#F6F4EF;overflow:hidden}
+canvas{display:block}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script src="film.js"></script><!-- the stage, from ../site-promo-film/template/: copy it beside this page -->
+<script src="fx.js"></script><!-- the look, from ../site-promo-film/template/: copy it beside this page -->
+<script>
+'use strict';
+/*
+ * A release film: what changed, shown changing. Every frame is a pure function of t.
+ *
+ * The engine (math, colour, camera, drawing helpers, the morph chain) is copied from
+ * site-promo-film's template/promo.html — a fix to one belongs in the other. For true 3D, take
+ * the WebGL compositor block from there too. The look (backdrop, light, grain, glass, click
+ * ripples) is fx.js, shared with it: set it in LOOK below.
+ *
+ * The demo (16 s) is the release shape: version card → the app as it was → a new control lands
+ * in place and is used → a shortcut opens a new surface → the rest of the changelog → the update
+ * path, clicked → back to the version card, which is also frame 0.
+ *
+ * Formats come from the URL hash: wide (default, 1920×1080) or #square (1080×1080) —
+ * `PAGE='release.html#square' node render.mjs …`. A second aspect is a second LAYOUT (FREE and
+ * SLOT below), never a crop of the first. The hash also takes look=<preset>, joined with & —
+ * `PAGE='release.html#square&look=night'`.
+ */
+const HASH = new URLSearchParams(location.hash.slice(1));
+const FMT = HASH.has('square') ? 'square' : 'wide';
+const META = { width: FMT === 'square' ? 1080 : 1920, height: 1080, fps: 60, duration: 16, bpm: 120 };
+// A film of 30 s or more that goes on YouTube declares its chapters here (seconds; the first at 0,
+// three or more, each at least 10 s long): render.mjs writes them into the file and deliver.mjs
+// writes <name>-chapters.txt for the description. Shorter than that, YouTube shows none.
+// META.chapters = [{ t: 0, title: 'The new control' }, { t: 14, title: 'The new surface' }, { t: 26, title: 'Also new' }];
+window.PROMO_META = META;
+const W = META.width, H = META.height, DUR = META.duration, BEAT = 60 / META.bpm;
+const cv = document.getElementById('c');
+cv.width = W; cv.height = H;
+const mainCtx = cv.getContext('2d');
+const STAGE = FILM.stage(mainCtx); // subpixel jitter per subframe, 'high' smoothing (film.js)
+let ctx = mainCtx;
+let SHADOW_K = null; // device pixels per world unit while drawing into an offscreen layer
+const DISPLAY = 'Georgia', BODY = 'system-ui', UI = 'system-ui'; // swap for the brand's faces
+const FONT_FACES = []; // e.g. ['400 100px Display']: awaited before frame 0
+const B = (n) => n * BEAT; // beat → seconds
+
+// ---------------------------------------------------------------- the release (every string sourced)
+const REL = {
+  product: 'Product', version: '2.0',
+  heads: [ // one per featured change: the release notes' benefit line, a few words
+    { lines: ['Sort by', 'what matters.'], tin: 7.75, tout: 11.5 },
+    { lines: ['One keystroke', 'away.'], tin: 13.25, tout: 17.5 },
+  ],
+  changes: ['Faster launch', 'Sharper icons in dark mode', 'Export any view as CSV'], // the rest, verbatim
+};
+
+// ---------------------------------------------------------------- math
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const lerp = (a, b, p) => a + (b - a) * p;
+/** Closed-form step response of a damped spring, 0 → 1, exactly 1 once settled. */
+function spr(t, t0, f = 1.8, z = 0.86) {
+  const tau = t - t0;
+  if (tau <= 0) return 0;
+  const w = 2 * Math.PI * f, a = z * w, env = Math.exp(-a * tau);
+  if (z >= 1) { const r = env * (1 + w * tau); return r < 2e-5 ? 1 : 1 - r; }
+  if (env < 2e-5) return 1;
+  const wd = w * Math.sqrt(1 - z * z);
+  return 1 - env * (Math.cos(wd * tau) + (a / wd) * Math.sin(wd * tau));
+}
+const P = (t, tb, f, z) => spr(t, B(tb), f, z); // progress of a transition starting on beat tb
+/** v0, then one spring per [beat, value, f, z]. */
+function track(v0, keys) {
+  return (t) => {
+    let v = v0, prev = v0;
+    for (const [tb, val, f = 1.8, z = 0.86] of keys) { v += (val - prev) * spr(t, B(tb), f, z); prev = val; }
+    return v;
+  };
+}
+/** A press: down, then back up — still a sum of two springs. */
+const bump = (t, tb) => spr(t, B(tb) - 0.03, 6, 1) - spr(t, B(tb) + 0.1, 6, 1);
+
+// ---------------------------------------------------------------- colour
+const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+const rgba = (c, a = 1) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
+const mixc = (a, b, p) => [lerp(a[0], b[0], p), lerp(a[1], b[1], p), lerp(a[2], b[2], p)];
+const C = { // replace with the brand's tokens
+  canvas: hex('#F6F4EF'), ink: hex('#1A1C24'), dim: hex('#6B6F7B'), accent: hex('#5B5BF7'),
+  surface: hex('#161A26'), card: hex('#1E2332'), card2: hex('#262C3E'), sec: hex('#8A90A6'), ter: hex('#5C6278'),
+  a: hex('#2FBFA8'), b: hex('#E8833A'),
+};
+FX.previewAccent(C, HASH); // a preview's colour (the Studio's #accent=); a film's URL has none
+
+// ---------------------------------------------------------------- look: backdrop, light, texture (fx.js)
+// A preset, then overrides (every field is listed at the top of fx.js); `#look=<preset>` swaps
+// the preset for `render.mjs looks`. keys give each featured change its own light, for the presets
+// that have lights: one chapter, one colour, and the last key brings the first colours back.
+const LOOK = FX.look({
+  preset: HASH.get('look') || 'dots', palette: C,
+  keys: [[7.25, ['b', 'accent', 'a']], [12.25, ['a', 'b', 'accent']], [27, ['accent', 'a', 'b']]],
+}, { W, H, fps: META.fps, duration: DUR, track, spr });
+
+// ---------------------------------------------------------------- world layout
+const ICON = { x: -389, y: -71, w: 188, h: 188 };           // the version card: icon + wordmark + version line
+const WORD = { x: -151, base: 30, size: 148, sub: 108, subSize: 44 };
+const WIN = { x: -400, y: -250, w: 800, h: 500 };           // the app window
+const SORT = { x: WIN.x + WIN.w - 180, y: WIN.y + 11, w: 156, h: 30 }; // the new control
+const PAL = { x: WIN.x + 140, y: WIN.y + 76, w: 520, h: 236 };  // the new surface
+const MB = { x: WIN.x - 6, y: WIN.y - 74, w: 360, h: 36 };      // a menu bar, for the update path
+const DD = { x: MB.x + 8, y: MB.y + MB.h + 6, w: 270 };
+const DD_ITEMS = [[`About ${REL.product}`], null, ['Check for Updates…'], ['Settings…', '⌘,'], null, [`Quit ${REL.product}`, '⌘Q']];
+const DD_ROW = 30, DD_SEP = 11, DD_PAD = 6;
+const ddY = (i) => DD.y + DD_PAD + DD_ITEMS.slice(0, i).reduce((a, it) => a + (it ? DD_ROW : DD_SEP), 0);
+DD.h = ddY(DD_ITEMS.length) - DD.y + DD_PAD;
+const REST = [330, 250]; // where the cursor waits on the version card
+
+// ---------------------------------------------------------------- layout per format
+// Where the camera may put the subject, in screen px: beside (wide) or below (square) the
+// headline slot, or with the whole frame to itself.
+const FREE = FMT === 'square'
+  ? { head: [60, 320, W - 60, H - 60], bare: [90, 90, W - 90, H - 90] }
+  : { head: [W * 0.43, 90, W - 90, H - 90], bare: [160, 90, W - 160, H - 90] };
+// The slot headlines, the changelog and the keycaps share.
+const SLOT = FMT === 'square'
+  ? { x: 70, size: 70, lh: 78, top: 92, roll: 42, keys: [W - 70, 96, 'right'] }
+  : { x: 120, size: 96, lh: 104, top: null, roll: 52, keys: [120, H - 250, 'left'] };
+/** Camera [x, y, zoom] that makes world rect r fill the free region. */
+function fit(r, head, zmax = 3) {
+  const [x0, y0, x1, y1] = head ? FREE.head : FREE.bare;
+  const z = Math.min((x1 - x0) / r.w, (y1 - y0) / r.h, zmax);
+  return [r.x + r.w / 2 - ((x0 + x1) / 2 - W / 2) / z, r.y + r.h / 2 - ((y0 + y1) / 2 - H / 2) / z, z];
+}
+const drift = ([x, y, z]) => [x + 6, y - 4, z * 1.035]; // a hold still moves
+/** With a headline up, a close-up reaches back to the surface's own edge on the slot's side:
+ *  fit only the detail and the rest of the surface slides under the headline. In a square frame
+ *  it keeps the surface's full width too, or the row labels are cut at both edges. */
+const toEdge = (r, s) => FMT === 'square'
+  ? { x: s.x - 12, w: s.w + 24, y: s.y - 12, h: r.y + r.h - s.y + 12 }
+  : { ...r, x: s.x - 12, w: r.x + r.w - s.x + 12 };
+
+// ---------------------------------------------------------------- camera (springs on x, y, log zoom)
+let CAM = { x: 0, y: 0, z: 1 };
+const TOOLR = { x: -120, y: -262, w: 520, h: 292 };
+const PALR = toEdge({ x: PAL.x - 40, y: PAL.y - 40, w: PAL.w + 80, h: PAL.h + 80 }, WIN);
+const MENUR = { x: MB.x - 30, y: MB.y - 30, w: 520, h: MB.h + 6 + DD.h + 60 };
+const camKeys = [ // beat, x, y, zoom, f, zeta — frame 0 is the version card at (0, 0, 1)
+  [2.5, ...fit(WIN, false), 0.9, 0.9],       // the app, as it was
+  [4, ...fit(TOOLR, false), 1.0, 0.9],       // punch in on the new control as it lands, settled before its click
+  [7.5, ...fit(WIN, true), 0.9, 0.92],       // back out once the rows have answered the click, room for the headline
+  [9, ...drift(fit(WIN, true)), 0.35, 1],
+  [12.25, ...fit(PALR, true), 1.0, 0.9],     // the new surface
+  [14.5, ...drift(fit(PALR, true)), 0.35, 1],
+  [18, ...fit(WIN, true), 0.9, 0.92],        // the rest of the changelog
+  [19.25, ...fit(MENUR, true), 0.9, 0.9],    // the update path, settled before its two clicks
+  [27, 0, 0, 1, 0.8, 0.92],                  // home: the version card
+];
+const camX = track(0, camKeys.map((k) => [k[0], k[1], k[4], k[5]]));
+const camY = track(0, camKeys.map((k) => [k[0], k[2], k[4], k[5]]));
+const camL = track(0, camKeys.map((k) => [k[0], Math.log(k[3]), k[4], k[5]]));
+function setCam(t) { CAM = { x: camX(t), y: camY(t), z: Math.exp(camL(t)) }; }
+const world = () => ctx.setTransform(CAM.z, 0, 0, CAM.z, W / 2 - CAM.x * CAM.z, H / 2 - CAM.y * CAM.z);
+const screen = () => ctx.setTransform(1, 0, 0, 1, 0, 0);
+const toScreen = (x, y) => [W / 2 + (x - CAM.x) * CAM.z, H / 2 + (y - CAM.y) * CAM.z];
+// shadows are device pixels, untouched by the transform: scale them yourself
+function shadow(blur, oy, col, k = SHADOW_K ?? CAM.z) { ctx.shadowBlur = blur * k; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = oy * k; ctx.shadowColor = col; }
+function noShadow() { ctx.shadowBlur = 0; ctx.shadowOffsetY = 0; ctx.shadowColor = 'transparent'; }
+
+// ---------------------------------------------------------------- drawing helpers
+function rr(x, y, w, h, r) {
+  w = Math.max(0, w); h = Math.max(0, h);
+  const m = Math.min(w, h) / 2;
+  ctx.beginPath(); ctx.roundRect(x, y, w, h, (Array.isArray(r) ? r : [r, r, r, r]).map((v) => clamp(v, 0, m)));
+}
+function T(s, x, y, size, o = {}) {
+  const { w = 400, fam = UI, col = '#fff', align = 'left', base = 'middle', ls = 0, alpha = 1 } = o;
+  if (alpha <= 0) return;
+  ctx.save(); ctx.globalAlpha *= clamp(alpha);
+  ctx.font = `${w} ${size}px ${fam}`; ctx.fillStyle = col; ctx.textAlign = align; ctx.textBaseline = base;
+  ctx.letterSpacing = ls + 'px'; ctx.fillText(s, x, y); ctx.restore();
+}
+const MWC = new Map();
+function MW(s, size, w = 400, fam = UI, ls = 0) {
+  const key = `${s}|${size}|${w}|${fam}|${ls}`;
+  if (!MWC.has(key)) { ctx.save(); ctx.font = `${w} ${size}px ${fam}`; ctx.letterSpacing = ls + 'px'; MWC.set(key, ctx.measureText(s).width); ctx.restore(); }
+  return MWC.get(key);
+}
+/** Width of a string set with tabular figures, as TN draws it. */
+const TW = (s, size, w = 400) => [...s].reduce((a, ch) => a + (/[0-9]/.test(ch) ? MW('0', size, w) : MW(ch, size, w)), 0);
+/** Tabular figures: canvas has no font-variant-numeric, so every digit gets the same cell. */
+function TN(s, x, y, size, o = {}) {
+  const { w = 400, align = 'left' } = o;
+  const dw = MW('0', size, w), total = TW(s, size, w);
+  let cx = align === 'right' ? x - total : align === 'center' ? x - total / 2 : x;
+  for (const ch of s) {
+    const digit = /[0-9]/.test(ch);
+    T(ch, cx + (digit ? (dw - MW(ch, size, w)) / 2 : 0), y, size, { ...o, align: 'left' });
+    cx += digit ? dw : MW(ch, size, w);
+  }
+}
+/** One string flips to another: the old leaves upward, the new arrives from below. */
+function ROLL(a, b, p, x, y, size, o = {}) {
+  if (p <= 0 || a === b) return TN(p <= 0 ? a : b, x, y, size, o);
+  if (p >= 1) return TN(b, x, y, size, o);
+  const h = size * 1.3, wMax = Math.max(TW(a, size, o.w), TW(b, size, o.w)) + 4;
+  const al = o.align || 'left', x0 = al === 'right' ? x - wMax : al === 'center' ? x - wMax / 2 : x - 2;
+  ctx.save(); ctx.beginPath(); ctx.rect(x0, y - h / 2, wMax + 4, h); ctx.clip();
+  TN(a, x, y - p * h, size, { ...o, alpha: (o.alpha ?? 1) * (1 - p * 0.6) });
+  TN(b, x, y + (1 - p) * h, size, { ...o, alpha: (o.alpha ?? 1) * (0.4 + p * 0.6) });
+  ctx.restore();
+}
+/** Enter/exit envelope for a piece of content. */
+const env = (pin, pout = 0) => ({ a: clamp(pin * 1.6) * clamp(1 - pout * 1.6), dy: (1 - clamp(pin, 0, 1.2)) * 8 - pout * 6 });
+function withEnv(e, fn) { if (e.a <= 0.001) return; ctx.save(); ctx.globalAlpha *= e.a; ctx.translate(0, e.dy); fn(); ctx.restore(); }
+/** A bar fill: deep → tint along its length, gloss across. */
+function drawFill(r, tint, vertical = false) {
+  if (r.w <= 0.2 || r.h <= 0.2) return;
+  ctx.save();
+  rr(r.x, r.y, r.w, r.h, Math.min(r.w, r.h) / 2);
+  const g = vertical ? ctx.createLinearGradient(0, r.y + r.h, 0, r.y) : ctx.createLinearGradient(r.x, 0, r.x + r.w, 0);
+  g.addColorStop(0, rgba(mixc(tint, [0, 0, 0], 0.32))); g.addColorStop(1, rgba(tint));
+  ctx.fillStyle = g; ctx.fill();
+  const gl = vertical ? ctx.createLinearGradient(r.x, 0, r.x + r.w, 0) : ctx.createLinearGradient(0, r.y, 0, r.y + r.h);
+  gl.addColorStop(0, 'rgba(255,255,255,0.4)'); gl.addColorStop(0.45, 'rgba(255,255,255,0)'); gl.addColorStop(1, 'rgba(0,0,0,0.15)');
+  ctx.fillStyle = gl; ctx.fill();
+  ctx.restore();
+}
+function drawTrack(x, y, w, h, tint) { rr(x, y, w, h, Math.min(w, h) / 2); ctx.fillStyle = rgba(tint, 0.16); ctx.fill(); }
+
+// ---------------------------------------------------------------- the one object: icon → window → icon
+const STATES = [
+  { kind: 0, r: () => ({ ...ICON, c: [44, 44, 44, 44] }) },
+  { kind: 1, tb: 2.5, f: 1.4, z: 0.84, r: () => ({ ...WIN, c: [16, 16, 16, 16] }) },
+  { kind: 0, tb: 27, f: 1.3, z: 0.86, r: () => ({ ...ICON, c: [44, 44, 44, 44] }) },
+];
+function shapeAt(t) {
+  let prev = STATES[0].r(t);
+  const s = { ...prev, c: [...prev.c] };
+  const wts = [1, 0];
+  for (let i = 1; i < STATES.length; i++) {
+    const st = STATES[i], cur = st.r(t);
+    const pw = spr(t, B(st.tb), st.f * 1.08, st.z), ph = spr(t, B(st.tb) + 0.035, st.f * 0.95, st.z);
+    const cx = s.x + s.w / 2 + (cur.x + cur.w / 2 - prev.x - prev.w / 2) * pw;
+    const cy = s.y + s.h / 2 + (cur.y + cur.h / 2 - prev.y - prev.h / 2) * ph;
+    s.w += (cur.w - prev.w) * pw; s.h += (cur.h - prev.h) * ph;
+    s.x = cx - s.w / 2; s.y = cy - s.h / 2;
+    s.c = s.c.map((v, j) => v + (cur.c[j] - prev.c[j]) * pw);
+    const p = spr(t, B(st.tb), st.f * 1.4, 0.95);
+    wts[STATES[i - 1].kind] -= p; wts[st.kind] += p;
+    prev = cur;
+  }
+  return { s, wts: wts.map((v) => clamp(v)) };
+}
+function drawShape(t) {
+  const { s, wts } = shapeAt(t);
+  ctx.save();
+  shadow(40, 18, 'rgba(20,20,40,0.28)');
+  rr(s.x, s.y, s.w, s.h, s.c);
+  ctx.fillStyle = rgba(mixc(C.surface, C.card, wts[1] * 0.3)); ctx.fill(); noShadow();
+  if (LOOK.edge) { ctx.lineWidth = 1; ctx.strokeStyle = LOOK.edge; ctx.stroke(); } // or it sinks into a dark backdrop
+  ctx.clip();
+  if (wts[0] > 0.001) { // the icon's mark: an accent bar, standing in for the product's vector icon
+    ctx.globalAlpha = wts[0] ** 3; // gone before the shape is big enough to smear it
+    const m = Math.min(s.w, s.h), bw = m * 0.22, bh = m * 0.55; // the mark keeps the icon's proportions
+    rr(s.x + s.w / 2 - bw / 2, s.y + s.h / 2 - bh / 2, bw, bh, bw / 2); ctx.fillStyle = rgba(C.accent); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+  return s;
+}
+
+// ---------------------------------------------------------------- the version card
+function drawVersionCard(t) {
+  const p = 1 - P(t, 2.25, 2.4, 0.95) + P(t, 27.75, 2.0, 0.86);
+  const q = 1 - P(t, 2, 2.4, 0.95) + P(t, 28.25, 2.0, 0.86); // the version line leaves first, returns last
+  const { x, base, size } = WORD;
+  ctx.save(); ctx.beginPath(); ctx.rect(x - 10, base - size, 900, size * 1.28); ctx.clip();
+  T(REL.product, x, base + (1 - clamp(p, -0.2, 1.2)) * size * 1.3, size, { fam: DISPLAY, col: rgba(LOOK.ink), base: 'alphabetic' });
+  ctx.restore();
+  withEnv({ a: clamp(q * 1.4), dy: (1 - clamp(q)) * 14 }, () => {
+    const lead = 'What’s new in ';
+    T(lead, x + 4, WORD.sub, WORD.subSize, { fam: BODY, w: 500, col: rgba(LOOK.dim), base: 'alphabetic' });
+    T(REL.version, x + 4 + MW(lead, WORD.subSize, 500, BODY), WORD.sub, WORD.subSize, { fam: BODY, w: 700, col: rgba(C.accent), base: 'alphabetic' });
+  });
+}
+
+// ---------------------------------------------------------------- the app: before, and the change in place
+const ROWS = [ // name, value, tint — before the release they sat by name; the new control sorts by usage
+  ['Atlas', 0.42, C.a], ['Birch', 0.87, C.b], ['Cedar', 0.18, C.a], ['Delta', 0.64, C.b],
+];
+const RANK = ROWS.map((_, i) => i).sort((a, b) => ROWS[b][1] - ROWS[a][1]);
+const SLOT_AFTER = ROWS.map((_, i) => RANK.indexOf(i));
+const rowY = (slot) => WIN.y + 104 + slot * 80;
+function drawRow(t, i, y, lift) {
+  const [name, v, tint] = ROWS[i], X = WIN.x;
+  if (lift > 0.002) { // a row on the move is lifted off the list
+    ctx.save(); shadow(26, 10, `rgba(0,0,0,${(0.4 * lift).toFixed(3)})`);
+    rr(X + 14, y - 32, WIN.w - 28, 64, 14); ctx.fillStyle = rgba(mixc(C.card, [255, 255, 255], 0.04), lift); ctx.fill();
+    ctx.restore();
+  }
+  const f = v * P(t, 4.2 + i * 0.2, 1.6, 0.85);
+  T(name, X + 36, y, 18, { w: 600 });
+  drawTrack(X + 170, y - 5, 440, 10, tint); drawFill({ x: X + 170, y: y - 5, w: 440 * f, h: 10 }, tint);
+  TN(Math.round(f * 100) + '%', X + WIN.w - 36, y, 20, { w: 700, align: 'right' }); // the label is the bar
+}
+function drawSort(t, out) {
+  const g = P(t, 5, 2.0, 0.86); // the new control lands: width grows from the toolbar's edge
+  const a = clamp(1 - out * 1.6);
+  if (g <= 0.001 || a <= 0) return;
+  const press = bump(t, 6.75);
+  const w = SORT.w * g, x = SORT.x + SORT.w - w, cy = SORT.y + SORT.h / 2;
+  ctx.save(); ctx.globalAlpha *= a;
+  rr(x, SORT.y, w, SORT.h, 8); ctx.fillStyle = `rgba(255,255,255,${(0.09 + 0.1 * press).toFixed(3)})`; ctx.fill();
+  ctx.clip();
+  const la = clamp(P(t, 5.5, 2.4, 0.9) * 1.6);
+  T('Sort', SORT.x + 14, cy, 14, { w: 500, col: rgba(C.sec), alpha: la });
+  ROLL('Name', 'Usage', P(t, 6.75, 2.6, 0.9), SORT.x + 54, cy, 14, { w: 700, alpha: la });
+  ctx.globalAlpha *= la;
+  ctx.beginPath(); ctx.moveTo(SORT.x + SORT.w - 24, cy - 2); ctx.lineTo(SORT.x + SORT.w - 19, cy + 3); ctx.lineTo(SORT.x + SORT.w - 14, cy - 2);
+  ctx.lineWidth = 1.8; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = rgba(C.sec); ctx.stroke();
+  ctx.restore();
+}
+function drawFooter(t, e) { // an event every second while the camera holds
+  const t0 = B(4), n = Math.max(0, Math.floor(t - t0)), p = spr(t, t0 + n, 3.2, 1);
+  const x = WIN.x + 36, y = WIN.y + WIN.h - 34, o = { col: rgba(C.ter) };
+  withEnv(e, () => {
+    T('Updated', x, y, 14, o);
+    const nx = x + MW('Updated ', 14), b = String(n + 1);
+    ROLL(String(n), b, n === 0 ? 1 : p, nx, y, 14, o);
+    T('s ago', nx + TW(b, 14) + 1, y, 14, o);
+  });
+}
+function drawWindow(t) {
+  const out = P(t, 26.75, 3, 1);
+  const E = (tb) => env(P(t, tb, 2.2, 0.86), out);
+  const X = WIN.x, Y = WIN.y;
+  withEnv(E(3.75), () => {
+    [[255, 95, 87], [254, 188, 46], [40, 200, 64]].forEach((c, i) => { ctx.beginPath(); ctx.arc(X + 26 + i * 20, Y + 26, 6.5, 0, Math.PI * 2); ctx.fillStyle = rgba(c); ctx.fill(); });
+    T(REL.product, X + 96, Y + 26, 16, { w: 700 });
+    ctx.fillStyle = 'rgba(255,255,255,0.07)'; ctx.fillRect(X, Y + 52, WIN.w, 1);
+  });
+  drawSort(t, out);
+  withEnv(E(4.1), () => { ctx.fillStyle = 'rgba(255,255,255,0.05)'; for (let s = 0; s < 3; s++) ctx.fillRect(X + 24, rowY(s) + 40, WIN.w - 48, 1); });
+  ROWS.map((_, i) => {
+    const p = spr(t, B(7.25) + SLOT_AFTER[i] * 0.06, 1.5, 0.86);
+    return { i, y: lerp(rowY(i), rowY(SLOT_AFTER[i]), p), lift: SLOT_AFTER[i] === i ? 0 : clamp(4 * p * (1 - p)) };
+  }).sort((a, b) => a.lift - b.lift)
+    .forEach(({ i, y, lift }) => withEnv(E(3.9 + i * 0.2), () => drawRow(t, i, y, lift)));
+  drawFooter(t, E(4.6));
+}
+
+// ---------------------------------------------------------------- a new surface, opened by a shortcut
+const PAL_RESULTS = [['Sort by Usage', '⌥⌘U', C.b], ['Sort by Name', '⌥⌘N', C.a], ['Show Sort Options', '', C.accent]];
+function drawPalette(t) {
+  const pw = P(t, 12.5, 1.9, 0.86), ph = spr(t, B(12.5) + 0.06, 1.6, 0.86), out = P(t, 18, 2.4, 0.95);
+  if (pw <= 0.001 || out >= 0.999) return;
+  const a = clamp(1 - out * 1.4);
+  ctx.fillStyle = `rgba(8,10,16,${(0.42 * clamp(pw * 1.5) * a).toFixed(3)})`; ctx.fillRect(WIN.x, WIN.y, WIN.w, WIN.h);
+  // width leads, height lags: the pill opens into the panel
+  const w = lerp(170, PAL.w, pw), h = lerp(40, PAL.h, ph), x = PAL.x + (PAL.w - w) / 2, y = PAL.y;
+  const k = 1 - 0.04 * out, cx = PAL.x + PAL.w / 2, cy = PAL.y + PAL.h / 2;
+  ctx.save(); ctx.globalAlpha *= a;
+  ctx.translate(cx, cy); ctx.scale(k, k); ctx.translate(-cx, -cy);
+  shadow(44, 20, 'rgba(0,0,0,0.5)');
+  rr(x, y, w, h, lerp(20, 16, pw)); ctx.fillStyle = rgba(C.card2); ctx.fill(); noShadow();
+  ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(255,255,255,0.09)'; ctx.stroke();
+  ctx.clip();
+  const ca = clamp(P(t, 13.1, 2.4, 0.9) * 1.6);
+  if (ca > 0.001) {
+    ctx.globalAlpha *= ca;
+    const X = PAL.x, Y = PAL.y;
+    ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.strokeStyle = rgba(C.sec);
+    ctx.beginPath(); ctx.arc(X + 30, Y + 30, 7, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(X + 35.5, Y + 35.5); ctx.lineTo(X + 40, Y + 40); ctx.stroke();
+    const typed = 'sort', n = [0, 1, 2, 3].filter((i) => t >= B(13.5 + i * 0.25)).length, s = typed.slice(0, n);
+    if (n === 0) T('Search commands', X + 54, Y + 31, 19, { col: rgba(C.ter) });
+    else T(s, X + 54, Y + 31, 19, { w: 500 });
+    if (t < B(14.75) || Math.floor(t * 2) % 2 === 0) { // solid while typing, then it blinks on the beat
+      ctx.fillStyle = rgba(C.accent); ctx.fillRect(X + 54 + (n ? MW(s, 19, 500) : 0) + 2, Y + 19, 2, 24);
+    }
+    ctx.fillStyle = 'rgba(255,255,255,0.07)'; ctx.fillRect(X, Y + 62, PAL.w, 1);
+    const ry = (j) => Y + 76 + j * 50;
+    const sel = track(0, [[15.75, 1, 2.6, 0.9], [16.75, 0, 2.6, 0.9]])(t);
+    rr(X + 10, ry(sel), PAL.w - 20, 44, 10); ctx.fillStyle = rgba(C.accent, 0.9 * clamp(P(t, 14.25, 2.6, 0.9) * 1.6)); ctx.fill();
+    PAL_RESULTS.forEach(([label, key, tint], j) => withEnv(env(P(t, 14.25 + j * 0.2, 2.4, 0.88)), () => {
+      const yy = ry(j) + 22;
+      rr(X + 24, yy - 13, 26, 26, 7); ctx.fillStyle = rgba(tint); ctx.fill();
+      T(label, X + 64, yy, 17, { w: 500 });
+      if (key) T(key, X + PAL.w - 26, yy, 15, { col: 'rgba(255,255,255,0.62)', align: 'right' });
+    }));
+  }
+  ctx.restore();
+}
+function drawKeys(t) { // screen space, in the headline slot; pressed in sync with the palette opening
+  const e = env(P(t, 11.5, 2.2, 0.86), P(t, 15, 2.6, 0.95));
+  const press = bump(t, 12.5), [kx, ky, align] = SLOT.keys, ks = 76, gap = 14;
+  const x0 = align === 'right' ? kx - (ks * 2 + gap) : kx;
+  withEnv(e, () => ['⌘', 'K'].forEach((g, i) => {
+    const x = x0 + i * (ks + gap), d = press * 5;
+    rr(x, ky + 6, ks, ks, 16); ctx.fillStyle = rgba(mixc([255, 255, 255], C.ink, 0.2)); ctx.fill();
+    ctx.save(); shadow(10, 2, 'rgba(0,0,0,0.1)', 1);
+    rr(x, ky + d, ks, ks, 16); ctx.fillStyle = '#FFFFFF'; ctx.fill(); ctx.restore();
+    ctx.lineWidth = 1.5; ctx.strokeStyle = rgba(C.ink, 0.1); ctx.stroke();
+    T(g, x + ks / 2, ky + d + ks / 2 + 1, g === '⌘' ? 34 : 30, { w: 500, col: rgba(C.ink), align: 'center' });
+  }));
+}
+
+// ---------------------------------------------------------------- the rest of the changelog, then the update path
+function drawChangelog(t) {
+  if (t < B(18) || t > B(27)) return;
+  const size = SLOT.roll, x = SLOT.x, pitch = size * 1.3;
+  const top = SLOT.top ?? H / 2 - (44 + REL.changes.length * pitch) / 2;
+  const out = (k) => P(t, 22.5 + k * 0.08, 2.6, 0.95);
+  withEnv(env(P(t, 18.5, 2.4, 0.88), out(0)), () => T(`ALSO IN ${REL.version}`, x + 2, top + 12, 18, { fam: BODY, w: 700, col: rgba(C.accent), ls: 3 }));
+  REL.changes.forEach((line, i) => {
+    const by = top + 44 + (i + 1) * pitch - size * 0.3;
+    const off = (1 - P(t, 19 + i * 0.5, 2.0, 0.86)) * pitch - out(i + 1) * pitch; // ≥ 1.3 em of travel
+    ctx.save(); ctx.beginPath(); ctx.rect(x - 12, by - size * 0.98, W, size * 1.28); ctx.clip();
+    T(line, x, by + off, size, { fam: DISPLAY, col: rgba(LOOK.ink), base: 'alphabetic' });
+    ctx.restore();
+  });
+}
+const MENU = [REL.product, 'File', 'Edit', 'View', 'Window'];
+function drawMenuBar(t) {
+  withEnv(env(P(t, 20.5, 2.2, 0.88), P(t, 27, 2.6, 0.95)), () => {
+    LOOK.glass(ctx, MB.x, MB.y, MB.w, MB.h, 10, { alpha: 0.7, shadow: [20, 6, 'rgba(20,20,40,0.14)'] });
+    const open = P(t, 23, 3, 1) - P(t, 26.75, 3, 1);
+    let x = MB.x + 18;
+    MENU.forEach((m, i) => {
+      const wt = i ? 400 : 700, w = MW(m, 15, wt);
+      if (i === 0 && open > 0.001) { rr(x - 9, MB.y + 5, w + 18, MB.h - 10, 6); ctx.fillStyle = rgba(C.ink, 0.1 * open); ctx.fill(); }
+      T(m, x, MB.y + MB.h / 2 + 1, 15, { w: wt, col: rgba(C.ink) });
+      x += w + 24;
+    });
+  });
+}
+function drawMenu(t) {
+  const o = P(t, 23.1, 3.2, 1), out = P(t, 26.75, 3, 1); // opens under the item, a beat after the press
+  if (o <= 0.001 || out >= 0.999) return;
+  ctx.save(); ctx.globalAlpha *= clamp(o * 2) * clamp(1 - out * 1.4); ctx.translate(0, (1 - clamp(o)) * -6);
+  LOOK.glass(ctx, DD.x, DD.y, DD.w, DD.h, 10, { tint: [250, 250, 252], alpha: 0.8, shadow: [30, 12, 'rgba(20,20,40,0.22)'] });
+  rr(DD.x, DD.y, DD.w, DD.h, 10); ctx.lineWidth = 1; ctx.strokeStyle = rgba(C.ink, 0.08); ctx.stroke();
+  // the row under the cursor is the highlighted one, as in a real menu; the click blinks it
+  const cx = curX(t), cy = curY(t);
+  DD_ITEMS.forEach((it, i) => {
+    const y = ddY(i);
+    if (!it) { ctx.fillStyle = rgba(C.ink, 0.1); ctx.fillRect(DD.x + 12, y + DD_SEP / 2, DD.w - 24, 1); return; }
+    const hot = cx > DD.x && cx < DD.x + DD.w && cy >= y && cy < y + DD_ROW ? clamp(1 - bump(t, 26.5) * 1.2) : 0;
+    if (hot > 0) { rr(DD.x + 5, y, DD.w - 10, DD_ROW, 6); ctx.fillStyle = rgba(C.accent, hot); ctx.fill(); }
+    const col = rgba(mixc(C.ink, [255, 255, 255], hot));
+    T(it[0], DD.x + 20, y + DD_ROW / 2 + 1, 15, { col });
+    if (it[1]) T(it[1], DD.x + DD.w - 20, y + DD_ROW / 2 + 1, 15, { col: rgba(mixc(C.dim, [255, 255, 255], hot)), align: 'right' });
+  });
+  ctx.restore();
+}
+
+// ---------------------------------------------------------------- headlines, cursor
+function drawHead(t, h) {
+  const tin = B(h.tin), tout = B(h.tout);
+  if (t < tin - 0.3 || t > tout + 1.6) return;
+  const { size, lh, x } = SLOT, top = SLOT.top ?? H / 2 - (h.lines.length * lh) / 2;
+  let wi = 0;
+  h.lines.forEach((line, li) => {
+    const by = top + li * lh + size * 0.8;
+    let wx = x;
+    line.split(' ').forEach((word) => {
+      const pin = spr(t, tin + wi * 0.13, 2.0, 0.86), pout = spr(t, tout + wi * 0.05, 2.6, 0.95);
+      const off = (1 - pin) * size * 1.3 - pout * size * 1.3; // ≥ 1.3 em, or descenders linger in the clip
+      const ww = MW(word + ' ', size, 400, DISPLAY);
+      ctx.save(); ctx.beginPath(); ctx.rect(wx - 12, by - size * 0.98, ww + 24, size * 1.28); ctx.clip();
+      T(word, wx, by + off, size, { fam: DISPLAY, col: rgba(LOOK.ink), base: 'alphabetic' });
+      ctx.restore();
+      wx += ww; wi++;
+    });
+  });
+}
+const CLICKS = [6.75, 23, 26.5]; // each under a still camera, on a cursor at rest (tools: clickcheck.mjs)
+let curX, curY;
+function buildCursor() { // targets measured after the fonts load
+  const product = [MB.x + 18 + MW(REL.product, 15, 700) / 2, MB.y + MB.h / 2 + 2];
+  const update = [DD.x + 96, ddY(2) + DD_ROW / 2];
+  const keys = [
+    [3, SORT.x + 88, SORT.y + 17],                       // to the new control: it arrives, rests, then presses
+    [8, WIN.x + WIN.w - 70, WIN.y + WIN.h - 90],        // out of the way once the rows have re-sorted
+    [19, ...product], [23.75, ...update, 1.0],           // it stays through the press; a short hop, quicker
+    [27, ...REST, 1.2],                                  // home: quicker, it must be at rest by the loop point
+  ];
+  // slow enough to read as a hand, and given about two seconds to arrive before each press
+  curX = track(REST[0], keys.map((k) => [k[0], k[1], k[3] ?? 0.85, 0.9]));
+  curY = track(REST[1], keys.map((k) => [k[0], k[2], k[3] ?? 0.75, 0.92]));
+  // a click lands on a cursor that has arrived: one still gliding leaves its ripple behind it
+  CLICKS.forEach((c) => {
+    const k = keys.filter((q) => q[0] <= c).pop(), d = k ? Math.hypot(curX(B(c)) - k[1], curY(B(c)) - k[2]) : 0;
+    if (d > 2) console.error(`the click on beat ${c} lands ${d.toFixed(0)} px short of the cursor's target: start the move earlier`);
+  });
+}
+const ARROW = new Path2D('M0 0 L0 16.2 L3.9 12.5 L6.5 18.5 L9 17.4 L6.5 11.5 L11.8 11.5 Z');
+/** A press held long enough to see: down over 0.05 s, up 0.14 s later. */
+const hold = (t, tb) => spr(t, B(tb) - 0.05, 4, 1) - spr(t, B(tb) + 0.14, 4, 1);
+function drawCursor(t) {
+  const [sx, sy] = toScreen(curX(t), curY(t));
+  const press = CLICKS.reduce((a, c) => a + hold(t, c), 0);
+  const s = 2.0 * Math.pow(CAM.z, 0.35) * (1 - 0.16 * press);
+  // a ring where each click landed, pinned to that world point while the camera moves on
+  CLICKS.forEach((c) => LOOK.ripple(ctx, ...toScreen(curX(B(c)), curY(B(c))), t, B(c), 1.45 * Math.pow(CAM.z, 0.35)));
+  ctx.setTransform(s, 0, 0, s, sx, sy);
+  ctx.save();
+  ctx.shadowBlur = 3 * s; ctx.shadowOffsetY = 1.2 * s; ctx.shadowColor = 'rgba(0,0,0,0.28)';
+  ctx.lineJoin = 'round'; ctx.lineWidth = 2.2; ctx.strokeStyle = '#FFFFFF'; ctx.stroke(ARROW);
+  noShadow(); ctx.fillStyle = '#000000'; ctx.fill(ARROW);
+  ctx.restore();
+}
+
+// ---------------------------------------------------------------- frame
+/** opts.loopcheck: leave out what changes every frame by design (grain), which render.mjs asks for. */
+function seek(t, opts = {}) {
+  t = ((t % DUR) + DUR) % DUR;
+  STAGE.begin(opts); // opts.jitter: this subframe's subpixel offset, from render.mjs
+  setCam(t);
+  ctx = mainCtx; SHADOW_K = null;
+  ctx.save();
+  LOOK.backdrop(ctx, t, CAM, opts);
+  world();
+  drawVersionCard(t); // beneath the shape: the window grows over the leaving title, never under it
+  const s = drawShape(t);
+  if (t > B(2.75) && t < B(27.5)) { ctx.save(); rr(s.x, s.y, s.w, s.h, s.c); ctx.clip(); drawWindow(t); drawPalette(t); ctx.restore(); }
+  drawMenuBar(t); drawMenu(t);
+  screen();
+  REL.heads.forEach((h) => drawHead(t, h));
+  drawChangelog(t);
+  drawKeys(t);
+  drawCursor(t);
+  ctx.restore();
+  screen();
+  LOOK.finish(ctx, t, opts);
+}
+window.seek = seek;
+window.ready = (async () => {
+  await Promise.all(FONT_FACES.map((f) => document.fonts.load(f)));
+  await LOOK.ready;
+  buildCursor();
+  seek(0);
+  return true;
+})();
+</script>
+</body>
+</html>

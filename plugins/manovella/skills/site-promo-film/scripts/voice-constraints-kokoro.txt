@@ -1,0 +1,53 @@
+# voice-constraints-kokoro.txt: the packages Kokoro adds to the Python of voice-constraints.txt, at the
+# versions it was heard with (a test venv of 2026-11-17: `pip freeze` less voice-constraints.txt, which
+# it left as it was). `voice.mjs --setup kokoro` installs them, and only then: about 160 MB, most of it
+# spaCy and the English text model (en_core_web_sm 3.8.0, a wheel from the spaCy models' releases,
+# which no index serves: it is installed from its URL, without dependencies). espeakng-loader carries
+# the espeak-ng library Italian and the other non-English voices speak through: no Homebrew.
+attrs==26.1.0
+babel==2.18.0
+blis==1.3.4
+catalogue==2.0.10
+certifi==2026.10.23
+charset-normalizer==3.5.2
+cloudpathlib==0.26.0
+cloudpickle==3.1.2
+confection==1.3.4
+csvw==4.2.0
+cymem==2.0.16
+dlinfo==2.0.0
+espeakng-loader==0.2.4
+httpcore==1.0.9
+httpx==0.28.1
+isodate==0.7.2
+joblib==1.6.0
+jsonschema==4.26.0
+jsonschema-specifications==2025.9.1
+language-tags==1.3.2
+misaki==0.7.4
+murmurhash==1.0.16
+num2words==0.5.6
+phonemizer-fork==3.3.2
+preshed==3.0.15
+pyparsing==3.3.3
+python-dateutil==4.0.0
+rdflib==7.6.0
+referencing==0.37.0
+requests==2.34.2
+rfc3986==1.5.0
+rpds-py==2026.9.1
+segments==2.4.0
+setuptools==84.2.1
+smart_open==9.0.4
+spacy==3.8.18
+spacy-legacy==3.0.12
+spacy-loggers==1.0.5
+srsly==2.5.6
+termcolor==3.3.0
+thinc==8.3.14
+tzdata==2026.6
+uritemplate==4.2.0
+urllib3==2.8.0
+wasabi==1.1.3
+weasel==1.0.1
+wrapt==2.5.2

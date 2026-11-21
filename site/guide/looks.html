@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Looks &middot; Manovella docs</title>
+<meta name="description" content="The twenty-three Manovella looks in pictures: backdrops, brand light, grain and glass, a picture of your own, and palettes made from a single colour." />
+<link rel="canonical" href="https://manovella.mov/guide/looks.html" />
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="Manovella" />
+<meta property="og:title" content="Looks &middot; Manovella docs" />
+<meta property="og:description" content="The twenty-three Manovella looks in pictures: backdrops, brand light, grain and glass, a picture of your own, and palettes made from a single colour." />
+<meta property="og:url" content="https://manovella.mov/guide/looks.html" />
+<meta property="og:image" content="https://manovella.mov/og.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Manovella: product films, written as code" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Looks &middot; Manovella docs" />
+<meta name="twitter:description" content="The twenty-three Manovella looks in pictures: backdrops, brand light, grain and glass, a picture of your own, and palettes made from a single colour." />
+<meta name="twitter:image" content="https://manovella.mov/og.png" />
+<link rel="preload" href="../fonts/geist/geist-100-900-latin.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="stylesheet" href="../base.css" />
+<link rel="stylesheet" href="style.css" />
+<script src="docs.js" defer></script>
+</head>
+<body data-page="looks" data-title="Looks">
+<div class="layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main">
+    <header class="topbar" id="topbar"></header>
+    <main class="doc">
+      <article class="page">
+        <p class="eyebrow">Catalogue</p>
+        <h1>Looks</h1>
+        <p class="lead">The twenty-three looks a film can have, from flat to WebGL fields, a picture of your own as the backdrop, and whole palettes made from one colour.</p>
+
+        <p>Twenty-three presets, one line in a page: <code>FX.look({ preset: 'mesh', palette: C })</code>, or <code>#look=mesh</code> in the URL to try one without editing. A look is a backdrop (flat, gradient, field or picture), soft brand light, dots, grid or lines in parallax, a floor in perspective or a spotlight, a finish (vignette, grain) and the effects that lean on it: frosted glass, click ripples, focus-pull headlines.</p>
+        <p>The presets are <code>plain</code>, <code>paper</code>, <code>dots</code>, <code>grid</code>, <code>aura</code>, <code>spotlight</code>, <code>mesh</code>, <code>silk</code>, <code>sunrise</code>, <code>halo</code>, <code>night</code>, <code>studio</code>, <code>meshdark</code>, <code>lava</code>, <code>aurora</code>, <code>caustics</code>, <code>topo</code>, <code>halftone</code>, <code>clouds</code>, <code>lines</code>, <code>dunes</code>, <code>floor</code> and <code>ember</code>. Of these, <code>caustics</code>, <code>topo</code>, <code>halftone</code> and <code>clouds</code> are WebGL fields.</p>
+        <figure class="shot">
+          <div class="frame">
+            <img src="../img/looks.jpg" alt="The twenty-three looks, each rendered on the promo demo" width="1600" height="1000" loading="lazy" />
+          </div>
+          <figcaption>Every preset, rendered once on the promo demo: <code>node render.mjs looks looks 4.5</code> makes this sheet for any film.</figcaption>
+        </figure>
+        <p>The fields move, slowly, a whole number of cycles per film, so a loop still closes and a five-minute film moves no faster than an eight-second one:</p>
+        <figure class="shot">
+          <div class="frame">
+            <img src="../img/looks-motion.jpg" alt="Six animated looks at four moments" width="1600" height="1518" loading="lazy" />
+          </div>
+          <figcaption>Six animated looks at four moments.</figcaption>
+        </figure>
+
+        <h2 id="photo">A picture of your own</h2>
+        <p>A picture can be the backdrop, cover-fit and baked once:</p>
+        <div class="code">
+          <button class="copy" type="button">copy</button>
+          <pre><code>FX.look({ preset: 'photo', palette: C,
+  base: { image: 'backdrops/x.jpg', blur: 10, duotone: ['deep', 'pale'], drift: 0.04 } })</code></pre>
+        </div>
+        <p><code>tint</code> lays the brand over it instead, <code>dim</code> darkens it for light text, and <code>drift</code> is a slow Ken Burns that still closes the loop. In the Studio these are the blur, the treatment (dimmed, brand tint, duotone) and the drift. The brief records where the picture came from, and Claude asks before a film with a picture that is not your own photo goes out.</p>
+
+        <h2 id="palettes">Palettes and chapters</h2>
+        <p>A whole palette from one colour: <code>FX.palette('#2FBFA8', { scheme: 'complementary', tone: 'light' })</code>. The schemes are analogous, complementary, triad, split and mono. A stage can change by chapter: <code>FX.sequence([[0, a], [24, b], &hellip;], { fade: 0.8 })</code>.</p>
+        <figure class="shot">
+          <div class="frame">
+            <img src="../img/palettes.jpg" alt="Looks from three colours and five schemes" width="1600" height="671" loading="lazy" />
+          </div>
+          <figcaption>Looks from three colours and five schemes.</figcaption>
+        </figure>
+        <figure class="shot">
+          <div class="frame">
+            <img src="../img/chapters.jpg" alt="One sequence of looks, changing by chapter" width="1600" height="522" loading="lazy" />
+          </div>
+          <figcaption>One sequence of looks.</figcaption>
+        </figure>
+        <p>Choosing: ask for the looks sheet on the film&rsquo;s first real frame, and pick by eye. See <a href="films.html#stills">Making a film</a>.</p>
+
+        <div class="pager">
+          <a href="settings.html"><small>Previous</small><b>&larr; Settings</b></a>
+          <a class="next" href="formats.html"><small>Next</small><b>Formats &rarr;</b></a>
+        </div>
+      </article>
+    </main>
+  </div>
+</div>
+</body>
+</html>

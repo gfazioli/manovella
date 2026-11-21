@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Rendering &middot; Manovella docs</title>
+<meta name="description" content="How Manovella renders: formats, aspects, covers, chapters, motion-blur quality, resumable chunks and the cool defaults of utility QoS and an 80 C governor." />
+<link rel="canonical" href="https://manovella.mov/guide/rendering.html" />
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="Manovella" />
+<meta property="og:title" content="Rendering &middot; Manovella docs" />
+<meta property="og:description" content="How Manovella renders: formats, aspects, covers, chapters, motion-blur quality, resumable chunks and the cool defaults of utility QoS and an 80 C governor." />
+<meta property="og:url" content="https://manovella.mov/guide/rendering.html" />
+<meta property="og:image" content="https://manovella.mov/og.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Manovella: product films, written as code" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Rendering &middot; Manovella docs" />
+<meta name="twitter:description" content="How Manovella renders: formats, aspects, covers, chapters, motion-blur quality, resumable chunks and the cool defaults of utility QoS and an 80 C governor." />
+<meta name="twitter:image" content="https://manovella.mov/og.png" />
+<link rel="preload" href="../fonts/geist/geist-100-900-latin.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="stylesheet" href="../base.css" />
+<link rel="stylesheet" href="style.css" />
+<script src="docs.js" defer></script>
+</head>
+<body data-page="rendering" data-title="Rendering">
+<div class="layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main">
+    <header class="topbar" id="topbar"></header>
+    <main class="doc">
+      <article class="page">
+        <p class="eyebrow">Reference</p>
+        <h1>Rendering</h1>
+        <p class="lead">Outputs, aspects, covers and chapters, the quality of the blur, and the heat defaults: utility QoS, a third of the cores and an 80 &deg;C governor.</p>
+
+        <h2 id="outputs">Outputs</h2>
+        <ul>
+          <li><b>Files</b>: the output&rsquo;s extension picks the format. <code>.mp4</code> (H.264, or HEVC with <code>HEVC=1</code>), <code>.mov</code> (ProRes 422 HQ), <code>.webm</code>, <code>.gif</code>.</li>
+          <li><b>Transparent</b>: a page that leaves its background clear (the look <code>transparent</code>, <code>#look=transparent</code>, kept off the Studio&rsquo;s sheet) rendered with <code>ALPHA=1</code> comes out with its alpha, as <code>.mov</code> (ProRes 4444) or <code>.webm</code> (VP9 with alpha), to lay over footage in an editor. <code>.mp4</code> and <code>.gif</code> carry no alpha and are refused. Tried on single-scene pages: a timeline film also needs an <code>under</code> that draws the transparent backdrop, or its cuts fill with an opaque colour.</li>
+          <li><b>Aspects</b>: 16:9, 1:1, 4:5 or 9:16. A second aspect is a second layout, composed for its own frame, never a crop of the first.</li>
+          <li><b>Size and speed</b>: 60 fps and 1080 pixels on the short side by default: 1920 &times; 1080, or 1080 &times; 1920 upright.</li>
+          <li><b>Covers</b>: a still per aspect (<code>render.mjs stills stills 0</code> is frame 0).</li>
+          <li><b>Chapters</b>: a timeline of scenes carries a film of any length; chapters land in the mp4 and in a list for a YouTube description. A film that declares chapters needs three or more, the first at 0, each at least 10 seconds.</li>
+        </ul>
+
+        <h2 id="quality">Quality</h2>
+        <p>Sixteen subframes a frame are the motion blur. Each also gets a different subpixel offset on a 4&times;4 grid, so the blend is a 16-sample antialias as well: Chrome snaps text to whole pixels, and without it text in a slow move stepped a pixel every few frames. Rasters go through <code>FILM.draw</code>, which mipmaps what Chrome does not. On a real 28 s release film the worst slow-move flicker fell 37&ndash;76 %, at the same render time.</p>
+        <p>A frame that moves fast (a push, a whip) gets 48 subframes instead: at 16 its moments showed as copies about 12 px apart. A quick pass measures every frame&rsquo;s speed first; on a 56 s reel 8.5 % of the frames were fast, a render about a fifth longer. The <b>shutter</b> (<code>SHUTTER</code>, 360&deg; by default) sets how much of each frame the sixteen cover: 180&deg; is a film camera&rsquo;s, crisper, at the same cost.</p>
+
+        <h2 id="checks">Checks</h2>
+        <p>A page that loses a WebGL context (Chrome keeps 16 a page, and a lost one draws nothing) fails the capture instead of delivering an empty backdrop, and each cut keeps its chunks in a folder of its own, so a square cut never deletes the master&rsquo;s. Before the first frame, the soundtrack: a file without sound or an <code>AUDIO_AT</code> past its end stops the render, a track shorter than the film or a silent stretch is said. After the last, the file: its size, frames, length and sound are read back, and a file that does not match fails the render.</p>
+
+        <h2 id="length">Length</h2>
+        <ul>
+          <li><code>PREVIEW=1</code> drafts the whole film at a sixteenth of the work.</li>
+          <li><code>FROM</code> and <code>TO</code> render one chapter or one transition.</li>
+          <li><code>RESUME=1</code> picks up a stopped render from its chunks, refusing when the page, its scripts or the settings changed.</li>
+          <li><code>KEEP=1</code> keeps the chunks, so another format is an encode, not a render.</li>
+        </ul>
+
+        <h2 id="heat">Heat</h2>
+        <p>A render keeps the chip busy for minutes, and a run of test renders once took it to 91 &deg;C. The renderer runs cool by default; these measurements chose the defaults: 8 s of <code>reel.html</code> (1080p60, 16 subframes) on an M5 Pro, with other work on the machine.</p>
+        <div class="tablewrap">
+        <table class="keys">
+          <thead><tr><th>Workers</th><th>QoS class</th><th>Governor</th><th>Time</th><th>Peak</th><th>Held</th></tr></thead>
+          <tbody>
+            <tr><td>12</td><td>default</td><td>86 &deg;C</td><td>77 s</td><td>87.9 &deg;C</td><td>16 s</td></tr>
+            <tr><td>6</td><td>default</td><td>86 &deg;C</td><td>117 s</td><td>86.7 &deg;C</td><td>4 s</td></tr>
+            <tr><td>12</td><td>default</td><td>80 &deg;C</td><td>250 s</td><td>85.5 &deg;C</td><td>198 s</td></tr>
+            <tr><td>12</td><td>utility</td><td>80 &deg;C</td><td>248 s</td><td>81.8 &deg;C</td><td>76 s</td></tr>
+            <tr><td><b>6</b></td><td><b>utility</b></td><td><b>80 &deg;C</b></td><td><b>231 s</b></td><td><b>80.0 &deg;C</b></td><td><b>0 s</b></td></tr>
+            <tr><td>12</td><td>background</td><td>86 &deg;C</td><td>1039 s</td><td>80.1 &deg;C*</td><td>0 s</td></tr>
+          </tbody>
+        </table>
+        </div>
+        <p>* another session&rsquo;s work on the machine; its own load held about 60 &deg;C.</p>
+        <ul>
+          <li><b>The defaults are the bold row</b>: a third of the cores (<code>WORKERS</code>), the <code>utility</code> QoS class (<code>QOS</code>), the governor at 80 &deg;C (<code>TEMP_MAX</code>). At the same ceiling full speed is slower <i>and</i> hotter: it heats past the ceiling before the governor can hold it, then spends most of the render cooling (198 s of 250).</li>
+          <li><b>A long film takes longer, not hotter.</b> At the defaults this reel renders at about 29&times; real time; a film without WebGL fields or dither, faster. Draft with <code>PREVIEW=1</code>; leave a very long master to <code>QOS=background</code>, the coolest, at a third of the speed.</li>
+          <li><b>Faster, knowingly</b>: <code>QOS=default WORKERS=12 TEMP_MAX=86</code> is the old behaviour, for a short film when you ask for speed. One render at a time, always.</li>
+          <li><b>The governor reads the chip, not the render</b>, so heat from other work holds the render too. It needs <code>swiftc</code> (Xcode&rsquo;s command-line tools) to build <code>thermo.swift</code> once; without it, macOS&rsquo;s own thermal state, which only acts at &ldquo;serious&rdquo;.</li>
+          <li><b>Spotlight</b>: the scratch folders end in <code>.noindex</code>, because chunks written and deleted by the thousand kept Spotlight&rsquo;s indexers busy after a render.</li>
+        </ul>
+
+        <h2 id="delivery">Delivery</h2>
+        <p>The finished films leave the work folder for a folder of their own, and the work folder goes to the Trash once its source is safe in the product&rsquo;s kit. See <a href="films.html#delivery">Making a film</a>. <code>deliver.mjs</code> puts each cover through ImageOptim when it is installed, with an SSIM against the original: a real release film&rsquo;s posters went from 1.0 MB to 0.13 MB at SSIM 0.9995.</p>
+
+        <div class="pager">
+          <a href="parts.html"><small>Previous</small><b>&larr; Parts and tutorials</b></a>
+          <a class="next" href="by-hand.html"><small>Next</small><b>By hand &rarr;</b></a>
+        </div>
+      </article>
+    </main>
+  </div>
+</div>
+</body>
+</html>

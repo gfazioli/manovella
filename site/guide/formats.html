@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Formats &middot; Manovella docs</title>
+<meta name="description" content="The eleven Manovella film formats, from a one-object morph to a data story, with what each fits and why three storyboards are three formats." />
+<link rel="canonical" href="https://manovella.mov/guide/formats.html" />
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="Manovella" />
+<meta property="og:title" content="Formats &middot; Manovella docs" />
+<meta property="og:description" content="The eleven Manovella film formats, from a one-object morph to a data story, with what each fits and why three storyboards are three formats." />
+<meta property="og:url" content="https://manovella.mov/guide/formats.html" />
+<meta property="og:image" content="https://manovella.mov/og.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Manovella: product films, written as code" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Formats &middot; Manovella docs" />
+<meta name="twitter:description" content="The eleven Manovella film formats, from a one-object morph to a data story, with what each fits and why three storyboards are three formats." />
+<meta name="twitter:image" content="https://manovella.mov/og.png" />
+<link rel="preload" href="../fonts/geist/geist-100-900-latin.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="stylesheet" href="../base.css" />
+<link rel="stylesheet" href="style.css" />
+<script src="docs.js" defer></script>
+</head>
+<body data-page="formats" data-title="Formats">
+<div class="layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main">
+    <header class="topbar" id="topbar"></header>
+    <main class="doc">
+      <article class="page">
+        <p class="eyebrow">Catalogue</p>
+        <h1>Formats</h1>
+        <p class="lead">The eleven formats a film can take, the first decision of a film and the one to vary, each with what it fits.</p>
+
+        <p>The first decision of a film, and the one to vary: three storyboards are three formats, not three pacings of one idea. <code>reel.html</code> runs six of them on a timeline, with the stills <code>render.mjs sheet</code> takes at every scene settled and every transition half done:</p>
+        <figure class="shot">
+          <div class="frame">
+            <img src="../img/reel.jpg" alt="The reel, scene by scene: six formats and the transitions between them" width="1600" height="1000" loading="lazy" />
+          </div>
+          <figcaption>The reel, scene by scene.</figcaption>
+        </figure>
+        <div class="tablewrap">
+        <table class="keys">
+          <thead><tr><th>Format</th><th>Fits</th></tr></thead>
+          <tbody>
+            <tr><td class="k">One-object morph</td><td>an app with a strong shape language</td></tr>
+            <tr><td class="k">Kinetic type</td><td>a launch, a teaser, a manifesto</td></tr>
+            <tr><td class="k">Browser walkthrough</td><td>a web product, a site</td></tr>
+            <tr><td class="k">Bento</td><td>a product with many small features</td></tr>
+            <tr><td class="k">Terminal</td><td>a CLI, a developer tool</td></tr>
+            <tr><td class="k">Devices in 3D</td><td>cross-platform, &ldquo;works everywhere&rdquo;</td></tr>
+            <tr><td class="k">Zoom-through</td><td>a story of depth: each scene inside a detail of the last</td></tr>
+            <tr><td class="k">Data story</td><td>monitoring, analytics, a quota</td></tr>
+            <tr><td class="k">Before / after</td><td>a speed-up, a redesign</td></tr>
+            <tr><td class="k">Tutorial</td><td>onboarding, a long film</td></tr>
+            <tr><td class="k">What&rsquo;s new</td><td>a release (<a href="release-films.html">release films</a>)</td></tr>
+            </tbody>
+        </table>
+        </div>
+        <p>In the Studio, pick up to three, or leave it to Claude, which chooses three different ones for the product and unlike its previous films. Hovering a format plays its scenes in your colour and look. Beside the formats, the <a href="studio.html#device">Device</a> card sets what the product is shown in, whatever the format.</p>
+        <p>Two templates ship with the engine: <code>promo.html</code>, a loop with one object travelling through the product&rsquo;s surfaces, a real cursor and 3D in WebGL, and <code>reel.html</code>, a long film on a timeline with six scenes, six formats, five transitions and a look per chapter. A timeline of scenes carries a film of any length, and chapters land in the mp4 and in a list for a YouTube description.</p>
+
+        <div class="pager">
+          <a href="looks.html"><small>Previous</small><b>&larr; Looks</b></a>
+          <a class="next" href="type.html"><small>Next</small><b>Type &rarr;</b></a>
+        </div>
+      </article>
+    </main>
+  </div>
+</div>
+</body>
+</html>

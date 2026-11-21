@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sound &middot; Manovella docs</title>
+<meta name="description" content="Sound in Manovella films: music on its measured beat, a voice-over from a local model or a macOS voice, subtitles, and a voice mixed over a track." />
+<link rel="canonical" href="https://manovella.mov/guide/sound.html" />
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="Manovella" />
+<meta property="og:title" content="Sound &middot; Manovella docs" />
+<meta property="og:description" content="Sound in Manovella films: music on its measured beat, a voice-over from a local model or a macOS voice, subtitles, and a voice mixed over a track." />
+<meta property="og:url" content="https://manovella.mov/guide/sound.html" />
+<meta property="og:image" content="https://manovella.mov/og.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Manovella: product films, written as code" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Sound &middot; Manovella docs" />
+<meta name="twitter:description" content="Sound in Manovella films: music on its measured beat, a voice-over from a local model or a macOS voice, subtitles, and a voice mixed over a track." />
+<meta name="twitter:image" content="https://manovella.mov/og.png" />
+<link rel="preload" href="../fonts/geist/geist-100-900-latin.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="stylesheet" href="../base.css" />
+<link rel="stylesheet" href="style.css" />
+<script src="docs.js" defer></script>
+</head>
+<body data-page="sound" data-title="Sound">
+<div class="layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main">
+    <header class="topbar" id="topbar"></header>
+    <main class="doc">
+      <article class="page">
+        <p class="eyebrow">Guide</p>
+        <h1>Sound</h1>
+        <p class="lead">The music and its beat, a voice-over from a local model or a macOS voice, subtitles, and how a voice and a track are mixed into one soundtrack.</p>
+
+        <h2 id="music">Music</h2>
+        <p>The Studio&rsquo;s music step, or the request, picks one of:</p>
+        <ul>
+          <li><b>A track from your music library</b> (any audio file in it, with what its notes file says of it; see <a href="settings.html#music-library">Settings</a>).</li>
+          <li><b>A file of yours</b>, royalty-free or yours to publish: a film goes out with it. It is copied beside the film.</li>
+          <li><b>A new track from Gemini.</b> Claude cannot make music. The Studio writes a prompt from the film (its tone, its length, and a voice over it with no melody in the way of the words), you copy it into Gemini&rsquo;s own app, and the track you get back is saved in the music library when there is one (in the product&rsquo;s folder when the library keeps one per brand, with its paragraph in that folder&rsquo;s notes file), else in the film&rsquo;s <code>src/audio/</code>.</li>
+          <li><b>A metronome</b> (<code>AUDIO=click</code>): a click on every beat of the film&rsquo;s grid, never loudness-matched, to hear whether the cuts land before any music is chosen.</li>
+          <li><b>None.</b> A silent film is played muted by a page or a feed anyway, and a film that speaks can still have no music.</li>
+        </ul>
+        <p>A track goes under the film with <code>AUDIO=track.mp3</code>, from <code>AUDIO_AT</code> seconds into it, faded out over the last 0.6 s and brought to &minus;14 LUFS (<code>AUDIO_LUFS</code>; <code>AUDIO_NORM=0</code> keeps it as it is). Before the first frame the soundtrack is checked: a file without sound or an <code>AUDIO_AT</code> past its end stops the render, and a track shorter than the film or a silent stretch is said.</p>
+
+        <h2 id="beat">The beat</h2>
+        <p>The cuts land on the music&rsquo;s beat. <code>beats.mjs</code> measures a track from its samples alone (ffmpeg decodes; no model, no network): its tempo, whether it holds, every beat, the bars, the sections, and the <code>bpm</code> and <code>AUDIO_AT</code> that put the film on its beat.</p>
+        <div class="code">
+          <button class="copy" type="button">copy</button>
+          <pre><code>node beats.mjs track.mp3                  # tempo, bars, sections, and what the page needs
+node beats.mjs track.mp3 --out beats.js  # a track that drifts: its own beats, for the page
+AUDIO=track.mp3 node render.mjs beats    # the page's beats against the track's</code></pre>
+        </div>
+        <p>A steady track gives the page a <code>bpm</code> and a start on a bar (<code>AUDIO_AT</code>); one that drifts (a live band, a rubato) fits no fixed grid, so the page follows its own beats (<code>FILM.beats</code>). With <code>AUDIO=&lt;track&gt;</code> the render measures the page&rsquo;s beats against the track&rsquo;s before it starts. A pulse too weak to find reports no beat rather than a grid made up. The Studio plays each track of the library with its length and tempo measured.</p>
+
+        <h2 id="voice">Voice-over</h2>
+        <p>Any film can speak: a promo that says its claim, a tutorial that tells its task. The Studio&rsquo;s voice step lets you hear a voice say a line before you choose it, at the tone, speed and human touch you set, through the same <code>voice.mjs</code> the film will use, and with a track chosen, mixed under it by the same <code>mix.mjs</code> (<i>Hear the voice alone</i> for the voice by itself). Its presets set a voice and its reading at once, each heard first: <b>Promo</b> (Leah, warm), <b>Launch</b> (Leah, bright), <b>Narrator</b> (Leo, relaxed), <b>Conversational</b> (Tara, expressive), <b>Recap</b> (Dan, bright and brisk) and <b>Lesson</b> (Chatterbox, slow, a clean read: the tutorial&rsquo;s). Every setting stays open under them. The choices:</p>
+        <figure class="shot">
+          <div class="frame">
+            <img src="../shots/voice.jpg" alt="The Studio&#x27;s voice step: the line heard over the chosen track at the top, the six presets as cards with Promo chosen, its subtitle on the stage" width="1600" height="1016" loading="lazy" />
+          </div>
+          <figcaption>The voice step: the line heard over the chosen track, the six presets, Promo chosen and its subtitle on the stage.</figcaption>
+        </figure>
+        <ul>
+          <li><b>A voice model on the Mac</b>, free, local and offline once downloaded, run by mlx-audio on Apple Silicon. Three were chosen by ear. <b>Chatterbox Turbo</b> (3 GB, one voice, even and calm: a lesson) and <b>Orpheus</b> (3.5 GB, eight voices, its voice &ldquo;leah&rdquo; unless another is named, warmer: a promo) were tried in US English and no other language. <b>Kokoro</b> (330 MB, about ten times smaller and quick: a draft) was heard in US English (Heart, Bella, Michael) and in Italian (Sara), and in no other language; it has no tone to set.</li>
+          <li><b>A macOS voice</b>, through <code>say</code>. The ones every Mac has are compact or plainly synthetic; Premium and Enhanced ones are a free download in System Settings. They are for a language the voice models were not tried in (Italian has Kokoro&rsquo;s Sara): a film in English is told by a model. The Studio lists a Mac&rsquo;s voices best first and says under them what it lacks.</li>
+          <li><b>Your recordings</b>, one file a line.</li>
+          <li><b>None.</b></li>
+        </ul>
+        <p>A model reads a line a little differently at every seed. <b>A take is a seed</b>: the same model, voice, words and seed gave the same WAV to the byte, twice in the same environment and again in a second one made from nothing (Kokoro&rsquo;s differ by one 16-bit step from run to run, with the same length). The take someone heard is the seed written on the step. <code>--audition 3</code> says three takes a step into <code>voice-mlx/audition</code>, to listen to.</p>
+        <p>The tone (calm, warm, bright) is how freely the model reads; <code>tempo</code> (0.85 to 1.15, pitch kept) and <code>level</code> are worked on the recording, so changing them says nothing again. The <code>human</code> option (clean, natural, expressive) varies each line&rsquo;s pace within 3 % and lets a line make a sound where the model supports it.</p>
+        <h3>Once per Mac</h3>
+        <div class="code">
+          <button class="copy" type="button">copy</button>
+          <pre><code>node voice.mjs --setup chatterbox orpheus kokoro</code></pre>
+        </div>
+        <p>This makes a Python 3.13 environment in <code>~/.local/share/film-voice</code> (600 MB; <code>brew install python@3.13</code> first when there is none) with mlx-audio and everything under it at the versions of <code>voice-constraints.txt</code>, downloads the models named into <code>~/.cache/huggingface</code>, says a fixed line with each and prints its SHA-256 beside the one recorded in <code>voice.mjs</code> (none for Kokoro). Asking for <code>kokoro</code> also installs its text packages, pinned in <code>voice-constraints-kokoro.txt</code> (spaCy, misaki and the espeak-ng library: about 160 MB, wheels only, nothing from Homebrew). Its voice tells Italian from English by its first letter (<code>if_sara</code>, <code>af_heart</code>), or by <code>lang</code> in the story&rsquo;s <code>mlx</code>. <b>The same</b> means a seed is the same recording on two Macs; <b>not the same</b> means it is not, and a film approved on one needs its <code>voice-mlx</code> folder brought over or its takes heard again. Without the environment <code>voice.mjs</code> stops and names the command; it never falls back to another voice. <code>VOICE_PYTHON=&lt;python&gt;</code> uses another Python.</p>
+
+        <h2 id="subtitles">Subtitles</h2>
+        <p>A film that speaks can carry subtitles: <code>captions.srt</code> and <code>captions.vtt</code> are written beside the voice, and the page draws the subtitle of the moment (<code>FILM.captions</code>). In the brief, <code>captions</code> is <code>both</code> (burned in and as files), <code>burned</code>, <code>file</code> or <code>none</code>. A pause written as <code>[[slnc 280]]</code> in a sentence, and a model&rsquo;s sounds such as <code>[chuckle]</code>, are left out of the subtitles.</p>
+
+        <h2 id="mix">Music under a voice</h2>
+        <p>A voice and a music track become one soundtrack with <code>mix.mjs</code>: both measured (EBU R128), the music sitting <code>--under</code> LU below the voice while it speaks (14 by default, 12 to 15 being a voice-over&rsquo;s; the Studio offers <i>Present</i> at 10, <i>Under</i> at 14 and <i>Far under</i> at 18) and coming up <code>--lift</code> dB between lines (6 by default; 0 keeps it under all along). It goes down 0.35 s before a line begins, and a pause shorter than 0.7 s is not a gap. It prints what came out, measured on the result.</p>
+        <div class="code">
+          <button class="copy" type="button">copy</button>
+          <pre><code>node mix.mjs --voice narration.wav --music track.mp3 --out mix.wav [--under 14] [--lift 6]
+AUDIO=mix.wav AUDIO_AT=0 AUDIO_LUFS=-16 node render.mjs video film.mp4</code></pre>
+        </div>
+
+        <div class="pager">
+          <a href="release-films.html"><small>Previous</small><b>&larr; Release films</b></a>
+          <a class="next" href="settings.html"><small>Next</small><b>Settings &rarr;</b></a>
+        </div>
+      </article>
+    </main>
+  </div>
+</div>
+</body>
+</html>

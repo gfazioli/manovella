@@ -1,0 +1,610 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Reel</title>
+<style>
+html,body{margin:0;background:#000;overflow:hidden}
+canvas{display:block}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script src="film.js"></script><!-- the stage, motion, the timeline, transitions, effects -->
+<script src="fx.js"></script><!-- the looks: backdrop, light, texture, glass, ripples -->
+<script src="parts.js"></script><!-- windows, a browser, a terminal, devices, keycaps -->
+<script>
+'use strict';
+/*
+ * A long film: scenes on a timeline, each one a different FORMAT, joined by different transitions,
+ * each on its own look. ~57 s here; the same structure carries five minutes. It is a catalogue as
+ * much as a template: every scene is a format a product film can be built on — replace them, reorder
+ * them, drop the ones the product has no use for, keep the engine.
+ *
+ *   open       kinetic type: words land on the beat, their weight swelling (system-ui is variable),
+ *              one word becomes a window onto the product, the camera dives through its "o"
+ *   web        the product in a browser: a real page, a click, a scroll, sections revealing
+ *   bento      a grid of live tiles, each showing one thing working; a rack focus on one of them
+ *   terminal   a CLI typed by a person, output streaming, a summary line
+ *   devices    the surfaces in true 3D, a cover-flow carousel on a glossy floor
+ *   end        the mark, the name, the call to action, clicked
+ *
+ * Every scene draws its WHOLE frame at its own local time lt, on the context it is handed (the
+ * helpers below draw on the global `ctx`, which the timeline points at it). Nothing is carried
+ * between frames. Chapters and the stills worth checking come from the timeline itself.
+ */
+const META = { width: 1920, height: 1080, fps: 60, bpm: 120, loop: false };
+window.PROMO_META = META;
+const W = META.width, H = META.height;
+const cv = document.getElementById('c');
+cv.width = W; cv.height = H;
+const mainCtx = cv.getContext('2d');
+const STAGE = FILM.stage(mainCtx); // subpixel jitter per subframe, 'high' smoothing
+let ctx = mainCtx;
+const { spr, track, camera } = FILM;
+const DISPLAY = 'system-ui', UI = 'system-ui', MONO = 'ui-monospace, Menlo, monospace'; // swap for the brand's faces
+const FONT_FACES = []; // e.g. ['700 100px Display']: awaited before frame 0
+
+// ---------------------------------------------------------------- math, colour
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const lerp = (a, b, p) => a + (b - a) * p;
+const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+const rgba = (c, a = 1) => `rgba(${Math.round(c[0])},${Math.round(c[1])},${Math.round(c[2])},${a})`;
+const mixc = (a, b, p) => [lerp(a[0], b[0], p), lerp(a[1], b[1], p), lerp(a[2], b[2], p)];
+const C = { // replace with the brand's tokens
+  canvas: hex('#F6F4EF'), ink: hex('#1A1C24'), dim: hex('#6B6F7B'), accent: hex('#5B5BF7'),
+  surface: hex('#161A26'), card: hex('#1E2332'), sec: hex('#8A90A6'), ter: hex('#5C6278'),
+  a: hex('#2FBFA8'), b: hex('#E8833A'), green: hex('#34C759'), line: hex('#E6E4DE'),
+};
+
+// ---------------------------------------------------------------- camera and drawing helpers
+let CAM = { x: 0, y: 0, z: 1 };
+const world = () => ctx.setTransform(CAM.z, 0, 0, CAM.z, W / 2 - CAM.x * CAM.z, H / 2 - CAM.y * CAM.z);
+const screen = () => ctx.setTransform(1, 0, 0, 1, 0, 0);
+const toScreen = (x, y, cam = CAM) => [W / 2 + (x - cam.x) * cam.z, H / 2 + (y - cam.y) * cam.z];
+const rr = (x, y, w, h, r) => PARTS.rr(ctx, x, y, w, h, r);
+function shadow(blur, oy, col) { const m = ctx.getTransform(), k = Math.hypot(m.a, m.b); ctx.shadowBlur = blur * k; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = oy * k; ctx.shadowColor = col; }
+function noShadow() { ctx.shadowBlur = 0; ctx.shadowOffsetY = 0; ctx.shadowColor = 'transparent'; }
+function T(s, x, y, size, o = {}) {
+  const { w = 500, fam = UI, col = C.ink, align = 'left', base = 'middle', ls = 0, alpha = 1 } = o;
+  if (alpha <= 0) return;
+  ctx.save(); ctx.globalAlpha *= clamp(alpha);
+  ctx.font = `${w} ${size}px ${fam}`; ctx.fillStyle = typeof col === 'string' ? col : rgba(col); ctx.textAlign = align; ctx.textBaseline = base;
+  ctx.letterSpacing = ls + 'px'; ctx.fillText(s, x, y); ctx.restore();
+}
+const MWC = new Map();
+function MW(s, size, w = 500, fam = UI, ls = 0) {
+  const key = `${s}|${size}|${w}|${fam}|${ls}`;
+  if (!MWC.has(key)) { const c = mainCtx; c.save(); c.font = `${w} ${size}px ${fam}`; c.letterSpacing = ls + 'px'; MWC.set(key, c.measureText(s).width); c.restore(); }
+  return MWC.get(key);
+}
+/** Tabular figures: canvas has no font-variant-numeric, so every digit gets the same cell. */
+const TW = (s, size, w = 500) => [...s].reduce((a, ch) => a + (/[0-9]/.test(ch) ? MW('0', size, w) : MW(ch, size, w)), 0);
+function TN(s, x, y, size, o = {}) {
+  const { w = 500, align = 'left' } = o, dw = MW('0', size, w), total = TW(s, size, w);
+  let cx = align === 'right' ? x - total : align === 'center' ? x - total / 2 : x;
+  for (const ch of s) { const d = /[0-9]/.test(ch); T(ch, cx + (d ? (dw - MW(ch, size, w)) / 2 : 0), y, size, { ...o, align: 'left' }); cx += d ? dw : MW(ch, size, w); }
+}
+const env = (pin, pout = 0) => ({ a: clamp(pin * 1.6) * clamp(1 - pout * 1.6), dy: (1 - clamp(pin, 0, 1.2)) * 10 - pout * 6 });
+function withEnv(e, fn) { if (e.a <= 0.001) return; ctx.save(); ctx.globalAlpha *= e.a; ctx.translate(0, e.dy); fn(); ctx.restore(); }
+const bump = (t, tc) => spr(t, tc - 0.03, 6, 1) - spr(t, tc + 0.1, 6, 1); // a press: down, then up
+const fmt = (n) => Math.round(n).toLocaleString('en-US');
+/** Runs fn with the helpers drawing on g (an effect's buffer), then puts them back. */
+function on(g, fn) { const c0 = ctx; ctx = g; try { fn(); } finally { ctx = c0; } }
+
+// A cursor for one scene: world positions as springs (x and y at different rates, so paths arc),
+// clicks that land on a cursor that has arrived, a ripple left where each click landed.
+function cursorFor(keys, clicks, from) {
+  const X = track(from[0], keys.map((k) => [k[0], k[1], 1.25, 0.9]));
+  const Y = track(from[1], keys.map((k) => [k[0], k[2], 1.05, 0.92]));
+  clicks.forEach((c) => {
+    const k = keys.filter((q) => q[0] <= c).pop(), d = k ? Math.hypot(X(c) - k[1], Y(c) - k[2]) : 0;
+    if (d > 2) console.error(`a click at ${c}s lands ${d.toFixed(0)} px short of the cursor's target: start the move earlier`);
+  });
+  return {
+    at: (t) => [X(t), Y(t)],
+    draw(t, look, a = 1) {
+      if (a <= 0.01) return;
+      const [sx, sy] = toScreen(X(t), Y(t)), press = clicks.reduce((s, c) => s + bump(t, c), 0);
+      const s = 1.85 * Math.pow(CAM.z, 0.35) * (1 - 0.12 * press);
+      clicks.forEach((c) => look.ripple(ctx, ...toScreen(X(c), Y(c)), t, c, s / 1.85));
+      ctx.save(); ctx.globalAlpha *= a; ctx.setTransform(s, 0, 0, s, sx, sy);
+      ctx.shadowBlur = 3 * s; ctx.shadowOffsetY = 1.2 * s; ctx.shadowColor = 'rgba(0,0,0,0.28)';
+      ctx.lineJoin = 'round'; ctx.lineWidth = 2.2; ctx.strokeStyle = '#FFFFFF'; ctx.stroke(PARTS.ARROW);
+      noShadow(); ctx.fillStyle = '#000000'; ctx.fill(PARTS.ARROW);
+      ctx.restore();
+    },
+  };
+}
+// A headline, word by word: `rise` slides each word up through a clip (≥ 1.3 em, or descenders
+// linger), `focus` pulls it into focus. Screen space; x, top-left of the block.
+function headline(t, lines, x, top, size, tin, tout, o = {}) {
+  const lh = size * 1.1, style = o.style || 'rise', col = o.col || C.ink, w = o.w || 700;
+  let wi = 0;
+  lines.forEach((line, li) => {
+    const by = top + li * lh + size * 0.8;
+    let wx = o.align === 'center' ? x - MW(line, size, w, DISPLAY, o.ls || 0) / 2 : x;
+    line.split(' ').forEach((word) => {
+      const pin = spr(t, tin + wi * 0.12, 2.0, 0.86), pout = spr(t, tout + wi * 0.04, 2.6, 0.95);
+      const ww = MW(word + ' ', size, w, DISPLAY, o.ls || 0), tw = { w, fam: DISPLAY, col, base: 'alphabetic', ls: o.ls || 0 };
+      if (style === 'focus') FX.focus(ctx, pin, pout, size, () => T(word, wx, by, size, tw));
+      else {
+        const off = (1 - pin) * size * 1.3 - pout * size * 1.3;
+        ctx.save(); ctx.beginPath(); ctx.rect(wx - 12, by - size * 0.98, ww + 24, size * 1.28); ctx.clip();
+        T(word, wx, by + off, size, tw); ctx.restore();
+      }
+      wx += ww; wi++;
+    });
+  });
+}
+
+// ---------------------------------------------------------------- the product, as vector
+// One dashboard, reused on every surface (a site's screenshot, a laptop, a card): the same UI
+// everywhere is what makes six formats read as one product.
+function dashboard(x, y, w, h, t, o = {}) {
+  const dark = o.dark !== false, bg = dark ? C.surface : [255, 255, 255], fg = dark ? [240, 241, 246] : C.ink, sub = dark ? C.sec : C.dim;
+  ctx.save(); rr(x, y, w, h, o.r ?? 14); ctx.fillStyle = rgba(bg); ctx.fill(); ctx.clip();
+  const sw = w * 0.2; ctx.fillStyle = rgba(dark ? [255, 255, 255] : [0, 0, 0], 0.04); ctx.fillRect(x, y, sw, h); // the sidebar
+  ['Overview', 'Activity', 'Repositories', 'Settings'].forEach((s, i) => {
+    if (i === (o.tab ?? 0)) { rr(x + 10, y + 22 + i * 34, sw - 20, 28, 8); ctx.fillStyle = rgba(C.accent, 0.9); ctx.fill(); }
+    T(s, x + 22, y + 36 + i * 34, 12.5, { w: 600, col: i === (o.tab ?? 0) ? [255, 255, 255] : sub });
+  });
+  const cx = x + sw + 22, cw = w - sw - 44;
+  T('Overview', cx, y + 34, 20, { w: 700, col: fg });
+  TN(fmt(o.value ?? 12480), cx, y + 78, 34, { w: 700, col: fg });
+  T('events today', cx + TW(fmt(o.value ?? 12480), 34, 700) + 10, y + 82, 13, { col: sub });
+  const n = 12, bw = (cw - (n - 1) * 8) / n, base = y + h - 34, maxH = h - 150;
+  for (let i = 0; i < n; i++) { // bars that grow on the scene's own clock
+    const v = [0.42, 0.58, 0.5, 0.72, 0.64, 0.8, 0.7, 0.88, 0.76, 0.93, 0.84, 1][i];
+    const p = o.grow === undefined ? 1 : spr(t, o.grow + i * 0.05, 1.6, 0.85);
+    const bh = maxH * v * p;
+    rr(cx + i * (bw + 8), base - bh, bw, bh, Math.min(6, bw / 2));
+    const g = ctx.createLinearGradient(0, base - bh, 0, base); g.addColorStop(0, rgba(i === n - 1 ? C.b : C.accent)); g.addColorStop(1, rgba(i === n - 1 ? C.b : C.accent, 0.55));
+    ctx.fillStyle = g; ctx.fill();
+  }
+  ctx.restore();
+}
+const MARK = new Path2D(); // the stand-in logo: a rounded square with a ring; replace with the real vector mark
+MARK.roundRect(-0.5, -0.5, 1, 1, 0.23);
+function drawMark(x, y, s, a = 1) { // centre (x, y), size s
+  ctx.save(); ctx.globalAlpha *= a; ctx.translate(x, y); ctx.scale(s, s);
+  const g = ctx.createLinearGradient(-0.5, -0.5, 0.5, 0.5); g.addColorStop(0, rgba(mixc(C.accent, [255, 255, 255], 0.15))); g.addColorStop(1, rgba(mixc(C.accent, [0, 0, 0], 0.25)));
+  ctx.fillStyle = g; ctx.fill(MARK);
+  ctx.beginPath(); ctx.arc(0, 0, 0.22, 0, Math.PI * 2); ctx.lineWidth = 0.1; ctx.strokeStyle = '#fff'; ctx.stroke();
+  ctx.restore();
+}
+
+// ---------------------------------------------------------------- looks: one per scene
+const LOOKDEF = { // a preset per scene; a dark scene next to a light one is a chapter break by itself
+  open: { preset: 'meshdark' }, web: { preset: 'mesh' }, bento: { preset: 'paper' },
+  terminal: { preset: 'aurora' }, devices: { preset: 'spotlight' }, end: { preset: 'silk' },
+};
+const HASH = new URLSearchParams(location.hash.slice(1));
+FX.previewAccent(C, HASH); // a preview's colour (the Studio's #accent=); a film's URL has none
+const LOOKS = {};
+function makeLooks(durs) {
+  for (const [k, v] of Object.entries(LOOKDEF)) {
+    LOOKS[k] = FX.look({ ...v, preset: HASH.get('look') || v.preset, palette: C }, { W, H, fps: META.fps, duration: durs[k], track, spr });
+  }
+}
+
+// ================================================================ scene 1 — open: kinetic type
+const OPEN = { dur: 7.5, size: 150, x: -700, y1: -30, y2: 150, lines: [['Everything'], ['in', 'one', 'place.']] };
+const W_END = 760; // the weight the words settle at
+let OPEN_LAYOUT;
+function layoutOpen() {
+  const L = [];
+  let tw = 0.45;
+  OPEN.lines.forEach((words, li) => {
+    let x = OPEN.x;
+    words.forEach((word) => { L.push({ word, x, y: li ? OPEN.y2 : OPEN.y1, tw }); x += MW(word + ' ', OPEN.size, W_END, DISPLAY, -3); tw += 0.36; });
+  });
+  const one = L.find((w) => w.word === 'one');
+  one.cx = one.x + MW('one', OPEN.size, W_END, DISPLAY, -3) / 2;
+  one.ocx = one.x + MW('o', OPEN.size, W_END, DISPLAY, -3) / 2; // the counter of the "o": the camera dives through it
+  one.ocy = one.y - OPEN.size * 0.36;
+  OPEN.counter = OPEN.size * 0.13; // the counter's radius, about: the portal opens from it
+  OPEN_LAYOUT = L;
+  OPEN.cam = camera([[3.3, one.cx, one.y - 50, 1.55, 0.8, 0.95], [5.4, one.ocx, one.ocy, 2.4, 0.9, 0.95]], { x: -90, y: 40, z: 1 });
+}
+function drawOpen(g, lt) {
+  const LOOK = LOOKS.open;
+  CAM = OPEN.cam(lt);
+  LOOK.backdrop(ctx, lt, CAM, {});
+  world();
+  const focusOne = spr(lt, 3.3, 1.2, 0.95); // the other words step back
+  const window_ = spr(lt, 3.7, 1.0, 0.95);   // "one" becomes a window onto the product
+  for (const w of OPEN_LAYOUT) {
+    const p = spr(lt, w.tw, 2.0, 0.86), pw = spr(lt, w.tw + 0.05, 1.3, 0.9);
+    const weight = Math.round(200 + (W_END - 200) * pw), ls = 10 * (1 - pw) - 3;
+    const a = w.word === 'one' ? 1 : 1 - 0.78 * focusOne;
+    const drawWord = () => T(w.word, w.x, w.y + (1 - clamp(p, -0.2, 1.2)) * OPEN.size * 1.3, OPEN.size, { w: weight, fam: DISPLAY, col: LOOK.ink, base: 'alphabetic', ls, alpha: a });
+    ctx.save(); ctx.beginPath(); ctx.rect(w.x - 20, w.y - OPEN.size * 1.02, 1400, OPEN.size * 1.32); ctx.clip();
+    if (w.word === 'one' && window_ > 0.001) {
+      ctx.save(); ctx.globalAlpha *= 1 - window_; drawWord(); ctx.restore();
+      ctx.save(); ctx.globalAlpha *= window_;
+      FILM.knockout(ctx, {
+        mask: (b) => on(b, drawWord),
+        fill: (b) => on(b, () => { // the product's own texture behind the letters: its colours, its bars
+          // (no small print in there: text inside 150 px letters is noise, measured on the first cut)
+          const x0 = w.x - 40, y0 = w.y - OPEN.size * 1.05, fw = MW('one', OPEN.size, W_END, DISPLAY, -3) + 80, fh = OPEN.size * 1.35;
+          const gr = ctx.createLinearGradient(x0, y0, x0 + fw, y0 + fh); gr.addColorStop(0, rgba(C.accent)); gr.addColorStop(0.55, rgba(C.a)); gr.addColorStop(1, rgba(C.b));
+          ctx.fillStyle = gr; ctx.fillRect(x0, y0, fw, fh);
+          const slide = 60 * clamp((lt - 3.6) / 3.9);
+          for (let i = 0; i < 16; i++) {
+            const v = 0.3 + 0.6 * (0.5 + 0.5 * Math.sin(i * 1.7)), h = fh * 0.8 * v * spr(lt, 3.8 + i * 0.05, 1.5, 0.85);
+            rr(x0 + 10 + i * 30 - slide, y0 + fh - h, 18, h, 6); ctx.fillStyle = 'rgba(255,255,255,0.32)'; ctx.fill();
+          }
+        }),
+      });
+      ctx.restore();
+    } else drawWord();
+    ctx.restore();
+  }
+  screen();
+  T('A product film', 120, 120, 22, { w: 600, col: LOOK.dim, alpha: env(spr(lt, 0.2, 1.6, 0.9), spr(lt, 3.2, 2, 1)).a, ls: 1 });
+  LOOK.finish(ctx, lt, {});
+}
+
+// ================================================================ scene 2 — web: the product in a browser
+const WEB = { dur: 11, r: { x: -660, y: -390, w: 1320, h: 800 } };
+WEB.cam = camera([[2.2, 0, -150, 1.32, 0.7, 0.95], [4.9, 0, 10, 0.98, 0.75, 0.95], [8.6, 30, 0, 1.04, 0.5, 1]], { x: 0, y: -200, z: 1.45 });
+WEB.scroll = track(0, [[5.3, 430, 0.8, 0.95], [7.4, 520, 0.7, 1]]);
+let WEB_BTN; // the button's centre in world units, measured once
+WEB.cursor = null;
+function drawWeb(g, lt) {
+  const LOOK = LOOKS.web;
+  CAM = WEB.cam(lt);
+  LOOK.backdrop(ctx, lt, CAM, {});
+  world();
+  const r = PARTS.browser(ctx, WEB.r, { url: 'example.com' });
+  ctx.save(); rr(r.x, r.y, r.w, r.h, r.r); ctx.clip();
+  const sy = WEB.scroll(lt), X = r.x, Y = r.y - sy, cx = r.x + r.w / 2;
+  ctx.fillStyle = '#fff'; ctx.fillRect(r.x, r.y, r.w, r.h);
+  // nav
+  drawMark(X + 44, Y + 34, 26); T('Product', X + 66, Y + 35, 17, { w: 700 });
+  ['Features', 'Pricing', 'Docs'].forEach((s, i) => T(s, cx + 250 + i * 96, Y + 35, 15, { w: 500, col: C.dim }));
+  // hero
+  const hin = (tb) => env(spr(lt, tb, 2, 0.86));
+  withEnv(hin(0.4), () => T('Everything in one place.', cx, Y + 150, 62, { w: 760, fam: DISPLAY, align: 'center', ls: -1.5 }));
+  withEnv(hin(0.6), () => T('One app for your repositories, notes and tasks.', cx, Y + 212, 22, { w: 500, col: C.dim, align: 'center' }));
+  const press = bump(lt, 4.1);
+  withEnv(hin(0.8), () => {
+    const bw = 170, bh = 48, bx = cx - bw - 8, by = Y + 262;
+    ctx.save(); ctx.translate(bx + bw / 2, by + bh / 2); ctx.scale(1 - 0.05 * press, 1 - 0.05 * press); ctx.translate(-(bx + bw / 2), -(by + bh / 2));
+    PARTS.button(ctx, { x: bx, y: by, w: bw, h: bh }, 'Get started', { fill: mixc(C.accent, [0, 0, 0], 0.18 * spr(lt, 3.4, 3, 1) * (1 - spr(lt, 4.6, 2, 1))), shadow: true });
+    ctx.restore();
+    rr(cx + 8, by, 150, bh, bh / 2); ctx.lineWidth = 1.5; ctx.strokeStyle = rgba(C.line.map((v) => v - 30)); ctx.stroke();
+    T('Learn more', cx + 83, by + bh / 2 + 0.5, 17, { w: 600, align: 'center' });
+  });
+  // the screenshot: the dashboard, lifting in
+  const sp = spr(lt, 1.0, 1.4, 0.9);
+  ctx.save(); ctx.globalAlpha *= clamp(sp * 1.5); ctx.translate(0, (1 - sp) * 40);
+  shadow(40, 20, 'rgba(20,24,60,0.25)'); rr(cx - 450, Y + 360, 900, 400, 16); ctx.fillStyle = rgba(C.surface); ctx.fill(); noShadow();
+  dashboard(cx - 450, Y + 360, 900, 400, lt, { grow: 1.3 });
+  ctx.restore();
+  // features, revealed as they scroll in
+  [['Sync', 'Every repository, one pull.'], ['Search', 'Anything, in under a second.'], ['Share', 'A link, not a meeting.']].forEach(([h, s], i) => {
+    const e = env(spr(lt, 5.8 + i * 0.16, 1.8, 0.86)), fx = cx - 450 + i * 310, fy = Y + 820;
+    withEnv(e, () => {
+      rr(fx, fy, 280, 150, 18); ctx.fillStyle = rgba(C.canvas); ctx.fill();
+      ctx.beginPath(); ctx.arc(fx + 40, fy + 44, 18, 0, Math.PI * 2); ctx.fillStyle = rgba([C.accent, C.a, C.b][i], 0.9); ctx.fill();
+      T(h, fx + 24, fy + 92, 20, { w: 700 }); T(s, fx + 24, fy + 122, 14.5, { col: C.dim });
+    });
+  });
+  withEnv(env(spr(lt, 6.3, 1.6, 0.9)), () => { // a call to action closing the page
+    rr(cx - 450, Y + 1010, 900, 150, 22); ctx.fillStyle = rgba(C.accent); ctx.fill();
+    T('Start in a minute.', cx - 410, Y + 1068, 30, { w: 760, col: [255, 255, 255], fam: DISPLAY, ls: -0.5 });
+    T('Free for personal use. No account needed.', cx - 410, Y + 1106, 17, { col: [230, 230, 255] });
+    PARTS.button(ctx, { x: cx + 250, y: Y + 1060, w: 160, h: 50 }, 'Download', { fill: [255, 255, 255], color: C.accent });
+  });
+  ctx.restore();
+  WEB.cursor.draw(lt, LOOK, clamp((lt - 2.0) * 3));
+  screen(); LOOK.finish(ctx, lt, {});
+}
+
+// ================================================================ scene 3 — bento: live tiles, a rack focus
+const BENTO = { dur: 12, x: -760, y: -400, w: 1520, h: 800, gap: 24 };
+(() => { // the grid: 4 columns, 2 rows; A 2x1, B 1x1, C 1x2, D 1x1, E 2x1
+  const cw = (BENTO.w - 3 * BENTO.gap) / 4, rh = (BENTO.h - BENTO.gap) / 2, cell = (c, r, cs = 1, rs = 1) => ({ x: BENTO.x + c * (cw + BENTO.gap), y: BENTO.y + r * (rh + BENTO.gap), w: cs * cw + (cs - 1) * BENTO.gap, h: rs * rh + (rs - 1) * BENTO.gap });
+  BENTO.A = cell(0, 0, 2); BENTO.B = cell(2, 0); BENTO.C = cell(3, 0, 1, 2); BENTO.D = cell(0, 1); BENTO.E = cell(1, 1, 2);
+})();
+const ctr = (r) => [r.x + r.w / 2, r.y + r.h / 2];
+BENTO.cam = camera([[5.0, ...ctr(BENTO.C), 1.32, 0.85, 0.92], [7.6, 0, 0, 0.97, 0.8, 0.95]], { x: 0, y: 0, z: 0.9 }); // 1.32: the whole tile, title to bars
+BENTO.blur = track(0, [[5.0, 16, 0.9, 1], [7.6, 0, 0.9, 1]]);
+BENTO.cursor = cursorFor([[2.0, BENTO.B.x + 60 + 25, BENTO.B.y + 170 + 15], [9.6, BENTO.D.x + BENTO.D.w / 2, BENTO.D.y + 190]], [3.0, 10.9], [BENTO.B.x + 400, BENTO.B.y + 520]);
+function tile(r, tb, fn) { // a card that settles in, then draws its content
+  const p = spr(BENTO.lt, tb, 1.7, 0.86);
+  if (p <= 0.001) return;
+  ctx.save(); ctx.globalAlpha *= clamp(p * 1.5);
+  const s = 0.94 + 0.06 * p, [cx, cy] = ctr(r);
+  ctx.translate(cx, cy); ctx.scale(s, s); ctx.translate(-cx, -cy);
+  shadow(30, 12, 'rgba(30,30,40,0.12)'); rr(r.x, r.y, r.w, r.h, 28); ctx.fillStyle = '#fff'; ctx.fill(); noShadow();
+  ctx.save(); rr(r.x, r.y, r.w, r.h, 28); ctx.clip(); fn(r); ctx.restore();
+  ctx.restore();
+}
+const label = (r, s) => T(s.toUpperCase(), r.x + 32, r.y + 40, 13, { w: 700, col: C.dim, ls: 1.2 });
+function drawGrid(lt) {
+  BENTO.lt = lt;
+  tile(BENTO.A, 0.02, (r) => { // a counter rolling up, and its sparkline
+    label(r, 'Events today');
+    const v = 3200 + 9280 * spr(lt, 0.9, 0.55, 1);
+    TN(fmt(v), r.x + 32, r.y + 130, 96, { w: 760, fam: DISPLAY });
+    ctx.beginPath();
+    for (let i = 0; i <= 40; i++) { const x = r.x + 32 + i * (r.w - 64) / 40, y = r.y + r.h - 70 - 60 * (0.5 + 0.35 * Math.sin(i * 0.55) + 0.15 * Math.sin(i * 1.7)) * spr(lt, 1.0 + i * 0.012, 1.5, 0.9); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+    ctx.lineWidth = 3; ctx.lineJoin = 'round'; ctx.strokeStyle = rgba(C.accent); ctx.stroke();
+  });
+  tile(BENTO.B, 0.1, (r) => { // a switch the cursor turns on
+    label(r, 'Auto-sync');
+    T('Keeps every repository current.', r.x + 32, r.y + 96, 17, { col: C.dim });
+    PARTS.toggle(ctx, r.x + 60, r.y + 170, spr(lt, 3.0, 2.2, 0.8), { w: 76, h: 44, on: C.green });
+    T(spr(lt, 3.0, 4, 1) > 0.5 ? 'On' : 'Off', r.x + 160, r.y + 192, 22, { w: 700 });
+  });
+  tile(BENTO.C, 0.18, (r) => { // a week of bars, grown while the camera is close
+    label(r, 'This week');
+    const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'], vals = [0.46, 0.62, 0.55, 0.78, 0.9, 0.38, 0.3];
+    const bw = 30, gap = (r.w - 64 - 7 * bw) / 6, base = r.y + r.h - 70;
+    days.forEach((d, i) => {
+      const bh = (r.h - 190) * vals[i] * spr(lt, 5.5 + i * 0.09, 1.5, 0.82), bx = r.x + 32 + i * (bw + gap);
+      rr(bx, base - (r.h - 190), bw, r.h - 190, 10); ctx.fillStyle = rgba(C.accent, 0.08); ctx.fill();
+      rr(bx, base - bh, bw, bh, 10); ctx.fillStyle = rgba(i === 4 ? C.b : C.accent); ctx.fill();
+      T(d, bx + bw / 2, base + 30, 15, { w: 600, col: C.dim, align: 'center' });
+    });
+    TN(fmt(4312 * spr(lt, 5.6, 0.7, 1)), r.x + 32, r.y + 96, 40, { w: 760, fam: DISPLAY });
+  });
+  tile(BENTO.D, 0.26, (r) => { // a ring filling
+    label(r, 'Storage');
+    const p = 0.72 * spr(lt, 1.4, 0.6, 1), [cx] = ctr(r);
+    PARTS.ring(ctx, cx, r.y + 210, 96, p, { color: C.a, width: 22 });
+    TN(Math.round(p * 100) + '%', cx, r.y + 212, 40, { w: 760, fam: DISPLAY, align: 'center' });
+  });
+  tile(BENTO.E, 0.34, (r) => { // a list that re-sorts: moving rows ride above the others
+    label(r, 'Most active');
+    const rows = [['website', 0.46, C.accent], ['api', 0.92, C.a], ['docs', 0.64, C.b]];
+    const order = [1, 2, 0], k = spr(lt, 8.2, 1.3, 0.86);
+    rows.map((row, i) => ({ row, i, y: lerp(i, order.indexOf(i), k) })).sort((a, b) => Math.abs(a.y - Math.round(a.y)) - Math.abs(b.y - Math.round(b.y)))
+      .forEach(({ row: [name, v, c], y }) => {
+        const yy = r.y + 100 + y * 76;
+        T(name, r.x + 32, yy, 20, { w: 600 });
+        rr(r.x + 170, yy - 9, r.w - 330, 18, 9); ctx.fillStyle = rgba(c, 0.14); ctx.fill();
+        rr(r.x + 170, yy - 9, (r.w - 330) * v * spr(lt, 1.6, 1.4, 0.9), 18, 9); ctx.fillStyle = rgba(c); ctx.fill();
+        TN(Math.round(v * 100) + ' commits', r.x + r.w - 32, yy, 17, { w: 600, col: C.dim, align: 'right' });
+      });
+  });
+}
+function drawBento(g, lt) {
+  const LOOK = LOOKS.bento;
+  CAM = BENTO.cam(lt);
+  LOOK.backdrop(ctx, lt, CAM, {});
+  world();
+  const b = BENTO.blur(lt);
+  if (b > 0.05) FILM.selective(ctx, { blur: b, clip: (c) => PARTS.rr(c, BENTO.C.x, BENTO.C.y, BENTO.C.w, BENTO.C.h, 28), draw: (c) => on(c, () => drawGrid(lt)) });
+  else drawGrid(lt);
+  // a notification, landing over the grid on the beat after the re-sort
+  const np = spr(lt, 9.2, 2.2, 0.8), nq = spr(lt, 11.0, 2.5, 1);
+  if (np > 0.001 && nq < 0.999) {
+    ctx.save(); ctx.globalAlpha *= clamp(np * 1.5) * (1 - nq);
+    const nw = 420, nh = 76, nx = -nw / 2, ny = BENTO.y - 60 + (1 - np) * -40;
+    LOOK.glass(ctx, nx, ny, nw, nh, 22, { tint: [255, 255, 255], alpha: 0.7, shadow: [30, 10, 'rgba(0,0,0,0.18)'] });
+    drawMark(nx + 38, ny + nh / 2, 36);
+    T('Backup complete', nx + 70, ny + 28, 17, { w: 700 }); T('12 repositories · just now', nx + 70, ny + 50, 14, { col: C.dim });
+    ctx.restore();
+  }
+  BENTO.cursor.draw(lt, LOOK, clamp((lt - 1.6) * 3));
+  screen(); LOOK.finish(ctx, lt, {});
+}
+
+// ================================================================ scene 4 — terminal: typed, streamed
+const TERM = { dur: 11, r: { x: -900, y: -370, w: 960, h: 740 }, size: 20, lh: 32 };
+TERM.cam = camera([[0.2, -170, 0, 1.03, 0.25, 1]], { x: -190, y: 10, z: 0.98 });
+const REPOS = ['website', 'api', 'docs', 'mobile', 'design-system', 'infra', 'cli', 'billing', 'search', 'analytics', 'auth', 'notifications'];
+function termLines(lt) { // what the terminal shows at lt: a pure function of time
+  const G = C.green, D = [150, 152, 164], Wt = [232, 233, 240], A = [120, 170, 255];
+  const out = [];
+  const c1 = FILM.typed('brew install product', lt, 0.8, { cps: 13, seed: 3 });
+  out.push([['$ ', G], [c1.shown, Wt]]);
+  let caret = c1.done ? null : 0, idle = false; // the caret is solid while typing, blinks at the idle prompt
+  if (c1.done) {
+    const t1 = c1.doneAt + 0.35;
+    if (lt > t1) out.push([['==> ', A], ['Downloading product-2.4.0.tar.gz', Wt]]);
+    if (lt > t1 + 0.2) { const p = clamp((lt - t1 - 0.2) / 1.1), n = Math.round(p * 40); out.push([['#'.repeat(n), A], [' '.repeat(40 - n) + ` ${String(Math.round(p * 100)).padStart(3)}%`, D]]); }
+    if (lt > t1 + 1.5) out.push([['==> ', A], ['Pouring product-2.4.0.arm64_sequoia.bottle.tar.gz', Wt]]);
+    if (lt > t1 + 1.8) out.push([['🍺  ', Wt], ['product 2.4.0 installed', G]]);
+    if (lt > t1 + 2.1) {
+      const c2 = FILM.typed('product sync --all', lt, t1 + 2.3, { cps: 14, seed: 9 });
+      out.push([['$ ', G], [c2.shown, Wt]]);
+      caret = c2.done ? null : out.length - 1;
+      if (c2.done) {
+        const t2 = c2.doneAt + 0.3, spin = '⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏';
+        const each = 0.16, end = t2 + 0.4 + REPOS.length * each;
+        if (lt > t2) out.push(lt < end ? [[spin[Math.floor(lt * 12) % 10] + ' ', A], [`Syncing ${REPOS.length} repositories…`, Wt]] : [['✓ ', G], [`Synced ${REPOS.length} repositories`, Wt]]);
+        REPOS.forEach((name, i) => {
+          if (lt > t2 + 0.4 + i * each) out.push([['  ✓ ', G], [name.padEnd(16), Wt], [i % 4 === 1 ? '↑ pushed 3 commits' : 'up to date', i % 4 === 1 ? A : D]]);
+        });
+        if (lt > end + 0.3) out.push([['Done in 2.4s · 12 repositories · 0 conflicts', D]]);
+        if (lt > end + 0.5) { out.push([['$ ', G]]); caret = out.length - 1; idle = true; }
+      }
+    }
+  }
+  return { out, caret: caret === null ? null : { line: caret, solid: !idle } };
+}
+function drawTerminal(g, lt) {
+  const LOOK = LOOKS.terminal;
+  CAM = TERM.cam(lt);
+  LOOK.backdrop(ctx, lt, CAM, {});
+  world();
+  const e = spr(lt, 0.05, 1.6, 0.9);
+  ctx.save(); ctx.globalAlpha *= clamp(e * 1.4); ctx.translate(0, (1 - e) * 30);
+  const r = PARTS.terminal(ctx, TERM.r, { title: 'product — zsh — 80×24' });
+  const { out, caret } = termLines(lt), rows = Math.floor(r.h / TERM.lh);
+  const scroll = Math.max(0, out.length - rows) * TERM.lh; // the newest line stays in view
+  ctx.save(); ctx.beginPath(); ctx.rect(r.x - 4, r.y - 4, r.w + 8, r.h + 8); ctx.clip();
+  out.forEach((segs, i) => { // a terminal does not ease its scroll: it jumps a line
+    const y = r.y + TERM.lh / 2 + i * TERM.lh - scroll;
+    const x = PARTS.line(ctx, r.x, y, segs, TERM.size, { mono: MONO });
+    if (caret && i === caret.line && (caret.solid || Math.floor(lt * 2) % 2 === 0)) { ctx.fillStyle = 'rgba(232,233,240,0.85)'; ctx.fillRect(x + 1, y - TERM.size * 0.62, TERM.size * 0.55, TERM.size * 1.2); }
+  });
+  ctx.restore();
+  ctx.restore();
+  screen();
+  headline(lt, ['Built for', 'the command line.'], 1250, 380, 76, 1.2, 99, { style: 'focus', col: LOOK.ink, w: 720 });
+  LOOK.finish(ctx, lt, {});
+}
+
+// ================================================================ scene 5 — devices: a cover-flow in true 3D
+// Canvas 2D is affine only: each surface is drawn into its own canvas and composited as a WebGL
+// quad with clip-space w, so the perspective is correct; a mirrored copy fades into the floor.
+const DEV = { dur: 12, F: 1700, floor: 300 };
+DEV.cards = [ // w x h in world units; each draws its surface into a canvas of that size x TEXS
+  { id: 'laptop', w: 760, h: 520, draw: (t) => { const s = PARTS.laptop(ctx, { x: 30, y: 20, w: 700, h: 440 }, { shadow: false }); dashboard(s.x, s.y, s.w, s.h, t, { r: s.r }); PARTS.notch(ctx, s); } },
+  { id: 'phone', w: 300, h: 600, draw: (t) => { const s = PARTS.phone(ctx, { x: 20, y: 10, w: 260, h: 560 }, { shadow: false }); ctx.save(); rr(s.x, s.y, s.w, s.h, s.r); ctx.clip(); ctx.fillStyle = rgba(C.surface); ctx.fillRect(s.x, s.y, s.w, s.h);
+    T('Today', s.x + 20, s.y + 80, 26, { w: 760, col: [240, 241, 246] }); TN('12,480', s.x + 20, s.y + 130, 40, { w: 760, col: [240, 241, 246] });
+    ['website', 'api', 'docs', 'mobile'].forEach((n, i) => { rr(s.x + 16, s.y + 180 + i * 70, s.w - 32, 58, 14); ctx.fillStyle = 'rgba(255,255,255,0.06)'; ctx.fill(); T(n, s.x + 34, s.y + 209 + i * 70, 16, { w: 600, col: [230, 231, 238] }); ctx.beginPath(); ctx.arc(s.x + s.w - 40, s.y + 209 + i * 70, 6, 0, 7); ctx.fillStyle = rgba(C.green); ctx.fill(); });
+    ctx.restore(); PARTS.island(ctx, s); } },
+  { id: 'web', w: 720, h: 470, draw: (t) => { const r = PARTS.browser(ctx, { x: 10, y: 10, w: 700, h: 450 }, { url: 'example.com', shadow: false }); ctx.save(); rr(r.x, r.y, r.w, r.h, r.r); ctx.clip(); ctx.fillStyle = '#fff'; ctx.fillRect(r.x, r.y, r.w, r.h);
+    T('Everything in one place.', r.x + r.w / 2, r.y + 80, 34, { w: 760, align: 'center', ls: -1 }); PARTS.button(ctx, { x: r.x + r.w / 2 - 70, y: r.y + 120, w: 140, h: 40 }, 'Get started'); dashboard(r.x + 60, r.y + 190, r.w - 120, 220, t, { r: 12 }); ctx.restore(); } },
+  { id: 'cli', w: 680, h: 440, draw: (t) => { const r = PARTS.terminal(ctx, { x: 10, y: 10, w: 660, h: 420 }, { title: 'product — zsh', shadow: false });
+    [[['$ ', C.green], ['product sync --all', [232, 233, 240]]], [['✓ ', C.green], ['Synced 12 repositories', [232, 233, 240]]], [['  ✓ ', C.green], ['website', [232, 233, 240]]], [['  ✓ ', C.green], ['api      ', [232, 233, 240]], ['↑ pushed 3 commits', [120, 170, 255]]]]
+      .forEach((segs, i) => PARTS.line(ctx, r.x, r.y + 16 + i * 30, segs, 18, { mono: MONO })); } },
+];
+DEV.idx = track(0, [[2.0, 1, 1.0, 0.9], [4.2, 2, 1.0, 0.9], [6.4, 3, 1.0, 0.9], [8.6, 1.5, 0.8, 0.95]]); // which card faces the camera
+DEV.cam = camera([[8.6, 0, -40, 0.82, 0.6, 1]], { x: 0, y: -20, z: 0.95 });
+const TEXS = 2;
+let GL = null;
+function glInit() {
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const gl = c.getContext('webgl2', { alpha: true, premultipliedAlpha: true, antialias: true, preserveDrawingBuffer: true });
+  if (!gl) throw new Error('WebGL2 unavailable');
+  const sh = (type, src) => { const o = gl.createShader(type); gl.shaderSource(o, src); gl.compileShader(o); if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(o)); return o; };
+  const prog = gl.createProgram();
+  gl.attachShader(prog, sh(gl.VERTEX_SHADER, '#version 300 es\nin vec4 aPos; in vec2 aUV; out vec2 vUV; void main(){ gl_Position = aPos; vUV = aUV; }'));
+  // uA: the quad's alpha; uFade > 0: a reflection, fading out down the quad (uv.y from its top)
+  gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, '#version 300 es\nprecision highp float; uniform sampler2D uTex; uniform float uA; uniform float uFade; in vec2 vUV; out vec4 o; void main(){ vec4 c = texture(uTex, vUV); float f = uFade > 0.0 ? uA * clamp(1.0 - (1.0 - vUV.y) / uFade, 0.0, 1.0) : uA; o = c * f; }'));
+  gl.linkProgram(prog); gl.useProgram(prog);
+  const pos = gl.createBuffer(), aPos = gl.getAttribLocation(prog, 'aPos');
+  gl.bindBuffer(gl.ARRAY_BUFFER, pos); gl.enableVertexAttribArray(aPos); gl.vertexAttribPointer(aPos, 4, gl.FLOAT, false, 0, 0);
+  const uvb = gl.createBuffer(), aUV = gl.getAttribLocation(prog, 'aUV');
+  gl.bindBuffer(gl.ARRAY_BUFFER, uvb); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0, 0, 1, 0, 0, 1, 1, 1]), gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(aUV); gl.vertexAttribPointer(aUV, 2, gl.FLOAT, false, 0, 0);
+  const aniso = gl.getExtension('EXT_texture_filter_anisotropic');
+  const tex = DEV.cards.map(() => {
+    const tx = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tx);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    if (aniso) gl.texParameterf(gl.TEXTURE_2D, aniso.TEXTURE_MAX_ANISOTROPY_EXT, gl.getParameter(aniso.MAX_TEXTURE_MAX_ANISOTROPY_EXT));
+    return tx;
+  });
+  gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+  gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); gl.viewport(0, 0, W, H);
+  // a canvas per card, made once at its final size
+  const cvs = DEV.cards.map((k) => { const c2 = document.createElement('canvas'); c2.width = k.w * TEXS; c2.height = k.h * TEXS; const x2 = c2.getContext('2d'); x2.imageSmoothingQuality = 'high'; return { c: c2, g: x2 }; });
+  GL = { c, gl, pos, tex, cvs, uA: gl.getUniformLocation(prog, 'uA'), uFade: gl.getUniformLocation(prog, 'uFade') };
+}
+function devPlace(i, k) { // a card's place in the flow: centre (x, y, z), turn about y, alpha
+  const d = i - k, ad = Math.abs(d), sd = Math.sign(d);
+  const x = sd * (ad <= 1 ? 560 * ad : 560 + 300 * (ad - 1));
+  const z = -Math.min(ad, 1.6) * 330, ry = -clamp(d, -1, 1) * 42 * Math.PI / 180;
+  return { x, y: 0, z, ry, a: clamp(2.6 - ad) };
+}
+function drawDevices(g, lt) {
+  const LOOK = LOOKS.devices;
+  CAM = DEV.cam(lt);
+  LOOK.backdrop(ctx, lt, CAM, {});
+  const k = DEV.idx(lt), gl = GL.gl, J = mainCtx.jitter;
+  gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+  // back to front: the card facing the camera last
+  const order = DEV.cards.map((card, i) => ({ card, i, p: devPlace(i, k) })).sort((a, b) => a.p.z - b.p.z);
+  for (const { card, i, p } of order) {
+    if (p.a <= 0.001) continue;
+    const L = GL.cvs[i];
+    ctx = L.g; ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, L.c.width, L.c.height); ctx.setTransform(TEXS, 0, 0, TEXS, 0, 0);
+    card.draw(lt); ctx = g;
+    gl.bindTexture(gl.TEXTURE_2D, GL.tex[i]); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, L.c); gl.generateMipmap(gl.TEXTURE_2D);
+    for (const mirror of [true, false]) { // the reflection first, beneath
+      const v = [];
+      [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sy]) => { // the texture's corners, top-left first
+        const lx = sx * card.w / 2;
+        const up = DEV.floor - card.h / 2 + sy * card.h / 2;           // standing on the floor line
+        const Y = mirror ? 2 * DEV.floor - up : up;                     // its reflection, upside down
+        const X = p.x + lx * Math.cos(p.ry), Z = p.z - lx * Math.sin(p.ry);
+        const w = (DEV.F - Z) / DEV.F;                                  // clip-space w: perspective-correct texturing
+        const [sx2, sy2] = toScreen(CAM.x + (X - CAM.x) / w, CAM.y + (Y - CAM.y) / w); // lines converge on the camera
+        v.push(((sx2 + J[0]) / W * 2 - 1) * w, (1 - (sy2 + J[1]) / H * 2) * w, 0, w);
+      });
+      gl.uniform1f(GL.uA, p.a * (mirror ? 0.22 : 1)); gl.uniform1f(GL.uFade, mirror ? 0.45 : 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, GL.pos); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(v), gl.DYNAMIC_DRAW);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    }
+  }
+  ctx.save(); ctx.rawSetTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(GL.c, 0, 0); ctx.restore();
+  screen();
+  headline(lt, ['Works everywhere.'], W / 2, 90, 72, 0.5, 99, { align: 'center', col: LOOK.ink, w: 760 });
+  T('Mac, iPhone, the web and your terminal.', W / 2, 205, 24, { w: 500, col: LOOK.dim, align: 'center', alpha: env(spr(lt, 1.0, 1.6, 0.9)).a });
+  LOOK.finish(ctx, lt, {});
+}
+
+// ================================================================ scene 6 — end: the mark, the call to action
+const END = { dur: 8 };
+END.cam = camera([[0.1, 0, 0, 1.0, 0.3, 1]], { x: 0, y: 30, z: 1.04 });
+END.cursor = cursorFor([[2.9, 0, 175], [5.8, 360, 330]], [4.4], [480, 420]);
+function drawEnd(g, lt) {
+  const LOOK = LOOKS.end;
+  CAM = END.cam(lt);
+  LOOK.backdrop(ctx, lt, CAM, {});
+  world();
+  const m = spr(lt, 0.25, 1.5, 0.78);
+  drawMark(0, -190, 170 * (0.6 + 0.4 * m), clamp(m * 1.6));
+  ctx.save(); ctx.beginPath(); ctx.rect(-600, -110, 1200, 180); ctx.clip();
+  T('Product', 0, 20 + (1 - clamp(spr(lt, 0.7, 2, 0.86), -0.2, 1.2)) * 190, 150, { w: 760, fam: DISPLAY, align: 'center', base: 'alphabetic', ls: -4, col: LOOK.ink });
+  ctx.restore();
+  withEnv(env(spr(lt, 1.2, 1.8, 0.9)), () => T('Everything in one place.', 0, 70, 32, { w: 500, align: 'center', col: LOOK.dim }));
+  withEnv(env(spr(lt, 1.7, 1.8, 0.9)), () => {
+    const press = bump(lt, 4.4), hover = spr(lt, 3.2, 3, 1) * (1 - spr(lt, 5.8, 2, 1));
+    ctx.save(); ctx.translate(0, 175); ctx.scale(1 - 0.05 * press, 1 - 0.05 * press);
+    PARTS.button(ctx, { x: -130, y: -32, w: 260, h: 64 }, spr(lt, 4.5, 3, 1) > 0.5 ? 'Downloading…' : 'Download free', { fill: mixc(C.accent, [0, 0, 0], 0.16 * hover), size: 22, shadow: true });
+    ctx.restore();
+  });
+  withEnv(env(spr(lt, 2.0, 1.8, 0.9)), () => T('macOS 15 or later · example.com', 0, 250, 18, { w: 500, align: 'center', col: LOOK.dim }));
+  END.cursor.draw(lt, LOOK, clamp((lt - 2.3) * 3));
+  screen(); LOOK.finish(ctx, lt, {});
+}
+
+// ================================================================ the timeline
+let TL = null;
+function build() {
+  layoutOpen();
+  // the button the web scene's cursor clicks, measured after the fonts load
+  WEB_BTN = [0 - 85 - 8, -390 + 52 + 262 + 24];
+  WEB.cursor = cursorFor([[2.2, 380, 20], [3.0, WEB_BTN[0], WEB_BTN[1]], [6.4, 330, 160]], [4.1], [620, 240]);
+  const one = OPEN_LAYOUT.find((w) => w.word === 'one');
+  const scenes = [
+    { id: 'open', chapter: 'Intro', dur: OPEN.dur, draw: drawOpen },
+    { id: 'web', chapter: 'On the web', dur: WEB.dur, draw: drawWeb, in: { kind: 'iris', dur: 1.2, at: toScreen(one.ocx, one.ocy, OPEN.cam(OPEN.dur - 1.2)), r0: OPEN.counter * OPEN.cam(OPEN.dur - 1.2).z, zoom: 6 } },
+    { id: 'bento', chapter: 'Features', dur: BENTO.dur, draw: drawBento, in: { kind: 'push', dur: 1.0, from: 'right', depth: 0.05, bg: C.canvas } },
+    { id: 'terminal', chapter: 'Command line', dur: TERM.dur, draw: drawTerminal, in: { kind: 'iris', dur: 1.1, at: toScreen(...BENTO.cursor.at(10.9), BENTO.cam(10.9)) } },
+    { id: 'devices', chapter: 'Everywhere', dur: DEV.dur, draw: drawDevices, in: { kind: 'wipe', dur: 1.0, angle: 12, feather: 120 } },
+    { id: 'end', chapter: 'Get it', dur: END.dur, draw: drawEnd, in: { kind: 'shape', dur: 1.2, path: MARK } },
+  ];
+  makeLooks(Object.fromEntries(scenes.map((s) => [s.id, s.dur])));
+  TL = FILM.timeline({ W, H, scenes, use: (c) => { ctx = c; } });
+  META.duration = +TL.duration.toFixed(3);
+  META.chapters = TL.chapters;
+  META.checkpoints = TL.checkpoints;
+}
+function seek(t, opts = {}) {
+  t = clamp(t, 0, META.duration - 1e-6); // not a loop: the film has a first and a last frame
+  STAGE.begin(opts);
+  TL.draw(mainCtx, t, opts);
+}
+window.seek = seek;
+window.ready = (async () => {
+  await Promise.all([...FONT_FACES, `700 100px ${UI}`, `500 19px ${MONO}`].map((f) => document.fonts.load(f)));
+  build();
+  await Promise.all(Object.values(LOOKS).map((l) => l.ready));
+  glInit();
+  seek(0);
+  return true;
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,787 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Stage</title>
+<style>
+html,body{margin:0;background:#000;overflow:hidden}
+canvas{display:block}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script src="../template/film.js"></script>
+<script src="../template/fx.js"></script>
+<script src="../template/parts.js"></script>
+<script src="../template/type.js"></script>
+<script>
+'use strict';
+/*
+ * The Studio's stage: a stand-in product on the real engine, so a choice is judged with something on
+ * it. Not a film template — short loops that exist to be looked at, each a pure seek(t) like a film.
+ *
+ *   mode=stage   (default, 8 s) a window arrives, its numbers roll in, the cursor clicks, a glass
+ *                menu opens, a toast lands, then all of it leaves; the headline in the chosen style.
+ *                With say=1 a voice-over's three lines are written under it as it would be subtitled
+ *                (lang=it|en, cap=plate|outline|none): a promo that speaks. With on=product the camera is on
+ *                the product alone, as near as it fits the frame, and there is no headline: for choosing what
+ *                it is shown in (the Studio's device tiles)
+ *   mode=text    (4.6 s) the headline alone, larger, arriving and leaving: for choosing a style. With an
+ *                emphasis, a style that settles late (track, odometer) stays until its mark has landed
+ *   mode=tutorial (8 s) the same stage, told: no headline, the camera on the product (its window, or the device
+ *                it is on), the step's number and name, and the subtitle of what a voice would be saying
+ *                (lang=it|en, cap=plate|outline|none); on an iPhone or an iPad it says tap, not click
+ *   mode=trans   (4.4 s at the measured pace) the stage, then an end card, then the stage again,
+ *                through the chosen transition both ways: for choosing one. The pace sets how long a
+ *                cut takes (1 s / pace), and PROMO_META.seams says where the two are: [[from, to], …]
+ *
+ * The product on it is what the film frames it in (ui=…): the device chosen in the Studio, else the shape of the
+ * first format chosen. One product, laid out as it would be on each: never a desktop UI squeezed into a phone.
+ *   ui=window    (default) a Mac app in its window: a sidebar, numbers, a chart, a button the cursor clicks
+ *   ui=macbook   that window on a MacBook's desktop, under its menu bar and its notch
+ *   ui=imac      that window on an iMac's desktop, under its menu bar (no notch: the camera is in the white bezel);
+ *                the iMac in the Apple colour nearest the accent, on its stand
+ *   ui=iphone    an iPhone app: a large title, the numbers in a row, the chart, a list, Publish under the thumb;
+ *                a finger taps (a soft disc, with the look's ripple) and the answer is a banner from the top
+ *   ui=ipad      an iPad app, tapped too: lying down with a sidebar where the frame is wide or square, upright
+ *                with a list where it is tall
+ *   ui=browser   a web page in a browser: its own header and links, Publish beside the heading
+ *   ui=bare      the UI on its own, no window and no device round it: a floating panel (the Studio's "Just the UI")
+ *   ui=terminal  a terminal instead, a command typed and answered, then a second one: no cursor
+ *   ui=none      no product at all: the headline alone, larger, in the middle (a film of words, kinetic type;
+ *                a tutorial is told on a product, and draws the window instead)
+ * A promo that speaks (say=1) has its subtitle low on the frame: the product, whichever it is, ends above it.
+ * on=product puts the camera on the product alone, with no headline and no subtitle: the Studio's Device tiles. It
+ * stays there, its numbers and its chart settled, so the loop is seamless: only the clicks and what they bring move.
+ * PROMO_META.product says which was drawn, and PROMO_META.box where it is in the frame last drawn ([x, y, w, h]
+ * in pixels, its frame included; a MacBook's with its base, an iMac's with its stand): the Studio's selftest looks
+ * for each device there.
+ *
+ * Everything else comes from the hash too, so the Studio drives it without editing it:
+ *   look=<preset> tone=light|dark accent=5B5BF7 scheme=analogous w=1920 h=1080
+ *   image=<url> blur=0|10|28 treat=none|dim|tint|duotone drift=0|1      a picture as the backdrop
+ *   display=<family> dsrc=kit|mac|system dw=700 text=<family> tsrc=…      the type
+ *   style=rise emph=highlight|underline|color pace=1 trans=window          the motion
+ *   o={"step":10}                                                        options for the transition, as JSON, over the stage's own
+ * With no accent it uses the templates' own palette, so a tile matches `render.mjs looks`.
+ * PROMO_META.thumb is the time worth a still in this mode: the stage settled (on an iPhone or an iPad, the
+ * tap on its menu), a style half way in, a transition half done.
+ */
+const HASH = new URLSearchParams(location.hash.slice(1));
+const MODE = HASH.get('mode') || 'stage';
+const W = +HASH.get('w') || 1920, H = +HASH.get('h') || 1080;
+const META = { width: W, height: H, fps: 60, duration: MODE === 'text' ? 4.6 : 8, bpm: 120 };
+window.PROMO_META = META;
+const cv = document.getElementById('c');
+cv.width = W; cv.height = H;
+const mainCtx = cv.getContext('2d');
+const STAGE = FILM.stage(mainCtx);
+let ctx = mainCtx;
+const { spr, track, camera } = FILM;
+const UI = 'system-ui'; // the product's own UI stays in the system face: only the headline takes the type
+
+const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+const rgba = (c, a = 1) => `rgba(${Math.round(c[0])},${Math.round(c[1])},${Math.round(c[2])},${a})`;
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const lerp = (a, b, p) => a + (b - a) * p;
+
+// ---------------------------------------------------------------- palette, look, type, motion
+const PRESET = HASH.get('look') || 'dots';
+const IMAGE = HASH.get('image');
+const TONE = HASH.get('tone') === 'dark' ? 'dark' : 'light';
+const ACCENT = /^[0-9a-f]{6}$/i.test(HASH.get('accent') || '') ? '#' + HASH.get('accent') : null;
+const C = ACCENT
+  ? FX.palette(ACCENT, { scheme: HASH.get('scheme') || 'analogous', tone: TONE })
+  : { // the templates' palette (promo.html), so a tile matches the looks sheet
+    canvas: hex('#F6F4EF'), ink: hex('#1A1C24'), dim: hex('#6B6F7B'), accent: hex('#5B5BF7'),
+    a: hex('#2FBFA8'), b: hex('#E8833A'), c: hex('#A77BF3'), pale: hex('#E7E6FB'), deep: hex('#26256B'),
+  };
+function lookCfg() {
+  if (!IMAGE) return { preset: PRESET, palette: C };
+  const treat = HASH.get('treat') || 'none', b = { image: IMAGE, blur: +HASH.get('blur') || 0, drift: HASH.get('drift') === '1' ? 0.04 : 0 };
+  if (treat === 'dim') b.dim = 0.32;
+  if (treat === 'tint') b.tint = { color: 'accent', a: 0.42, mode: 'soft-light' };
+  if (treat === 'duotone') b.duotone = ['deep', 'pale'];
+  return { preset: 'photo', palette: C, base: b };
+}
+const DISPLAY = HASH.get('display') || 'system-ui', DW = +HASH.get('dw') || 700, TEXTF = HASH.get('text') || 'system-ui';
+const STYLE = HASH.get('style') || 'rise', EMPH = HASH.get('emph') || '', PACE = +HASH.get('pace') || 1;
+const TRANS = HASH.get('trans') || 'fade';
+// text mode: when the headline starts to leave. The mark comes once the arrival has settled, and track and
+// odometer settle after 3.35 s: they left before their mark was ever drawn, so an emphasis chosen with them
+// showed nothing here. With one, the headline stays until the mark has landed, and the loop is that much longer.
+let TEXT_OUT = 3.35;
+if (MODE === 'text' && EMPH) {
+  const landed = TYPE.settled({ ...copy(), size: 100, family: 'system-ui', weight: 700, style: STYLE, at: 0.3, pace: PACE }) + 0.15 + 1.1;
+  if (landed > TEXT_OUT) { TEXT_OUT = +landed.toFixed(2); META.duration = +(TEXT_OUT + 1.25).toFixed(2); }
+}
+const LOOK = FX.look(lookCfg(), { W, H, fps: META.fps, duration: MODE === 'trans' ? 4.4 : META.duration, track, spr });
+async function loadType() {
+  const want = [[DISPLAY, HASH.get('dsrc'), DW], [TEXTF, HASH.get('tsrc'), 500]];
+  let kit = null;
+  for (const [fam, src, w] of want) {
+    if (!fam || fam === 'system-ui') continue;
+    try {
+      if (src === 'kit') { // the kit's own woff2, every face loaded before frame 0
+        kit = kit || await (await fetch('../template/fonts/fonts.json')).json();
+        if (kit.families[fam]) await TYPE.load(fam, kit.families[fam].faces, '../template/fonts/');
+      } else await document.fonts.load(`${w} 80px "${fam}"`); // a Mac font: Chrome finds it by its family name
+    } catch (e) { console.warn('type', fam, e.message); } // over file:// the manifest cannot be fetched: the system face stands in
+  }
+}
+
+// ---------------------------------------------------------------- layout: one scene, any aspect
+const WIDE = W / H > 1.2;
+const SHAPE = WIDE ? 'wide' : H > 1500 ? 'tall' : H > W * 1.1 ? 'portrait' : 'square'; // 16:9, 9:16, 4:5, 1:1
+const U = Math.min(W, H) / 1080; // world units per 1080p pixel of the short side
+// What can stand in for the product (ui=): draw, its drawing (none for words alone); touch, tapped by a finger rather
+// than clicked with a pointer; device, hardware round the UI. The schema's frames name these by their stage, and the
+// Studio's selftest checks that each is drawn as itself and touched as the schema says (META.product, META.touch).
+const PRODUCTS = {
+  window: { draw: drawWindow }, macbook: { draw: drawMac, device: true }, imac: { draw: drawMac, device: true },
+  iphone: { draw: drawPhone, touch: true, device: true }, ipad: { draw: drawPad, touch: true, device: true }, browser: { draw: drawBrowser }, bare: { draw: drawBare }, terminal: { draw: drawTerminal }, none: {},
+};
+const ASKED = HASH.get('ui'); // a tutorial is told on a product: never on words alone
+const PRODUCT = Object.hasOwn(PRODUCTS, ASKED) && !(MODE === 'tutorial' && ASKED === 'none') ? ASKED : 'window';
+const { touch: TOUCH = false, device: DEVICE = false } = PRODUCTS[PRODUCT];
+META.product = PRODUCT; META.touch = TOUCH;
+// BOX: the product's own extent in the world, its frame included: what arrives and leaves, what a cut opens from,
+// what a tutorial's camera frames and what the headline keeps clear of. A wide frame has it on the right, the
+// headline on its left; the others have it under the headline (an iPhone in a square beside it: both are tall).
+// A device keeps its own proportions: an iPhone 16 Pro's 71.5 x 149.6 mm, an iPad Pro 13"'s 281.6 x 215.5 mm
+// (lying down where the frame is wide or square, upright where it is tall), a MacBook Pro 14"'s lid, an iMac 24"'s
+// body of 547 x 375 mm. A tall one ends above where a voice-over's subtitle is written.
+const box = (cx, top, w, h) => ({ x: (cx - w / 2) * U, y: top * U, w: w * U, h: h * U });
+const PHONE = 71.5 / 149.6, PAD = 281.6 / 215.5, IMAC = 547 / 375, DESK_Y = SHAPE === 'tall' ? -200 : -150;
+const PUSH = 1.05; // how far the camera pushes in, at its nearest
+const CLOSE = HASH.get('on') === 'product' && PRODUCT !== 'none'; // the product alone, filling the frame
+// how the subtitles are written: on a plate, outlined, or not at all (cap=); say=1, a promo's voice-over's
+const CAP = HASH.get('cap') || 'plate', SAY = HASH.get('say') === '1', CAPTIONS = { family: TEXTF, plate: CAP === 'outline' ? false : undefined };
+// Where a promo's subtitle starts (FILM.captions: one line, 7.5 % off the bottom, its plate 1.68 times its size), as
+// far as the product may come with the camera pushed in. A product that would reach it is made smaller about its
+// top (FIT): a window or an iPad in a square frame. Nothing changes where no subtitle is written.
+const SUB_TOP = (H * 0.425 - 1.68 * Math.round(Math.min(W, H) * 0.042) - 16 * U) / PUSH;
+const SUBS = MODE === 'stage' && SAY && CAP !== 'none' && !CLOSE;
+const SIDE = WIDE || (PRODUCT === 'iphone' && SHAPE === 'square'); // the product beside the headline, not under it
+const WIN = { x: 0, y: 0, w: 880, h: 600 }; // a window, a page, a terminal, a panel: in the units their UI is drawn in
+const probe = document.createElement('canvas').getContext('2d'); // a part says where it draws by drawing: here, on a canvas nobody sees
+// A Mac is drawn from its top, a MacBook's lid or an iMac's body, and stands on what its part draws under that: a
+// base wider than the lid, a stand narrower than the body. Its box is both, read from the part.
+// top: where its top is in each shape. The iMac's colour is the Apple one nearest the accent, found once.
+const MAC = {
+  macbook: { part: PARTS.laptop, on: 'base', top: WIDE ? box(360, -276, 800, 530) : box(0, DESK_Y + 10, 820, 543) },
+  imac: { part: PARTS.desktop, on: 'stand', o: { color: PARTS.imacColor(C.accent) }, top: { wide: box(360, -371, 880, 880 / IMAC), square: box(0, -150, 736, 736 / IMAC), portrait: box(0, -300, 920, 920 / IMAC), tall: box(0, -240, 940, 940 / IMAC) }[SHAPE] },
+}[PRODUCT];
+const standing = (top) => {
+  const u = MAC.part(probe, top, { shadow: false })[MAC.on], x = Math.min(top.x, u.x);
+  return { x, y: top.y, w: Math.max(top.x + top.w, u.x + u.w) - x, h: u.y + u.h - top.y };
+};
+const BOX0 = MAC ? standing(MAC.top) : {
+  iphone: { wide: box(360, -402, 770 * PHONE, 770), square: box(290, -400, 740 * PHONE, 740), portrait: box(0, -300, 790 * PHONE, 790), tall: box(0, -470, 1140 * PHONE, 1140) },
+  ipad: { wide: box(356, -318, 830, 830 / PAD), square: box(0, -150, 820, 820 / PAD), portrait: box(0, -300, 790 / PAD, 790), tall: box(0, -470, 880, 880 * PAD) },
+}[PRODUCT]?.[SHAPE] || (WIDE ? box(360, -300, WIN.w, WIN.h) : box(0, DESK_Y, WIN.w, WIN.h)); // a window, a browser, a terminal, a panel
+const FIT = SUBS ? Math.min(1, (SUB_TOP - BOX0.y) / BOX0.h) : 1;
+const smaller = (b) => ({ x: b.x + b.w * (1 - FIT) / 2, y: b.y, w: b.w * FIT, h: b.h * FIT }); // about its top, its middle kept
+const TOP = MAC && smaller(MAC.top);
+const BOX = MAC ? standing(TOP) : smaller(BOX0);
+if (MAC) { // where a Mac's parts are in its box, as shares of it (x, y, w, h): its top, what it stands on, an iMac's chin. The selftest's
+  const s = MAC.part(probe, TOP, { shadow: false }), share = (r) => r && { x: (r.x - BOX.x) / BOX.w, y: (r.y - BOX.y) / BOX.h, w: r.w / BOX.w, h: r.h / BOX.h };
+  META.parts = { top: share(TOP), under: share(s[MAC.on]), chin: share(s.chin) };
+}
+const BIG = (WIDE ? 190 : 130) * U * (STYLE === 'flap' ? 0.6 : 1); // a flap board's cells are wider than letters
+const ALONE = { x: 0, align: 'center', size: BIG, get y() { return -this.size * 0.2; } }; // the headline alone, large: text mode's, and ui=none's
+// room: how wide the headline may be where it is, clear of the product beside it
+const HEAD = PRODUCT === 'none' ? ALONE
+  : WIDE ? { x: -780 * U, y: -50 * U, align: 'left', size: 76 * U, room: BOX.x + (780 - 56) * U }
+  : SIDE ? { x: -456 * U, y: -40 * U, align: 'left', size: 60 * U, room: BOX.x + (456 - 44) * U } // inside the safe area at the camera's nearest
+  : { x: 0, y: BOX.y - (SHAPE === 'tall' ? 250 : 175) * U, align: 'center', size: 80 * U, room: W * 0.9 };
+const CLICK1 = 3.2, CLICK2 = 4.5;
+
+// The product's UI is drawn in its own units (a Mac's points, an iPhone's, an iPad's) through VIEW: a point of
+// it is at VIEW.x + VIEW.k * x in the world (w, h: a screen's size in them; bar: how tall a Mac's menu bar
+// is, in the world's). G is where its controls are, in those units: the button the first
+// click lands on, the menu it opens (from: the corner it grows from), the toast that answers the second.
+const menuAt = (btn, w, above, mid) => ({ x: mid ? btn.x + btn.w / 2 - w / 2 : btn.x + btn.w - w, y: above ? btn.y - 150 - 14 : btn.y + btn.h + 12, w, h: 150, from: [mid ? 0.5 : 1, above ? 1 : 0] });
+const { VIEW, G } = (() => {
+  // a Mac app's: Publish in the window's corner, its menu above it, the toast at y
+  const desk = { x: BOX.x, y: BOX.y, k: U * FIT }, deskBtn = { x: WIN.w - 150 - 32, y: WIN.h - 44 - 28, w: 150, h: 44 };
+  const deskG = (y) => ({ btn: deskBtn, menu: menuAt(deskBtn, 230, true), toast: { x: 610, y, w: 250, h: 64, r: 16, slide: -30 } });
+  if (PRODUCT === 'iphone') { // 390 points across, as an iPhone is
+    const s = PARTS.phone(probe, BOX, { shadow: false }), k = s.w / 390, h = s.h / k, btn = { x: 20, y: h - 96, w: 350, h: 52, size: 17 };
+    return { VIEW: { x: s.x, y: s.y, k, w: 390, h }, G: { btn, menu: menuAt(btn, 250, true, true), toast: { x: 10, y: 58, w: 370, h: 66, r: 22, slide: -120, app: true } } };
+  }
+  if (PRODUCT === 'ipad') { // 1000 points across lying down, 760 upright
+    const s = PARTS.tablet(probe, BOX, { shadow: false }), w = s.w > s.h ? 1000 : 760, k = s.w / w, h = s.h / k, btn = { x: w - 26 - 118, y: 42, w: 118, h: 40, size: 15 };
+    const free = [(w > h ? 276 : 64) + 124, btn.x - 16]; // between the view's title and the button: the banner comes down there, over neither
+    return { VIEW: { x: s.x, y: s.y, k, w, h }, G: { btn, menu: menuAt(btn, 240), toast: { x: (free[0] + free[1] - 370) / 2, y: 30, w: 370, h: 64, r: 22, slide: -110, app: true } } };
+  }
+  if (MAC) { // the app's window on its desktop, under the menu bar: as tall as clears a MacBook's notch, thinner where there is none
+    const s = MAC.part(probe, TOP, { shadow: false }), bar = s.notch ? s.notch.h * 1.3 : s.w * 0.022, k = Math.min((s.w - 64 * U) / WIN.w, (s.h - bar - 22 * U) / WIN.h);
+    return { VIEW: { x: s.x + (s.w - WIN.w * k) / 2, y: s.y + bar + (s.h - bar - WIN.h * k) / 2, k, bar }, G: deskG(64) };
+  }
+  if (PRODUCT === 'browser') { // the button beside the page's heading, its menu under it, the toast in the page's corner
+    const btn = { x: WIN.w - 40 - 132, y: 52 + 78, w: 132, h: 40, size: 15 };
+    return { VIEW: desk, G: { btn, menu: menuAt(btn, 230), toast: { x: 606, y: WIN.h - 64 - 24, w: 250, h: 64, r: 16, slide: 30 } } };
+  }
+  if (PRODUCT === 'window' || PRODUCT === 'bare') return { VIEW: desk, G: deskG(PRODUCT === 'bare' ? 22 : 64) }; // a panel has no title bar to clear
+  return { VIEW: desk, G: null }; // a terminal, or words alone: nothing to click
+})();
+const toWorld = (x, y) => [VIEW.x + VIEW.k * x, VIEW.y + VIEW.k * y];
+// where the first click lands, on the button, and the second, on "Publish now": a pointer's tip, or a finger's middle
+const REST = G ? toWorld(G.btn.x + G.btn.w * (TOUCH ? 0.74 : 0.55), G.btn.y + G.btn.h * (TOUCH ? 0.5 : 0.6)) : [BOX.x + BOX.w / 2, BOX.y + BOX.h / 2];
+const ITEM = G ? toWorld(G.menu.x + (TOUCH ? G.menu.w * 0.74 : 150), G.menu.y + 74 + (TOUCH ? 0 : 4)) : REST;
+
+// the copy a style needs: a slot for swap, a number for the odometer
+function copy() {
+  if (STYLE === 'swap') return { lines: ['Your {},', 'on stage.'], words: ['product', 'launch', 'story'], every: 1.25 };
+  if (STYLE === 'odometer') return { lines: ['12,480 teams,', 'on stage.'] };
+  return { lines: ['Your product,', 'on stage.'] };
+}
+const headSpec = (o = {}) => ({
+  ...copy(), x: o.x ?? HEAD.x, y: o.y ?? HEAD.y, align: o.align ?? HEAD.align, valign: 'middle', size: o.size ?? HEAD.size,
+  family: DISPLAY, weight: DW, ls: -0.012, color: LOOK.ink, accent: C.accent, style: STYLE, pace: PACE,
+  at: o.at ?? 0.35, out: o.out ?? 6.5, emphasis: EMPH ? { word: 'stage', mark: EMPH } : null, minWeight: 140,
+});
+function headline(t, o = {}) { return TYPE.draw(ctx, t, headSpec(o)); }
+const aloneBlock = () => TYPE.extent(headSpec({ ...ALONE, at: 0, out: 1e9 }), 30); // where the headline alone rests, as drawn
+/** The headline is as large as fits. Alone: a wide face (Unbounded at 700) in a vertical or square frame would
+ *  overrun it at BIG, so a margin each side, and room for the camera's push. Beside a product: never into it
+ *  (HEAD.room), whatever the face and the device. Once the faces are in. */
+function fitHead() {
+  const e = aloneBlock(), room = W * 0.86 / PUSH;
+  if (e && e.width > room) ALONE.size *= room / e.width;
+  if (HEAD === ALONE) return;
+  const b = TYPE.extent(headSpec({ at: 0, out: 1e9 }), 30);
+  if (b && b.width > HEAD.room) HEAD.size *= HEAD.room / b.width;
+}
+function subline(t, o = {}) {
+  const a = clamp(spr(t, (o.at ?? 0.35) + 0.6, 1.4, 1) - spr(t, o.out ?? 6.5, 2.4, 1));
+  if (a <= 0.002) return;
+  ctx.save(); ctx.globalAlpha *= a;
+  ctx.font = `500 ${(o.size ?? HEAD.size) * 0.29}px ${TEXTF === 'system-ui' ? 'system-ui' : `"${TEXTF}", system-ui`}`;
+  ctx.textAlign = o.align ?? HEAD.align; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = rgba(LOOK.dim);
+  ctx.fillText('A look, a type and a motion, judged with something on them.', o.x ?? HEAD.x, (o.y ?? HEAD.y) + (o.size ?? HEAD.size) * 1.62, o.size ? W * 0.9 : Math.min(W * 0.9, HEAD.room ?? W)); // the larger sizes would overrun a vertical frame, and a line beside a device its room
+  ctx.restore();
+}
+
+// camera: a slow push toward the product, then home before the loop point
+const focus = PRODUCT === 'none' ? [0, 0] : WIDE ? [40 * U, 10 * U] : [0, (BOX.y + BOX.h * 0.45) * 0.3]; // words alone: a slow push on the middle
+const CAM_AT = camera([[0.6, focus[0], focus[1], PUSH, 0.7, 0.9], [5.4, 0, 0, 1, 0.75, 0.9]]);
+// the cursor: in from off frame, onto the button, click; into the menu, click; then away
+const OFF = [W * 0.62, H * 0.62];
+const curX = track(OFF[0], [[0.9, REST[0], 0.9, 0.92], [3.6, ITEM[0], 1.0, 0.9], [5.0, REST[0] + 160 * U, 1.0, 0.9], [6.0, OFF[0], 0.9, 0.95]]);
+const curY = track(OFF[1], [[0.9, REST[1], 1.0, 0.92], [3.6, ITEM[1], 1.1, 0.9], [5.0, REST[1] - 110 * U, 1.0, 0.9], [6.0, OFF[1], 0.9, 0.95]]);
+const press = (t, c) => spr(t, c - 0.03, 6, 1) - spr(t, c + 0.1, 6, 1);
+const hover = (t) => (TOUCH ? 0 : spr(t, 2.4, 2.2, 1) - spr(t, CLICK1 + 0.3, 2.2, 1)); // the button lights up under the cursor; a finger has no hover
+const menuIn = (t) => spr(t, CLICK1 + 0.12, 2.2, 0.86) - spr(t, CLICK2 + 0.12, 2.6, 1);
+const toastIn = (t) => spr(t, CLICK2 + 0.25, 1.8, 0.86) - spr(t, 6.25, 2.2, 1);
+const winIn = (t) => spr(t, 0.2, 1.4, 0.88) - spr(t, 6.85, 1.8, 1);
+
+let CAM = { x: 0, y: 0, z: 1 };
+const world = () => ctx.setTransform(CAM.z, 0, 0, CAM.z, W / 2 - CAM.x * CAM.z, H / 2 - CAM.y * CAM.z);
+const screen = () => ctx.setTransform(1, 0, 0, 1, 0, 0);
+const toScreen = (x, y) => [W / 2 + (x - CAM.x) * CAM.z, H / 2 + (y - CAM.y) * CAM.z];
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect(x, y, w, h, Math.min(r, w / 2, h / 2)); }
+function label(s, x, y, size, col, o = {}) {
+  ctx.font = `${o.w || 500} ${size}px ${UI}`; ctx.fillStyle = typeof col === 'string' ? col : rgba(col, o.a ?? 1);
+  ctx.textAlign = o.align || 'left'; ctx.textBaseline = o.base || 'middle'; ctx.fillText(s, x, y);
+}
+const FX_mix = (a, b, p) => [0, 1, 2].map((i) => lerp(a[i], b[i], p));
+
+// ---------------------------------------------------------------- the stand-in product
+// One product, laid out as it would be on each surface: a Mac app in its window (and that window on a MacBook's
+// desktop), a page in a browser, an app on an iPhone and on an iPad, the UI alone. Never one layout squeezed
+// into another's screen. Each has three numbers that roll in, a chart that grows, and Publish.
+const DARK = () => LOOK.tone === 'dark';
+const BARS = [0.42, 0.58, 0.5, 0.74, 0.66, 0.88, 0.7, 0.95, 0.8, 0.62, 0.86, 0.78];
+const NAV = ['Overview', 'Projects', 'Activity', 'Reports', 'Settings']; // the app's sections, in a sidebar or a page's header
+/** The UI's own colours, by the look's tone: a Mac's or a page's; ios, an iOS app's grouped ones (cards on grey).
+ *  Made once for each: the look's tone is the page's for good. */
+const INKS = {};
+function inks(ios = false) {
+  if (INKS[ios]) return INKS[ios];
+  const D = DARK(), P = { D, ink: D ? [236, 236, 244] : [28, 30, 38], sub: D ? [150, 152, 166] : [120, 122, 134] };
+  return (INKS[ios] = ios ? { ...P, ios, page: D ? [10, 10, 12] : [242, 242, 247], card: D ? [30, 30, 35] : [255, 255, 255], line: D ? [48, 48, 56] : [229, 229, 236], side: D ? [20, 20, 24] : [249, 249, 252] }
+    : { ...P, page: D ? [30, 30, 32] : [255, 255, 255], card: D ? [38, 40, 48] : [248, 248, 251], line: D ? [52, 54, 64] : [232, 232, 238], side: D ? [34, 35, 42] : [244, 244, 247] });
+}
+/** The product's way in and out, in BOX's place (winIn): it rises, grows from 94 % and fades. Saves the
+ *  context and returns true when there is something to draw; the caller restores it. */
+function enter(t, still) {
+  const p = still ? 1 : winIn(t);
+  if (p <= 0.002) return false;
+  ctx.save();
+  const s = 0.94 + 0.06 * p, cx = BOX.x + BOX.w / 2, cy = BOX.y + BOX.h / 2;
+  ctx.globalAlpha *= clamp(p * 1.4);
+  ctx.translate(cx, cy + (1 - p) * 40 * U); ctx.scale(s, s); ctx.translate(-cx, -cy);
+  return true;
+}
+/** draw(), in the UI's own units. */
+function inView(draw) { ctx.save(); ctx.translate(VIEW.x, VIEW.y); ctx.scale(VIEW.k, VIEW.k); draw(); ctx.restore(); }
+/** draw(), clipped to r with corners of radius: a window's own, a device's glass. */
+function clipped(r, radius, draw) { ctx.save(); rr(r.x, r.y, r.w, r.h, radius); ctx.clip(); draw(); ctx.restore(); }
+/** The look's edge round the window's or the panel's outline, where the look has one. */
+function edge(radius) { if (LOOK.edge) { rr(0.5, 0.5, WIN.w - 1, WIN.h - 1, radius); ctx.lineWidth = 1; ctx.strokeStyle = LOOK.edge; ctx.stroke(); } }
+function panel(P, x, y, w, h, r) { rr(x, y, w, h, r); ctx.fillStyle = rgba(P.card); ctx.fill(); if (!P.ios) { ctx.lineWidth = 1; ctx.strokeStyle = rgba(P.line); ctx.stroke(); } } // an iOS card has no outline
+/** Three numbers that roll into place, a card each. */
+function stats(t, still, P, x, y, w, o = {}) {
+  still ||= CLOSE; // from near, settled: the loop comes back to where it started, with only the taps and what they bring moving
+  const gap = o.gap ?? 16, h = o.h ?? 92, cw = (w - 2 * gap) / 3, pad = o.pad ?? 18;
+  [['Visitors', '24,816'], ['Conversion', '3.42%'], ['Revenue', '$18.2k']].forEach(([k, v], i) => {
+    const cx = x + i * (cw + gap);
+    panel(P, cx, y, cw, h, o.r ?? 12);
+    label(k, cx + pad, y + h * 0.3, o.small ?? 13, P.sub);
+    TYPE.draw(ctx, still ? 99 : t, { lines: [v], x: cx + pad, y: y + h * 0.76, valign: 'middle', size: o.big ?? 26, family: UI, weight: 650, color: P.ink, style: 'odometer', at: 0.75 + i * 0.12, pace: PACE * 1.4 });
+  });
+}
+/** A chart that grows, holds, and settles back before the loop point; o.title heads it, where there is room for one. */
+function chart(t, still, P, x, y, w, h, o = {}) {
+  still ||= CLOSE;
+  const head = o.title ? 34 : 0, bw = (w - (o.title ? 20 : 0)) / BARS.length, x0 = x + (o.title ? 10 : 0);
+  panel(P, x, y, w, h, o.r ?? 12);
+  if (o.title) { label(o.title, x + 18, y + 26, 15, P.ink, { w: 650 }); label('Last 12 weeks', x + w - 18, y + 26, 12.5, P.sub, { align: 'right' }); }
+  BARS.forEach((v, i) => {
+    const grow = still ? 1 : spr(t, 0.85 + i * 0.06, 1.4, 0.86) - spr(t, 6.3 + i * 0.03, 1.6, 1) * 0.65;
+    const bh = (h - 40 - head) * v * (0.3 + 0.7 * grow);
+    rr(x0 + i * bw + bw * 0.24, y + h - 20 - bh, bw * 0.52, bh, 5);
+    ctx.fillStyle = rgba(i === 7 ? C.accent : (i % 3 === 0 ? C.a : C.accent), i === 7 ? 1 : 0.42); ctx.fill();
+  });
+}
+/** A short list under the chart, as many rows as there is room for: what a phone or an upright tablet shows next. */
+function pages(P, x, y, w, bottom) {
+  const rh = 54, n = Math.min(4, Math.floor((bottom - y - 30) / rh));
+  if (n < 1) return;
+  label('Top pages', x + 4, y + 13, 13, P.sub, { w: 600 });
+  panel(P, x, y + 30, w, n * rh, 16);
+  [['Homepage', '2 min ago', '8,204'], ['Pricing', '1 h ago', '5,117'], ['Docs', 'Yesterday', '3,960'], ['Changelog', 'Monday', '1,482']].slice(0, n).forEach(([name, when, v], i) => {
+    const yy = y + 30 + i * rh;
+    rr(x + 14, yy + 12, 30, 30, 8); ctx.fillStyle = rgba(i % 2 ? C.a : C.accent, 0.18); ctx.fill();
+    rr(x + 23, yy + 21, 12, 12, 3); ctx.fillStyle = rgba(i % 2 ? C.a : C.accent); ctx.fill();
+    label(name, x + 58, yy + 19, 15, P.ink, { w: 600 }); label(when, x + 58, yy + 37, 12, P.sub);
+    label(v, x + w - 16, yy + rh / 2, 15, P.ink, { w: 600, align: 'right' });
+    if (i) { ctx.fillStyle = rgba(P.line); ctx.fillRect(x + 58, yy - 0.5, w - 58, 1); }
+  });
+}
+/** Publish: lit while the cursor rests on it, pressed on the click; under a finger it only presses, and darkens. */
+function publish(t, still) {
+  const b = G.btn, pr = still ? 0 : press(t, CLICK1), hv = still ? 0 : hover(t);
+  ctx.save(); ctx.translate(b.x + b.w / 2, b.y + b.h / 2); ctx.scale(1 - 0.05 * pr, 1 - 0.05 * pr);
+  PARTS.button(ctx, { x: -b.w / 2, y: -b.h / 2, w: b.w, h: b.h }, 'Publish', { fill: TOUCH ? FX_mix(C.accent, [0, 0, 0], 0.16 * pr) : hv > 0.01 ? FX_mix(C.accent, [255, 255, 255], 0.14 * hv) : C.accent, size: b.size ?? 16, shadow: true });
+  ctx.restore();
+}
+/** What the clicks bring, over everything else of the UI: the menu, then the toast. */
+function answers(t, still, P) { if (!still) { drawMenu(t, P); drawToast(t, P); } }
+function drawMenu(t, P) { // a glass popover the click opens: the look seen through a surface
+  const m = menuIn(t);
+  if (m <= 0.002) return;
+  const { x, y, w, h, from } = G.menu, ox = x + w * from[0], oy = y + h * from[1];
+  ctx.save();
+  ctx.globalAlpha *= clamp(m * 1.4);
+  ctx.translate(ox, oy); ctx.scale(lerp(0.92, 1, m), lerp(0.92, 1, m)); ctx.translate(-ox, -oy);
+  LOOK.glass(ctx, x, y, w, h, 14, P.D
+    ? { tint: [44, 46, 56], alpha: 0.62, rim: 0.22, shadow: [30, 10, 'rgba(0,0,0,0.35)'] }
+    : { tint: [255, 255, 255], alpha: 0.66, shadow: [30, 10, 'rgba(20,20,40,0.18)'] });
+  const sel = TOUCH ? spr(t, CLICK2 - 0.06, 5, 1) : spr(t, 3.75, 2.4, 0.95); // the highlight follows the cursor down to "Publish now"; a finger lights it as it lands
+  ['Schedule…', 'Publish now', 'Share preview'].forEach((s, i) => {
+    const yy = y + 30 + i * 44;
+    if (i === 1) { rr(x + 8, yy - 17, w - 16, 34, 8); ctx.fillStyle = rgba(C.accent, 0.9 * sel); ctx.fill(); }
+    label(s, x + 22, yy, 15, i === 1 && sel > 0.5 ? [255, 255, 255] : P.ink, { w: i === 1 ? 600 : 500 });
+  });
+  ctx.restore();
+}
+function drawToast(t, P) { // the answer to the second click: a toast slides into the window's corner; on a phone or a tablet, a banner from the top
+  const p = toastIn(t);
+  if (p <= 0.002) return;
+  const { x, w, h, r, slide, app } = G.toast, y = G.toast.y + (1 - p) * slide, cx = x + (app ? 35 : 32), cy = y + h / 2;
+  ctx.save(); ctx.globalAlpha *= clamp(p * 1.5);
+  LOOK.glass(ctx, x, y, w, h, r, P.D ? { tint: [40, 42, 52], alpha: 0.7, rim: 0.2, shadow: [26, 8, 'rgba(0,0,0,0.35)'] } : { tint: [255, 255, 255], alpha: 0.78, shadow: [26, 8, 'rgba(20,20,40,0.16)'] });
+  if (app) { rr(cx - 19, cy - 19, 38, 38, 10); ctx.fillStyle = rgba(C.accent); ctx.fill(); } // the app's icon, as a notification has it
+  else { ctx.beginPath(); ctx.arc(cx, cy, 13, 0, Math.PI * 2); ctx.fillStyle = rgba(C.a); ctx.fill(); }
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.6; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  const k = clamp((t - CLICK2 - 0.45) / 0.3); // the tick draws itself
+  ctx.beginPath(); ctx.moveTo(cx - 6, cy); ctx.lineTo(cx - 6 + 4.5 * Math.min(1, k * 2), cy + 4.5 * Math.min(1, k * 2));
+  if (k > 0.5) ctx.lineTo(cx - 1.5 + 8 * (k - 0.5) * 2, cy + 4.5 - 8 * (k - 0.5) * 2);
+  ctx.stroke();
+  const tx = x + (app ? 68 : 56);
+  label('Published', tx, cy - 9, 15, P.ink, { w: 650 });
+  label('Live on your site', tx, cy + 11, 13, P.sub);
+  if (app) label('now', x + w - 18, cy - 9, 12.5, P.sub, { align: 'right' });
+  ctx.restore();
+}
+
+/** The Mac app, in r (a window's content, or a bare panel): a sidebar, the numbers, the chart, the button in
+ *  its corner. head: the room a panel with no title bar gives the app's name and the view's. */
+function uiApp(t, still, P, r, head = 0) {
+  const sw = 190;
+  ctx.fillStyle = rgba(P.side); ctx.fillRect(r.x, r.y, sw, r.h);
+  if (head) {
+    rr(r.x + 24, r.y + 24, 22, 22, 6); ctx.fillStyle = rgba(C.accent); ctx.fill();
+    label('Product', r.x + 56, r.y + 35.5, 15, P.ink, { w: 700 });
+  }
+  NAV.forEach((txt, i) => {
+    const y = r.y + 34 + head + i * 40;
+    if (i === 0) { rr(r.x + 12, y - 15, sw - 24, 30, 8); ctx.fillStyle = rgba(C.accent, P.D ? 0.32 : 0.16); ctx.fill(); }
+    rr(r.x + 26, y - 6, 12, 12, 3); ctx.fillStyle = rgba(i === 0 ? C.accent : P.sub, i === 0 ? 1 : 0.6); ctx.fill();
+    label(txt, r.x + 48, y, 15, i === 0 ? P.ink : P.sub, { w: i === 0 ? 600 : 500 });
+  });
+  const mx = r.x + sw + 28, mw = r.w - sw - 56;
+  if (head) label('Overview', mx, r.y + 36, 21, P.ink, { w: 700 });
+  stats(t, still, P, mx, r.y + 24 + head, mw);
+  chart(t, still, P, mx, r.y + 140 + head, mw, r.h - 240 - head);
+  publish(t, still);
+  answers(t, still, P);
+}
+function drawWindow(t, still) {
+  const P = inks();
+  inView(() => {
+    const r = PARTS.window(ctx, WIN, { dark: P.D, title: 'Overview', shadow: true });
+    edge(16);
+    clipped(WIN, r.r, () => uiApp(t, still, P, r)); // the sidebar ends in the window's own corner
+  });
+}
+// ui=bare: the UI on its own, no window and no device round it: a panel that floats
+function drawBare(t, still) {
+  const P = inks();
+  inView(() => {
+    ctx.save(); PARTS.shadow(ctx, 60, 24, P.D ? 'rgba(0,0,0,0.55)' : 'rgba(20,24,40,0.28)');
+    rr(0, 0, WIN.w, WIN.h, 24); ctx.fillStyle = rgba(P.page); ctx.fill(); ctx.restore();
+    edge(24);
+    clipped(WIN, 24, () => uiApp(t, still, P, WIN, 40));
+  });
+}
+// ui=browser: the same product as a web page: its own header and links, the heading with Publish beside it
+function drawBrowser(t, still) {
+  const P = inks();
+  inView(() => {
+    const r = PARTS.browser(ctx, WIN, { dark: P.D, url: 'example.com/overview', shadow: true });
+    edge(16);
+    clipped(WIN, r.r, () => {
+      rr(r.x + 40, r.y + 17, 22, 22, 6); ctx.fillStyle = rgba(C.accent); ctx.fill();
+      label('Product', r.x + 72, r.y + 28.5, 15, P.ink, { w: 700 });
+      let lx = r.x + 190;
+      NAV.slice(0, 4).forEach((s, i) => {
+        label(s, lx, r.y + 28.5, 14, i ? P.sub : P.ink, { w: i ? 500 : 600 });
+        const w = ctx.measureText(s).width;
+        if (!i) { ctx.fillStyle = rgba(C.accent); ctx.fillRect(lx, r.y + 54, w, 2); }
+        lx += w + 30;
+      });
+      ctx.beginPath(); ctx.arc(r.x + r.w - 54, r.y + 28, 14, 0, Math.PI * 2); ctx.fillStyle = rgba(C.accent, 0.22); ctx.fill();
+      ctx.fillStyle = rgba(P.line); ctx.fillRect(r.x, r.y + 56, r.w, 1);
+      label('Overview', r.x + 40, r.y + 92, 26, P.ink, { w: 750 });
+      label('Last 30 days, every site', r.x + 40, r.y + 118, 13, P.sub);
+      stats(t, still, P, r.x + 40, r.y + 146, r.w - 80, { h: 88 });
+      chart(t, still, P, r.x + 40, r.y + 250, r.w - 80, r.h - 250 - 30);
+      publish(t, still);
+      answers(t, still, P);
+    });
+  });
+}
+// ui=macbook, ui=imac: the app's window on a Mac's desktop, under its menu bar (and a MacBook's notch)
+const WALL = [[0, FX_mix(C.deep, C.accent, 0.3)], [0.55, FX_mix(C.accent, C.c, 0.35)], [1, FX_mix(C.accent, C.pale, 0.7)]].map(([at, c]) => [at, rgba(c)]); // a wallpaper in the product's own colours
+function drawMac(t, still) {
+  const P = inks(), s = MAC.part(ctx, TOP, MAC.o), bar = VIEW.bar;
+  clipped(s, s.r, () => {
+    const wall = ctx.createLinearGradient(s.x, s.y, s.x + s.w, s.y + s.h);
+    for (const [at, c] of WALL) wall.addColorStop(at, c);
+    ctx.fillStyle = wall; ctx.fillRect(s.x, s.y, s.w, s.h);
+    ctx.fillStyle = 'rgba(12,12,18,0.28)'; ctx.fillRect(s.x, s.y, s.w, bar); // the menu bar: the app's name and its menus
+    const my = s.y + bar / 2, ms = bar * 0.5;
+    let mx = s.x + bar * 0.9;
+    ['Product', 'File', 'Edit', 'View', 'Window', 'Help'].forEach((m, i) => { label(m, mx, my, ms, '#fff', { w: i ? 500 : 700, a: 0.95 }); mx += ctx.measureText(m).width + ms * 1.3; });
+    label('9:41', s.x + s.w - bar * 0.9, my, ms, '#fff', { w: 500, align: 'right' });
+    inView(() => {
+      const r = PARTS.window(ctx, WIN, { dark: P.D, title: 'Overview', shadow: true });
+      clipped(WIN, r.r, () => uiApp(t, still, P, r));
+    });
+  });
+  if (s.notch) PARTS.notch(ctx, s);
+}
+/** The home indicator, w wide at y, across the bottom of an iPhone's or an iPad's screen of width sw. */
+function homeBar(P, sw, y, w, a) { rr(sw / 2 - w / 2, y, w, 5, 2.5); ctx.fillStyle = rgba(P.ink, a); ctx.fill(); }
+/** The time and the battery, as iOS has them at the top of a screen. */
+function statusBar(P, tx, bx, y, size) {
+  label('9:41', tx, y, size, P.ink, { w: 650, align: 'center' });
+  const w = size * 1.5, h = size * 0.72;
+  rr(bx, y - h / 2, w, h, h * 0.3); ctx.lineWidth = 1; ctx.strokeStyle = rgba(P.ink, 0.4); ctx.stroke();
+  rr(bx + 1.5, y - h / 2 + 1.5, (w - 3) * 0.8, h - 3, h * 0.2); ctx.fillStyle = rgba(P.ink); ctx.fill();
+  rr(bx + w + 1, y - h * 0.18, 1.6, h * 0.36, 0.8); ctx.fillStyle = rgba(P.ink, 0.4); ctx.fill();
+}
+// ui=iphone: the product as an iPhone app: a large title, the numbers in a compact row, the chart, a list, and
+// Publish across the bottom where a thumb reaches it; its answer is a banner from the top, as a notification is
+function drawPhone(t, still) {
+  const P = inks(true), s = PARTS.phone(ctx, BOX, {}), { w, h } = VIEW;
+  clipped(s, s.r, () => inView(() => {
+    ctx.fillStyle = rgba(P.page); ctx.fillRect(0, 0, w, h);
+    statusBar(P, 62, 304, 32, 16);
+    label('Overview', 20, 96, 31, P.ink, { w: 760 });
+    ctx.beginPath(); ctx.arc(w - 38, 94, 17, 0, Math.PI * 2); ctx.fillStyle = rgba(C.accent, 0.2); ctx.fill();
+    label('A', w - 38, 94.5, 15, C.accent, { w: 700, align: 'center' });
+    stats(t, still, P, 20, 128, w - 40, { h: 76, gap: 10, pad: 13, big: 19, small: 11.5, r: 16 });
+    chart(t, still, P, 20, 218, w - 40, 236, { r: 20, title: 'Visitors' });
+    pages(P, 20, 470, w - 40, G.btn.y - 16);
+    publish(t, still);
+    homeBar(P, w, h - 14, 134, 0.85); // over the button's shadow, under what the clicks bring
+    answers(t, still, P);
+  }));
+  PARTS.island(ctx, s);
+}
+// ui=ipad: the product as an iPad app. Lying down: a sidebar beside the content, Publish in the bar over it.
+// Upright there is no room for the sidebar (a button stands for it) and the list comes back under the chart
+function drawPad(t, still) {
+  const P = inks(true), s = PARTS.tablet(ctx, BOX, {}), { w, h } = VIEW, land = w > h, sw = land ? 250 : 0;
+  clipped(s, s.r, () => inView(() => {
+    ctx.fillStyle = rgba(P.page); ctx.fillRect(0, 0, w, h);
+    if (land) {
+      ctx.fillStyle = rgba(P.side); ctx.fillRect(0, 0, sw, h);
+      ctx.fillStyle = rgba(P.line); ctx.fillRect(sw - 1, 0, 1, h);
+      label('Product', 24, 66, 25, P.ink, { w: 760 });
+      NAV.forEach((txt, i) => {
+        const y = 118 + i * 44;
+        if (i === 0) { rr(12, y - 19, sw - 24, 38, 10); ctx.fillStyle = rgba(C.accent, P.D ? 0.34 : 0.15); ctx.fill(); }
+        rr(26, y - 8, 16, 16, 4.5); ctx.fillStyle = rgba(C.accent, i === 0 ? 1 : 0.5); ctx.fill();
+        label(txt, 54, y, 16, i === 0 ? C.accent : P.ink, { w: i === 0 ? 650 : 500 });
+      });
+    } else { // the sidebar's button: a pane and its column
+      rr(26, 52, 24, 19, 5); ctx.lineWidth = 1.8; ctx.strokeStyle = rgba(C.accent); ctx.stroke();
+      ctx.fillStyle = rgba(C.accent); ctx.fillRect(33.5, 52, 1.8, 19);
+    }
+    statusBar(P, 46, w - 56, 17, 12.5);
+    const x0 = sw + 26, cw = w - x0 - 26, ch = land ? h - 208 - 26 : h - 208 - 312; // upright, the list has the rest
+    label('Overview', land ? x0 : 64, 62, 25, P.ink, { w: 760 });
+    stats(t, still, P, x0, 98, cw, { h: 94, r: 16 });
+    chart(t, still, P, x0, 208, cw, ch, { r: 18, title: 'Visitors' });
+    if (!land) pages(P, x0, 208 + ch + 16, cw, h - 26);
+    publish(t, still);
+    homeBar(P, w, h - 11, 160, 0.75);
+    answers(t, still, P);
+  }));
+}
+
+// ui=terminal: in the window's place and time, a command typed and answered, then a second one
+const TERM_INK = { accent: C.accent, a: C.a, ink: [226, 226, 234], dim: [150, 152, 164] };
+function termLines(t) { // what the terminal shows at t, and whether the caret shows after its last line
+  const K = TERM_INK, cps = 18 * PACE, out = [];
+  const c1 = FILM.typed('product build', t, 0.7, { cps, seed: 3 }); // a person's cadence, as the templates type
+  out.push([['$ ', K.accent], [c1.shown, K.ink]]);
+  if (!c1.done) return { out, caret: c1.caret };
+  const t1 = c1.doneAt;
+  if (t > t1 + 0.3) out.push([['  ✓ ', K.a], ['compiled 128 files in 1.4 s', K.dim]]);
+  if (t > t1 + 0.6) out.push([['  ✓ ', K.a], ['342 tests passed', K.dim]]);
+  if (t <= t1 + 0.9) return { out, caret: false };
+  const c2 = FILM.typed('product deploy', t, t1 + 0.9, { cps, seed: 9 });
+  out.push([['$ ', K.accent], [c2.shown, K.ink]]);
+  if (!c2.done) return { out, caret: c2.caret };
+  if (t <= c2.doneAt + 0.25) return { out, caret: false };
+  out.push([['  → ', K.accent], ['live at example.com', K.ink]], [['$ ', K.accent]]);
+  return { out, caret: Math.floor(t * 2) % 2 === 0 }; // the next prompt waits, blinking
+}
+function drawTerminal(t, still) {
+  inView(() => {
+    const r = PARTS.terminal(ctx, WIN, { title: 'product — zsh' });
+    edge(14);
+    const { out, caret } = termLines(still ? 1e9 : t), size = 28, lh = 54, y = (i) => r.y + lh / 2 + i * lh;
+    let x = r.x;
+    out.forEach((segs, i) => { x = PARTS.line(ctx, r.x, y(i), segs, size); });
+    if (caret && !still) { ctx.fillStyle = rgba(TERM_INK.ink, 0.85); ctx.fillRect(x + 2, y(out.length - 1) - size * 0.55, size * 0.55, size * 1.1); }
+  });
+}
+/** The stand-in, arriving, at rest or leaving; still: settled and staying, nothing clicked (a cut's two ends). */
+function drawProduct(t, still) {
+  const draw = PRODUCTS[PRODUCT].draw;
+  if (!draw || !enter(t, still || CLOSE)) return; // seen from near, the product is the whole picture: it stays, never fading out and in at the loop
+  draw(t, still);
+  ctx.restore();
+}
+
+/** Who clicks: the macOS pointer, or on an iPhone and an iPad a finger. Nobody in a terminal, or on words alone. */
+function drawPointer(t) { if (G) (TOUCH ? drawTouch : drawCursor)(t); }
+function drawCursor(t) {
+  const [sx, sy] = toScreen(curX(t), curY(t));
+  const k = 1.45 * Math.pow(CAM.z, 0.35) * U;
+  LOOK.ripple(ctx, ...toScreen(REST[0], REST[1]), t, CLICK1, k);
+  LOOK.ripple(ctx, ...toScreen(ITEM[0], ITEM[1]), t, CLICK2, k);
+  const s = 2.0 * Math.pow(CAM.z, 0.35) * U * (1 - 0.16 * (press(t, CLICK1) + press(t, CLICK2)));
+  ctx.setTransform(s, 0, 0, s, sx, sy);
+  ctx.save();
+  ctx.shadowBlur = 3 * s; ctx.shadowOffsetY = 1.2 * s; ctx.shadowColor = 'rgba(0,0,0,0.28)';
+  ctx.lineJoin = 'round'; ctx.lineWidth = 2.2; ctx.strokeStyle = '#FFFFFF'; ctx.stroke(PARTS.ARROW);
+  ctx.shadowColor = 'transparent'; ctx.fillStyle = '#000000'; ctx.fill(PARTS.ARROW);
+  ctx.restore();
+}
+/** A touch: where the finger is, a soft disc that comes near, presses on the tap with the look's ripple, and
+ *  lifts. It does not travel as a pointer does: a finger is on the glass only while it taps. */
+function drawTouch(t) {
+  const k = 1.45 * Math.pow(CAM.z, 0.35) * U;
+  for (const [at, c] of [[REST, CLICK1], [ITEM, CLICK2]]) {
+    const [sx, sy] = toScreen(at[0], at[1]);
+    LOOK.ripple(ctx, sx, sy, t, c, k * 1.5);
+    const a = clamp(spr(t, c - 0.4, 3.6, 1) - spr(t, c + 0.16, 3.2, 1));
+    if (a <= 0.002) continue;
+    const r = 19 * VIEW.k * CAM.z * (1.5 - 0.5 * a - 0.16 * press(t, c));
+    ctx.save(); screen(); ctx.globalAlpha = a;
+    ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2);
+    ctx.shadowColor = 'rgba(0,0,0,0.3)'; ctx.shadowBlur = 10 * k; ctx.shadowOffsetY = 3 * k;
+    ctx.fillStyle = `rgba(70,74,92,${(0.24 + 0.16 * press(t, c)).toFixed(3)})`; ctx.fill();
+    ctx.shadowColor = 'transparent'; ctx.lineWidth = 2 * k; ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.stroke();
+    ctx.restore();
+  }
+}
+
+// ---------------------------------------------------------------- the modes
+// tutorial: three steps over the stage's own eight seconds, each said in one sentence. The Studio has
+// no sound of its own here: the subtitles stand where the voice would be (a real one is narrate.mjs's).
+const TOLD = PRODUCT === 'terminal' ? { // what a terminal is told doing: its two commands
+  en: [['Build', 'Run the build: every test passes.'], ['Deploy', 'Then deploy, with one command.'], ['Done', 'That is all: it is live on your site.']],
+  it: [['Compila', 'Lancia la build: tutti i test passano.'], ['Pubblica', 'Poi pubblica, con un solo comando.'], ['Fatto', 'È tutto: è online sul tuo sito.']],
+} : {
+  en: [['Open the overview', 'Open the overview: the numbers are live.'], ['Publish', `${TOUCH ? 'Tap' : 'Click'} Publish, then choose Publish now.`], ['Done', 'That is all: the page is live on your site.']],
+  it: [['Apri la panoramica', 'Apri la panoramica: i numeri sono aggiornati.'], ['Pubblica', `${TOUCH ? 'Tocca' : 'Fai clic su'} Pubblica, poi scegli Pubblica ora.`], ['Fatto', 'È tutto: la pagina è online sul tuo sito.']],
+};
+// a promo's voice-over: three short lines over the same eight seconds, landing with the clicks
+const SAID = {
+  en: ['Meet your product: everything in one place.', `Publish in one ${TOUCH ? 'tap' : 'click'}, from anywhere.`, 'Live on your site, the moment you want it.'],
+  it: ['Ecco il tuo prodotto: tutto in un posto.', `Pubblica con un ${TOUCH ? 'tocco' : 'clic'}, da dove vuoi.`, 'Online sul tuo sito, quando vuoi.'],
+};
+const VOICED = (SAID[(HASH.get('lang') || 'en').slice(0, 2)] || SAID.en).map((say, i) => { const [t0, t1] = [[0.7, 2.7], [3.0, 4.9], [5.15, 6.75]][i]; return { t0, t1, lines: [say] }; });
+const STORY = (TOLD[(HASH.get('lang') || 'en').slice(0, 2)] || TOLD.en).map(([title, say], i) => { const [t0, t1] = [[0.5, 2.75], [3.0, 5.05], [5.25, 6.9]][i]; return { title, t0, t1, lines: [say] }; });
+// a tutorial's camera is on the product: there is no headline to share the frame with. A window as near as it
+// always was; a device nearer where there is room (an iPhone in a vertical frame), and never past the step's name
+// above it and the subtitle under it
+const NEAR = Math.min(DEVICE ? 1.25 : WIDE ? 1.16 : 1, (H - 332 * U) / BOX.h, W * 0.9 / BOX.w);
+function seekTutorial(t, opts) {
+  CAM = { x: BOX.x + BOX.w / 2, y: BOX.y + BOX.h / 2 + 34 * U, z: NEAR * CAM_AT(t).z };
+  META.box = boxNow();
+  ctx.save();
+  LOOK.backdrop(ctx, t, CAM, opts);
+  world(); drawProduct(t, false);
+  screen(); drawPointer(t);
+  ctx.restore();
+  screen(); LOOK.finish(ctx, t, opts);
+  // the step being told: its number among the steps and its name, top left
+  const k = STORY.findIndex((s) => t >= s.t0 - 0.2 && t < s.t1 + 0.25);
+  if (k >= 0) {
+    const s = STORY[k], a = clamp(spr(t, s.t0 - 0.2, 3, 1) - spr(t, s.t1 + 0.05, 4, 1)), x = 56 * U, y = 52 * U, r = 26 * U;
+    ctx.save(); ctx.globalAlpha = a;
+    ctx.font = `600 ${32 * U}px ${TEXTF === 'system-ui' ? 'system-ui' : `"${TEXTF}", system-ui`}`;
+    const w = ctx.measureText(s.title).width + r * 2 + 44 * U;
+    rr(x, y, w, r * 2 + 12 * U, r + 6 * U); ctx.fillStyle = DARK() ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.72)'; ctx.fill();
+    ctx.beginPath(); ctx.arc(x + r + 6 * U, y + r + 6 * U, r, 0, Math.PI * 2); ctx.fillStyle = rgba(C.accent); ctx.fill();
+    label(String(k + 1), x + r + 6 * U, y + r + 7 * U, 27 * U, '#fff', { w: 700, align: 'center' });
+    ctx.font = `600 ${32 * U}px ${TEXTF === 'system-ui' ? 'system-ui' : `"${TEXTF}", system-ui`}`; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = rgba(LOOK.ink); ctx.fillText(s.title, x + r * 2 + 20 * U, y + r + 7 * U);
+    ctx.restore();
+  }
+  if (CAP !== 'none') FILM.captions(ctx, t, STORY, CAPTIONS);
+}
+/** Where the product is in the frame just drawn, in pixels: [x, y, w, h] of its box through the camera. */
+const boxNow = () => [...toScreen(BOX.x, BOX.y), BOX.w * CAM.z, BOX.h * CAM.z].map((v) => +v.toFixed(1));
+function seekStage(t, opts) {
+  CAM = CAM_AT(t);
+  if (CLOSE) CAM = { x: BOX.x + BOX.w / 2, y: BOX.y + BOX.h / 2, z: Math.min(W * 0.84 / BOX.w, H * 0.84 / BOX.h) * (1 + (CAM.z - 1) * 0.5) }; // with half its push
+  META.box = PRODUCT === 'none' ? null : boxNow();
+  ctx.save();
+  LOOK.backdrop(ctx, t, CAM, opts);
+  world();
+  if (!CLOSE) { headline(t); subline(t); }
+  drawProduct(t, false);
+  screen(); drawPointer(t);
+  ctx.restore();
+  screen(); LOOK.finish(ctx, t, opts);
+  if (SUBS) FILM.captions(ctx, t, VOICED, CAPTIONS);
+}
+function seekText(t, opts) {
+  CAM = { x: 0, y: 0, z: 1 };
+  ctx.save();
+  LOOK.backdrop(ctx, t, CAM, opts);
+  world();
+  // large: this mode exists to judge how the words move; a flap board's cells are wider than letters
+  const o = { ...ALONE, at: 0.3, out: TEXT_OUT };
+  headline(t, o); subline(t, o);
+  ctx.restore();
+  screen(); LOOK.finish(ctx, t, opts);
+}
+// trans: the stage at rest, an end card, the stage again, through TRANS both ways
+const MARK = (() => { const p = new Path2D(); p.roundRect(-0.5, -0.5, 1, 1, 0.24); return p; })();
+let TL = null;
+function buildTrans() {
+  // the cuts start on what is there: the product's box (a window, a device) and its button, or the headline alone
+  const box = PRODUCT === 'none' ? aloneBlock() : { x: BOX.x, y: BOX.y, width: BOX.w, height: BOX.h };
+  const winRect = () => { const [x0, y0] = toScreenAt(box.x, box.y); return [x0, y0, box.width, box.height]; };
+  const btnAt = G ? toScreenAt(REST[0], REST[1]) : toScreenAt(box.x + box.width / 2, box.y + box.height / 2);
+  // each kind's own parameters, there and back: a window opens from the stage's window; an iris, a
+  // ripple and the tiles start where the cursor clicked; a push, a cube or a page comes from the right
+  // and returns from the left. The pace sets a cut's length, as it sets the springs of the type.
+  const D = 1 / PACE;
+  const side = (back) => (back ? 'left' : 'right');
+  const own = {
+    window: (back) => ({ from: back ? [W * 0.4, H * 0.38, W * 0.2, H * 0.24] : winRect() }),
+    zoom: () => ({ from: 0.82 }), zoomblur: () => ({ from: 0.8 }),
+    sweep: () => ({ color: C.accent }), liquid: () => ({ color: C.accent }),
+    halftone: () => ({ color: C.accent, at: null }), // across the frame, not from the click
+    dip: () => ({ color: C.deep }),
+    page: () => ({ back: FX_mix(C.canvas, [255, 255, 255], DARK() ? 0.16 : 0.5) }), // the paper: the look's own canvas, a shade lighter
+  };
+  const given = JSON.parse(HASH.get('o') || '{}');
+  const opts = (k, back) => ({ kind: k, dur: D, from: side(back), at: back ? [W / 2, H / 2] : btnAt, path: MARK, r: 16 * U, ...(own[k] ? own[k](back) : {}), ...given });
+  TL = FILM.timeline({
+    // beneath both scenes: what a receding scene (cover, window, a turning card) uncovers is the look, not black
+    W, H, use: (g) => { ctx = g; }, under: (g) => { LOOK.backdrop(g, 0, { x: 0, y: 0, z: 1 }, {}); },
+    scenes: [ // a second of the stage, 0.4 s of the card and a second of the stage again, between the cuts
+      { id: 'stage', dur: 1 + D, draw: (g, lt) => sceneA(g) },
+      { id: 'card', dur: 0.4 + 2 * D, draw: (g, lt) => sceneB(g), in: opts(TRANS, false) },
+      { id: 'stage again', dur: D + 1, draw: (g, lt) => sceneA(g), in: opts(TRANS, true) },
+    ],
+  });
+  META.duration = +TL.duration.toFixed(3);
+  META.checkpoints = TL.checkpoints;
+  META.seams = TL.scenes.filter((s) => s.tr).map((s) => [+s.start.toFixed(3), +(s.start + s.tr.dur).toFixed(3)]);
+  // a still at its half-way point; there a dip is all colour and a flipping card is edge-on, so theirs
+  // is a third of the way in instead
+  META.thumb = TRANS === 'dip' || TRANS === 'flip' ? META.seams[0][0] + 0.38 * D : TL.checkpoints.find((c) => c.label.includes('→'))?.t ?? 1.5;
+}
+function toScreenAt(x, y) { return [W / 2 + x, H / 2 + y]; } // the trans scenes hold the camera at home
+function sceneA(g) {
+  CAM = { x: 0, y: 0, z: 1 };
+  LOOK.backdrop(g, 0, CAM, {});
+  world(); headline(99, { out: 1e9 }); subline(99, { out: 1e9 }); drawProduct(0, true); // settled, and staying
+  screen(); LOOK.finish(g, 0, {});
+}
+function sceneB(g) { // an end card: the mark, the name, the address
+  CAM = { x: 0, y: 0, z: 1 };
+  LOOK.backdrop(g, 0, CAM, {});
+  world();
+  const s = 120 * U;
+  g.save(); g.translate(0, -70 * U); g.scale(s, s);
+  g.fillStyle = rgba(C.accent); g.fill(MARK); g.restore();
+  g.save(); g.font = `${DW} ${86 * U}px ${DISPLAY === 'system-ui' ? 'system-ui' : `"${DISPLAY}", system-ui`}`; g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+  g.fillStyle = rgba(LOOK.ink); g.fillText('Product', 0, 90 * U);
+  g.font = `500 ${26 * U}px system-ui`; g.fillStyle = rgba(LOOK.dim); g.fillText('example.com', 0, 140 * U);
+  g.restore();
+  screen(); LOOK.finish(g, 0, {});
+}
+
+function seek(t, opts = {}) {
+  STAGE.begin(opts);
+  ctx = mainCtx;
+  if (MODE === 'trans') { t = clamp(t, 0, META.duration - 1e-6); TL.draw(mainCtx, t, opts); return; }
+  t = ((t % META.duration) + META.duration) % META.duration;
+  if (MODE === 'text') seekText(t, opts); else if (MODE === 'tutorial') seekTutorial(t, opts); else seekStage(t, opts);
+}
+window.seek = seek;
+window.ready = (async () => {
+  await document.fonts.load(`700 80px ${UI}`);
+  await loadType();
+  fitHead();
+  await LOOK.ready;
+  if (MODE === 'trans') buildTrans();
+  // a style's still is a third of the way in, where one style differs most from another; swap's is mid-change
+  else if (MODE === 'text') {
+    const spec = { ...copy(), size: 100, family: DISPLAY, weight: DW, style: STYLE, at: 0.3, pace: PACE };
+    META.thumb = STYLE === 'swap' ? TYPE.settled({ ...spec, style: 'rise' }) + 0.6 / PACE + 0.12 : 0.3 + 0.3 * (TYPE.settled(spec) - 0.3);
+  }
+  else META.thumb = TOUCH ? CLICK2 + 0.06 : 3.95; // the stage settled, its menu open; under a finger, the tap that answers it (a finger shows only then)
+  seek(0);
+  return true;
+})();
+</script>
+</body>
+</html>

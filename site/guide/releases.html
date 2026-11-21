@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Release notes &middot; Manovella docs</title>
+<meta name="description" content="Every Manovella release, newest first: Kokoro, a small voice model, in 1.17, device frames in 1.16, a deck of cards in 1.15, the Studio's Settings in 1.14." />
+<link rel="canonical" href="https://manovella.mov/guide/releases.html" />
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="Manovella" />
+<meta property="og:title" content="Release notes &middot; Manovella docs" />
+<meta property="og:description" content="Every Manovella release, newest first: Kokoro, a small voice model, in 1.17, device frames in 1.16, a deck of cards in 1.15, the Studio's Settings in 1.14." />
+<meta property="og:url" content="https://manovella.mov/guide/releases.html" />
+<meta property="og:image" content="https://manovella.mov/og.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Manovella: product films, written as code" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Release notes &middot; Manovella docs" />
+<meta name="twitter:description" content="Every Manovella release, newest first: Kokoro, a small voice model, in 1.17, device frames in 1.16, a deck of cards in 1.15, the Studio's Settings in 1.14." />
+<meta name="twitter:image" content="https://manovella.mov/og.png" />
+<link rel="preload" href="../fonts/geist/geist-100-900-latin.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="stylesheet" href="../base.css" />
+<link rel="stylesheet" href="style.css" />
+<script src="docs.js" defer></script>
+</head>
+<body data-page="releases" data-title="Release notes">
+<div class="layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main">
+    <header class="topbar" id="topbar"></header>
+    <main class="doc">
+      <article class="page">
+        <p class="eyebrow">Reference</p>
+        <h1>Release notes</h1>
+        <p class="lead">Every Manovella release, newest first.</p>
+
+        <div id="releases" class="rel-list">
+          <p class="rel-count">18 releases, newest first. Click any version to unfold its notes.</p>
+        <section class="rel rel-latest">
+          <div class="rel-head">
+            <span class="rel-ver">1.18.0</span>
+            <span class="rel-name">A dark catalogue</span>
+            <span class="rel-date">November 2026</span>
+          </div>
+          <div class="rel-body">
+            <ul>
+              <li>The six pictures of the catalogue are dark, for the dark README and the site: each sheet on <code>#15151b</code> with light captions; the cuts, the headline styles and the type sets on the <code>night</code> look; the parts on a dark floor. The looks and the reel keep their own frames.</li>
+              <li><code>contact.mjs --dark</code> lays a sheet (or a <code>--compare</code>) on that dark ground; the light sheet stays the default.</li>
+              <li><code>transcheck.mjs</code> gives the stage the look&rsquo;s own tone, as the Studio does: <code>--look night</code> draws a dark stage.</li>
+              <li><code>PAGE='parts.html#dark'</code> draws the parts on a dark floor, with a white pointer.</li>
+            </ul>
+          </div>
+        </section>
+        <details class="rel">
+          <summary><div class="rel-head">
+            <span class="rel-ver">1.17.3</span>
+            <span class="rel-name">The docs catch up</span>
+            <span class="rel-date">November 2026</span>
+          </div></summary>
+          <div class="rel-body">
+            <ul>
+              <li>The Studio&rsquo;s screenshot in the engine&rsquo;s README (<code>docs/studio.jpg</code>) is retaken on 1.17.2: the mark and the version in the sidebar, nothing else changed.</li>
+              <li>The skill and the READMEs count what Kokoro added: three voice models chosen by ear, thirteen voices. The selftest runs about 260 checks.</li>
+            </ul>
+          </div>
+        </details>
+        <details class="rel">
+          <summary><div class="rel-head">
+            <span class="rel-ver">1.17.2</span>
+            <span class="rel-name">The mark</span>
+            <span class="rel-date">November 2026</span>
+          </div></summary>
+          <div class="rel-body">
+            <ul>
+              <li>The Studio&rsquo;s sidebar shows Manovella&rsquo;s mark beside its name, the camera alone in the Studio&rsquo;s accent (<code>studio/mark.svg</code>), where it showed the icon&rsquo;s square at 22 pixels. The tab&rsquo;s icon (<code>brand-64.png</code>) is the flat version of the logo, which stays legible at that size.</li>
+            </ul>
+          </div>
+        </details>
+        <details class="rel">
+          <summary><div class="rel-head">
+            <span class="rel-ver">1.17.1</span>
+            <span class="rel-name">A catalogue that fits</span>
+            <span class="rel-date">November 2026</span>
+          </div></summary>
+          <div class="rel-body">
+            <ul>
+              <li>The six pictures of the catalogue (the looks, the reel, the cuts, the type sets, the headlines and the parts) are redrawn at one shape, 1600 &times; 1000, 16:10: each shows whole in its frame on the home page, in the README&rsquo;s table and in the guide, where the wide ones used to lose their sides and the looks its last row. Each is laid out for that shape, with larger labels that stay legible at 700 pixels wide.</li>
+              <li><code>contact.mjs</code> takes <code>--size WxH</code> for a sheet of exactly that size, with <code>--font</code>, <code>--gap</code> and <code>--pad</code>; it never crops a still, says when a grid overflows, and writes a <code>.jpg</code> as a JPEG.</li>
+              <li><code>transcheck.mjs --type &lt;dir&gt;</code> keeps a still of each type set, settled, with its labels, as <code>--shots</code> and <code>--text</code> do for the cuts and the headlines.</li>
+              <li><code>template/parts.html</code> is every part on one sheet, a page like the others: <code>PAGE=parts.html node render.mjs stills parts 0</code> makes the PNG that <code>docs/parts.jpg</code> is converted from.</li>
+            </ul>
+          </div>
+        </details>
+        <details class="rel">
+          <summary><div class="rel-head">
+            <span class="rel-ver">1.17.0</span>
+            <span class="rel-name">A small voice, and Italian</span>
+            <span class="rel-date">November 2026</span>
+          </div></summary>
+          <div class="rel-body">
+            <ul>
+              <li>Kokoro-82M is the third local voice model, beside Chatterbox and Orpheus: 330 MB where they are 3 GB and more, and quick, about a second a line once it is loaded. Its voices Heart, Bella and Michael were heard in US English, and Sara in Italian; the Studio&rsquo;s voice step lists them, and each &#9654; says the line through <code>voice.mjs</code> itself. In a story: <code>&quot;mlx&quot;: { &quot;model&quot;: &quot;kokoro&quot;, &quot;voice&quot;: &quot;if_sara&quot; }</code>.</li>
+              <li>A film in Italian can be told by a model: <code>if_sara</code> says an Italian line, and the Studio&rsquo;s own sample for her is Italian. Kokoro needs its language beside the voice: it is taken from the voice&rsquo;s first letter (<code>i</code> Italian, <code>a</code> American English), or set with <code>&quot;lang&quot;</code> in <code>&quot;mlx&quot;</code>. No other language was heard, so none is claimed.</li>
+              <li>Kokoro has no sampling temperature, so there is no tone to set for it: the Studio leaves the Tone out of its reading, and a story that names one is told it changes nothing. Speed and the human touch work as for the others.</li>
+              <li><code>voice.mjs --setup kokoro</code> also installs what Kokoro&rsquo;s text needs (spaCy, misaki, the espeak-ng library, about 160 MB of wheels, pinned in <code>voice-constraints-kokoro.txt</code>, nothing from Homebrew), and only when Kokoro is asked for: the Python of Chatterbox and Orpheus users is not changed, and their takes came out the same to the byte before and after.</li>
+              <li>A Kokoro take is the same to within one 16-bit step from run to run, not to the byte, so its setup line records no SHA-256 to compare two Macs by.</li>
+            </ul>
+          </div>
+        </details>
+        <details class="rel">
+          <summary><div class="rel-head">
+            <span class="rel-ver">1.16.2</span>
+            <span class="rel-name">Its own address</span>
+            <span class="rel-date">November 2026</span>
+          </div></summary>
+          <div class="rel-body">
+            <ul>
+              <li>The Studio answers only to its own address: a request that asks for another host name, or that a page on another site sends it, is refused with a 403. The window, the Chrome app window and the printed link all use the address it gave, so nothing you do changes.</li>
+            </ul>
+          </div>
+        </details>
+        <details class="rel">
+          <summary><div class="rel-head">
+            <span class="rel-ver">1.16.1</span>
+            <span class="rel-name">A tick in the clear</span>
+            <span class="rel-date">November 2026</span>
+          </div></summary>
+          <div class="rel-body">
+            <ul>
+              <li>In the type step, a chosen set&rsquo;s tick sits in the top-right corner of its card, clear of the specimen: it used to cover the first letter of the headline.</li>
+              <li>The Settings window says where it keeps them, <i>Saved in &hellip; as you change them</i>, with no full stop left alone on the last line.</li>
+              <li>The music step&rsquo;s upload already took an <code>.aac</code> file; the message for a file it refuses now lists it too.</li>
+              <li>Claude&rsquo;s instructions give the default resolution as the renderer has it: 1080 pixels on the short side, 1920 &times; 1080, or 1080 &times; 1920 upright.</li>
+            </ul>
+          </div>
+        </details>
+        <details class="rel">
+          <summary><div class="rel-head">
+            <span class="rel-ver">1.16.0</span>
+            <span class="rel-name">Device frames</span>
+            <span class="rel-date">November 2026</span>
+          </div></summary>
+          <div class="rel-body">
+            <ul>
+              <li>The format step has a second card, <i>Device</i>: what the product is shown in, whatever the format. A Mac window, a MacBook, an iMac, an iPhone, an iPad, a browser, a terminal, or <i>Just the UI</i>, the product&rsquo;s interface on its own with no window and no device round it. Each is a tile of the stand-in product in that device, on your look, type and aspect; rest the pointer on one to watch it. Left to Claude, each format keeps the frame it was made for.</li>
+              <li>A release film and a tutorial have one format, and choose their device all the same: a tutorial of an iPhone app is told on an iPhone, the camera on the phone, and its subtitle says <i>tap</i>.</li>
+              <li>In a device the stand-in is laid out as that device has it, never a desktop window made small: an iPhone app with a large title, its numbers in a row, a list, and Publish under the thumb; an iPad app with a sidebar lying down and a list upright; a page in a browser with its own header and links; the app&rsquo;s window on a MacBook&rsquo;s desktop, or an iMac&rsquo;s.</li>
+              <li>On an iPhone and an iPad a click is a touch: a soft disc that presses, with the look&rsquo;s ripple, and the answer arrives as a banner from the top. The macOS pointer stays on the Mac.</li>
+              <li>Once a device is chosen, every preview after it shows the product in it: the looks, the palette, the cuts, the aspect you click in Output, the Review. The sidebar names it beside the formats, and Review has a <i>Device</i> row whose Edit opens its card.</li>
+              <li>The brief says it too, as <code>frame</code>, and Claude keeps to it in every storyboard. An iPhone or an iPad shows the layout your product really has there, an iOS app&rsquo;s screens or a site at that width; where it has none, Claude says so before the storyboards and proposes the nearest honest frame.</li>
+              <li>Two new parts. <code>PARTS.tablet</code>: an iPad Pro in Apple&rsquo;s own proportions, lying down or upright by the rect it is given, its camera on the long edge. <code>PARTS.desktop</code>: an iMac 24-inch on its stand, a white bezel round the display with the camera in it, a chin with no logo, in any of Apple&rsquo;s seven colours or the one nearest your accent. The MacBook is redrawn beside them: an aluminium edge round the lid, a notch of the real size with its camera, a base that catches the light. See <a href="parts.html#parts">Parts</a>.</li>
+              <li>The format step is a deck of two cards, like the other steps: <i>Formats</i>, with the three storyboards&rsquo; slots at the top of its panel while the formats scroll, and <i>Device</i>.</li>
+              <li>On the stand-in, the second click now lands on <i>Publish now</i>, the item it lights: it used to land on the one above it.</li>
+            </ul>
+          </div>
+        </details>
+        <details class="rel">
+          <summary><div class="rel-head">
+            <span class="rel-ver">1.15.0</span>
+            <span class="rel-name">A deck of cards</span>
+            <span class="rel-date">November 2026</span>
+          </div></summary>
+          <div class="rel-body">
+            <ul>
+              <li>Every step with more than one thing to choose is a deck of cards, each showing at a glance what is chosen in it: the product (a repository, a website, a release&rsquo;s version, the brand colour, the name), the look (the looks, your picture, the palette), the type (the sets, any family with its weight), the motion (the headlines, the cuts, the pace and blur), the voice and the output. One card opens at a time into a panel right under its row; all closed, the step is an overview of its choices, with nothing to scroll.</li>
+              <li>The first card is open when a step arrives, and coming back shows the one you left open. A step&rsquo;s cards stay the same whatever you choose in them: a part with nothing to set, the reading of a film with no voice say, keeps its place and says so.</li>
+              <li>The voice step has the line to hear and the &#9654; of the chosen voice at its top, above five cards: a preset, who speaks, how it reads, the lines and subtitles, the music under the voice. A preset, a voice or a reading changed in a card is heard from there, without leaving the card.</li>
+              <li>Where a card holds a long list, the looks or the cuts, the row of cards stays at the top while the list scrolls. A card follows its field as you type: the film&rsquo;s name, a release&rsquo;s tag, the voice&rsquo;s lines.</li>
+              <li>Review&rsquo;s Edit opens the card its row is in, in every step.</li>
+              <li>The format step shows the three storyboards as three slots that fill in the order you click the formats, the next one marked; the ones you leave free are Claude&rsquo;s. A fourth click is answered in a box of its own, in sight wherever you are in the list.</li>
+              <li>While a long list scrolls, its title and its filter stay under the row of cards with them, so the open card and the top of its panel remain one shape: the looks, the cuts, and the headlines, whose emphasis on one word is now always in reach there.</li>
+              <li>Every headline style carries every emphasis. Swap drew none, a flap board hid the marker behind its tiles, and track, wipe, split, typed and odometer never turned the word to the accent; track and odometer now stay on the stage until their mark has landed.</li>
+              <li>The brand&rsquo;s colour: with <i>Read it from the brand</i> ticked the picker shows the colour guessed from the source and cannot be changed; unticked, the colour you choose is the film&rsquo;s accent, and ticking the box again, or <i>Back to the brand&rsquo;s colour</i>, brings the guess back.</li>
+              <li>The palette shows, for each scheme, the colours it derives from the accent, and says where a film uses them and whether your look is painted with them. Motion blur says whether it is on, and what it does, on its button and beside the preview; it now gathers a frame of the film&rsquo;s own rate, twice as long for a 30 fps film.</li>
+              <li>With a track chosen, the &#9654; beside the line plays the voice over it, mixed as the film will be at the level set in <i>With the music</i>, with a moment of the music alone after the line; the voice alone is one click away.</li>
+              <li>Any length: <i>Custom</i> takes a promo of 3 to 60 seconds, and a film in chapters or a tutorial of 30 seconds to 15 minutes, typed in minutes and seconds.</li>
+              <li>The reference says what it is: a film, a site or a style the film takes after, by link or by name. Left empty, Claude picks a real one and says what it takes from it.</li>
+              <li>Settings is a window of its own, laid out as a Mac&rsquo;s: a sidebar with a search and one row a pane (Projects, Pictures, Music library, Work folder), each pane in grouped rows, and About Manovella at its head.</li>
+              <li>The previews take the shape of the first format you choose. A film of words alone, such as the social teaser, shows the looks, the colour and the cuts under its headline alone, with no window. A terminal film shows them around a terminal that types its commands, with no dashboard.</li>
+            </ul>
+          </div>
+        </details>
+        <details class="rel">
+          <summary><div class="rel-head">
+            <span class="rel-ver">1.14.0</span>
+            <span class="rel-name">Settings</span>
+            <span class="rel-date">November 2026</span>
+          </div></summary>
+          <div class="rel-body">
+            <ul>
+              <li>The Studio has Settings: the gear beside the logo, or Settings&hellip; (<kbd>&#8984;</kbd><kbd>,</kbd>) in the app menu. Project folders, picture folders, the music library and the work folder, each chosen with the Mac&rsquo;s folder picker and saved at once. See <a href="settings.html#studio-settings">Settings</a>.</li>
+              <li>The brand library is now the music library: any audio file in it, with a folder per brand optional. Delivering finished films into it is an option in Settings, off unless you turn it on, and an older <code>settings.json</code> keeps working.</li>
+              <li>The work folder, where a film&rsquo;s <code>&lt;name&gt;-work</code> and its delivery go, is <code>~/Downloads</code> unless you choose another; <code>deliver.mjs</code> follows it too.</li>
+              <li>Each step says where its list comes from. The product step names its folders and can take a repository from anywhere. The look step has two tabs, the looks and your pictures, with the picker first. The music step names the library&rsquo;s folder.</li>
+              <li>The recent pictures come from <code>~/Pictures</code>, or the folders you add, no longer from the Desktop and Downloads, which hold screenshots as often as backdrops.</li>
+            </ul>
+          </div>
+        </details>
+        <details class="rel">
+          <summary><div class="rel-head">
+            <span class="rel-ver">1.13.0</span>
+            <span class="rel-name">Dark, with an About</span>
+            <span class="rel-date">November 2026</span>
+          </div></summary>
+          <div class="rel-body">
+            <ul>
+              <li>The Studio is dark only, whatever the Mac&rsquo;s appearance, and so is its window app.</li>
+              <li>An About: the logo at the top of the sidebar opens it, and so does the app menu&rsquo;s About Manovella. It has the version, the links (the site, the guide, these notes, the source, issues, the blog, Discord, the legal notice and the privacy policy), the sponsors, and the maker&rsquo;s other apps. The preview pauses behind it and plays again when it closes.</li>
+              <li>For anyone who reuses the window kit: <code>studio.json</code> takes an <code>appearance</code> and <code>pageItems</code>, app-menu items the page answers itself.</li>
+            </ul>
+          </div>
+        </details>
+        <details class="rel">
+          <summary><div class="rel-head">
+            <span class="rel-ver">1.12.1</span>
+            <span class="rel-name">A preview that did not start</span>
+            <span class="rel-date">November 2026</span>
+          </div></summary>
+          <div class="rel-body">
+            <ul>
+              <li>In the Studio&rsquo;s window, a preview whose page failed to start is loaded once more. A tile that still fails says it has no preview, and the viewer says the page did not start instead of quietly keeping the previous preview.</li>
+            </ul>
+          </div>
+        </details>
+        <details class="rel">
+          <summary><div class="rel-head">
+            <span class="rel-ver">1.12.0</span>
+            <span class="rel-name">Transparent films</span>
+            <span class="rel-date">November 2026</span>
+          </div></summary>
+          <div class="rel-body">
+            <ul>
+              <li><code>ALPHA=1</code> keeps a film&rsquo;s alpha, to lay it over footage in an editor: on the look <code>transparent</code>, which leaves the background clear, it comes out as <code>.mov</code> (ProRes 4444) or <code>.webm</code> (VP9 with alpha). <code>.mp4</code> and <code>.gif</code> carry no alpha and are refused.</li>
+              <li>The look <code>transparent</code> draws no backdrop, grain or vignette. It is not on the Studio&rsquo;s sheet: it belongs to this kind of film only.</li>
+              <li>Subframes are blended, and a scaled film resized, on premultiplied colour, so a blurred edge stays clean instead of fringing.</li>
+              <li><code>deliver.mjs</code> says which files carry alpha.</li>
+            </ul>
+          </div>
+        </details>
+        <details class="rel">
+          <summary><div class="rel-head">
+            <span class="rel-ver">1.11.0</span>
+            <span class="rel-name">Every headline checked</span>
+            <span class="rel-date">November 2026</span>
+          </div></summary>
+          <div class="rel-body">
+            <ul>
+              <li><code>layoutcheck.mjs</code>: at each moment worth a still, the headlines drawn with <code>TYPE.draw</code> are checked against the safe area (5&nbsp;% of the short side), each other, and a contrast estimated against what surrounds them (WCAG&rsquo;s ratios, 3:1 from 24&nbsp;px and 4.5:1 under, as its own heuristic). Exit 1 when one fails, 2 when nothing could be checked; a headline it cannot judge (inside a cut, fading out) is listed, not passed. The limits are in its header.</li>
+              <li><code>TYPE.extent(spec, t)</code>: the block a headline rests in while it is on screen.</li>
+            </ul>
+          </div>
+        </details>
+        <details class="rel">
+          <summary><div class="rel-head">
+            <span class="rel-ver">1.10.0</span>
+            <span class="rel-name">Stills side by side</span>
+            <span class="rel-date">November 2026</span>
+          </div></summary>
+          <div class="rel-body">
+            <ul>
+              <li><code>node contact.mjs --compare A=&lt;dir&gt; B=&lt;dir&gt; [C=&lt;dir&gt;] out.png</code>: two or three folders of stills in columns, one row per file name they share (the same times, named alike), for an A/B choice on one image. A still missing from a folder is named, and stills of different sizes are refused.</li>
+            </ul>
+          </div>
+        </details>
+        <details class="rel">
+          <summary><div class="rel-head">
+            <span class="rel-ver">1.9.0</span>
+            <span class="rel-name">The Studio in violet; music and voice apart</span>
+            <span class="rel-date">November 2026</span>
+          </div></summary>
+          <div class="rel-body">
+            <ul>
+              <li>The Studio&rsquo;s window is Manovella&rsquo;s violet whatever the product, with the logo in its sidebar. The product&rsquo;s colour lives in the previews, and as a swatch beside its name.</li>
+              <li>Sound is two steps now, <b>Which music?</b> and <b>Which voice?</b>: ten steps in all.</li>
+              <li>Six voice presets (Promo, Launch, Narrator, Conversational, Recap, Lesson) set the voice, its tone, its tempo and its delivery at once; the Tutorial recipe starts from Lesson.</li>
+            </ul>
+          </div>
+        </details>
+        <details class="rel">
+          <summary><div class="rel-head">
+            <span class="rel-ver">1.8.0</span>
+            <span class="rel-name">Manovella stands alone</span>
+            <span class="rel-date">November 2026</span>
+          </div></summary>
+          <div class="rel-body">
+            <p>Two things the product needed before anyone else can use it: its own face, and nothing of its author&rsquo;s machine.</p>
+            <h3>The logo</h3>
+            <ul>
+              <li>A 1920s movie camera, two reels on top, a violet hand crank on its side. It is the Studio&rsquo;s Dock icon and the plugin&rsquo;s icon.</li>
+            </ul>
+            <h3>Standalone</h3>
+            <ul>
+              <li>The skills, the Studio and the docs no longer name any one person&rsquo;s paths, accounts, products or repositories. Every technical fact, measurement and lesson stays; examples use Acme.</li>
+              <li><b>The brand library</b> replaces a hard-wired folder: the Studio reads <code>MANOVELLA_BRAND</code>, else <code>brandLibrary</code> in <code>~/Library/Application Support/manovella/settings.json</code>, skips the names in <code>brandLibraryIgnore</code>, and searches for nothing. With a library, films are delivered to <code>&lt;library&gt;/&lt;Brand&gt;/video/&lt;name&gt;/</code>.</li>
+              <li>Remembered briefs move over from the old Film Studio folder, even when a <code>settings.json</code> was written first.</li>
+              <li>Films only on request and cool renders are Manovella&rsquo;s own defaults; ImageOptim is an optional step when it is installed.</li>
+              <li><code>AGENTS.md</code> is written for any contributor.</li>
+              <li>The <b>MIT licence</b>: <code>LICENSE</code> at the root and <code>&ldquo;license&rdquo;: &ldquo;MIT&rdquo;</code> in <code>plugin.json</code>. The kit&rsquo;s fonts keep their own open licences.</li>
+            </ul>
+          </div>
+        </details>
+        <details class="rel">
+          <summary><div class="rel-head">
+            <span class="rel-ver">1.7.0</span>
+            <span class="rel-name">The Film Studio becomes Manovella</span>
+            <span class="rel-date">November 2026</span>
+          </div></summary>
+          <div class="rel-body">
+            <p>The film engine and its Studio become a plugin of their own, with a marketplace of their own.</p>
+            <ul>
+              <li><b>Imported</b>: the engine, the Studio and both skills, <code>site-promo-film</code> and <code>release-film</code>, previously called Film Studio and part of another plugin.</li>
+              <li><b>Renamed</b>: the plugin and its marketplace are <code>manovella</code>; the skills are <code>manovella:site-promo-film</code> and <code>manovella:release-film</code>, and the command is <code>/manovella:studio</code>.</li>
+              <li>The Studio&rsquo;s window app is <code>Manovella.app</code>; the kit that builds it moved inside the skill, at <code>studio/window/</code>.</li>
+              <li>The <code>FILM_STUDIO_*</code> variables became <code>MANOVELLA_*</code>, and the Studio&rsquo;s folders are named <code>manovella</code>; remembered briefs move over on the first start.</li>
+              <li>One version for the whole product, in <code>plugin.json</code>, the marketplace entry and <code>studio.json</code>, which the Studio&rsquo;s self-test checks agree.</li>
+            </ul>
+          </div>
+        </details>
+        </div>
+
+        <div class="pager">
+          <a href="by-hand.html"><small>Previous</small><b>&larr; By hand</b></a>
+        </div>
+      </article>
+    </main>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Parts</title>
+<style>
+html,body{margin:0;background:#E9E7E2;overflow:hidden}
+html.dark,html.dark body{background:#15151b}
+canvas{display:block}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script src="film.js"></script>
+<script src="parts.js"></script>
+<script>
+'use strict';
+/*
+ * Every part of parts.js on one sheet, a 16:10 still (docs/parts.jpg is this page, one frame):
+ *
+ *   PAGE=parts.html node render.mjs stills parts 0
+ *   PAGE='parts.html#dark' node render.mjs stills parts 0     the same on a dark floor (#15151b), for a dark page
+ *
+ * A page of the engine like the others (window.PROMO_META, window.ready, window.seek), so the sheet is
+ * rendered the way a film's stills are (a PNG: `sips -s format jpeg -s formatOptions 92 parts/t00.00.png
+ * --out docs/parts.jpg` for the catalogue's picture). It is also the reference for each part's call: the
+ * windows on top, the four devices on one baseline, the small parts in a row under them. The rows are
+ * placed for 1600 x 1000; another size needs them placed again.
+ */
+const META = { width: 1600, height: 1000, fps: 30, duration: 1, loop: false };
+window.PROMO_META = META;
+const W = META.width, H = META.height;
+const cv = document.getElementById('c');
+cv.width = W; cv.height = H;
+const mainCtx = cv.getContext('2d');
+const STAGE = FILM.stage(mainCtx);
+const DARK = new URLSearchParams(location.hash.slice(1)).has('dark'); // #dark: the floor the dark README and site show it on
+document.documentElement.classList.toggle('dark', DARK);
+const ACCENT = [91, 91, 247], INK = [26, 28, 36];
+
+function draw(g) {
+  g.fillStyle = DARK ? '#15151b' : '#E9E7E2'; g.fillRect(0, 0, W, H);
+  const m = 60, gap = 48, P = PARTS;
+
+  // the windows: a window, a browser, a terminal, one height
+  const top = 56, wh = 330, ww = [430, 540, 430], scale = (W - 2 * m - 2 * gap) / ww.reduce((a, b) => a + b, 0);
+  let x = m;
+  const wx = ww.map((w) => { const r = { x, w: w * scale }; x += w * scale + gap; return r; });
+  let c = P.window(g, { x: wx[0].x, y: top, w: wx[0].w, h: wh }, { title: 'Product' });
+  P.text(g, 'Content', c.x + 22, c.y + 28, 20, { w: 600 });
+  c = P.browser(g, { x: wx[1].x, y: top, w: wx[1].w, h: wh }, { url: 'example.com' });
+  P.text(g, 'A page', c.x + 24, c.y + 36, 26, { w: 700 });
+  P.button(g, { x: c.x + 24, y: c.y + 70, w: 140, h: 40 }, 'Get started', { size: 14.5 });
+  c = P.terminal(g, { x: wx[2].x, y: top, w: wx[2].w, h: wh }, { title: 'product — zsh — 80×24' });
+  P.line(g, c.x, c.y + 10, [['$ ', [120, 220, 140]], ['product sync --all', [235, 235, 240]]], 16);
+  P.line(g, c.x, c.y + 36, [['✓ ', [120, 220, 140]], ['12 repositories up to date', [150, 210, 255]]], 16);
+
+  // the devices, standing on one baseline
+  const base = 800;
+  let s = P.phone(g, { x: m, y: base - 340, w: 340 / 2.092, h: 340 }, { screen: ACCENT });
+  P.island(g, s);
+  s = P.tablet(g, { x: 282, y: base - 276, w: 276 * 1.307, h: 276 }, { screen: [247, 247, 249] });
+  const lw = 410, lh = lw * 0.66;
+  s = P.laptop(g, { x: 722, y: base - lh - lw * 0.045, w: lw, h: lh }, { screen: [32, 34, 46] });
+  P.notch(g, s);
+  const iw = 340, ih = iw * 375 / 547;
+  s = P.desktop(g, { x: W - m - iw, y: base - ih - iw * 0.157, w: iw, h: ih }, { screen: ACCENT, color: 'purple' });
+
+  // the small parts
+  const y = 905;
+  P.keycap(g, 250, y, '⌘', { size: 62 });
+  P.keycap(g, 330, y, 'K', { size: 62 });
+  P.keycap(g, 438, y, 'return', { size: 62, wide: 2, dark: true, press: 0.0 });
+  P.toggle(g, 640, y - 16, 0); P.toggle(g, 710, y - 16, 0.5); P.toggle(g, 780, y - 16, 1);
+  P.ring(g, 960, y, 42, 0.7, { color: [232, 128, 52], width: 9 });
+  P.button(g, { x: 1090, y: y - 22, w: 160, h: 44 }, 'Get started', { shadow: true, size: 16 });
+  g.save(); g.translate(1370, y - 22); g.scale(2, 2); g.fillStyle = DARK ? '#fff' : '#000'; g.strokeStyle = DARK ? '#000' : '#fff'; g.lineWidth = 1.2; g.lineJoin = 'round';
+  g.stroke(P.ARROW); g.fill(P.ARROW); g.restore();
+}
+
+function seek(t, opts = {}) {
+  STAGE.begin(opts);
+  mainCtx.save();
+  draw(mainCtx);
+  mainCtx.restore();
+}
+window.seek = seek;
+window.ready = (async () => { seek(0); return true; })();
+</script>
+</body>
+</html>

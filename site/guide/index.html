@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Getting started &middot; Manovella docs</title>
+<meta name="description" content="Install Manovella, the Claude Code plugin that makes product films as code, and take it from the Studio to a first film on a neutral product." />
+<link rel="canonical" href="https://manovella.mov/guide/" />
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="Manovella" />
+<meta property="og:title" content="Getting started &middot; Manovella docs" />
+<meta property="og:description" content="Install Manovella, the Claude Code plugin that makes product films as code, and take it from the Studio to a first film on a neutral product." />
+<meta property="og:url" content="https://manovella.mov/guide/" />
+<meta property="og:image" content="https://manovella.mov/og.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Manovella: product films, written as code" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Getting started &middot; Manovella docs" />
+<meta name="twitter:description" content="Install Manovella, the Claude Code plugin that makes product films as code, and take it from the Studio to a first film on a neutral product." />
+<meta name="twitter:image" content="https://manovella.mov/og.png" />
+<link rel="preload" href="../fonts/geist/geist-100-900-latin.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="stylesheet" href="../base.css" />
+<link rel="stylesheet" href="style.css" />
+<script src="docs.js" defer></script>
+</head>
+<body data-page="start" data-title="Getting started">
+<div class="layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main">
+    <header class="topbar" id="topbar"></header>
+    <main class="doc">
+      <article class="page">
+        <p class="eyebrow">Guide</p>
+        <h1>Getting started</h1>
+        <p class="lead">Manovella is a Claude Code plugin that makes product films as code: promo loops, teasers, tutorials and release films, built from your product&rsquo;s own brand and interface.</p>
+
+        <h2 id="what">What it is</h2>
+        <p>A film is one HTML page whose <code>seek(t)</code> draws the frame at time <code>t</code> from scratch. Headless Chrome captures the page frame by frame, sixteen subframes each, and ffmpeg blends and encodes them. The film is a function and the video a sampling of it, so any frame can be reviewed as a still, a change costs a re-render of what changed, and a loop closes to the pixel.</p>
+        <p>You ask for a film in words, or brief it in the <a href="studio.html">Studio</a>. Claude answers with three storyboards, then stills, and renders only when you say go. Nothing renders on its own.</p>
+        <p><i>Manovella</i> is Italian for the hand crank of an old film camera, the one that advances the film frame by frame.</p>
+
+        <h2 id="requirements">Requirements</h2>
+        <ul>
+          <li><b>macOS on Apple Silicon</b>, with Claude Code.</li>
+          <li><b>Node</b> (tested with 24.3), <b>ffmpeg</b> (tested with 9.0.2) and <b>Google Chrome</b>. The renderer drives Chrome through <code>playwright-core</code>, installed in each film&rsquo;s work folder: nothing else is downloaded. With Homebrew: <code>brew install node ffmpeg</code>.</li>
+          <li><b>Xcode Command Line Tools</b> (<code>swiftc</code>), optional: for the Studio&rsquo;s own window and the chip&rsquo;s thermometer. Without them the Studio opens in a Chrome app window, and renders are held on macOS&rsquo;s thermal state.</li>
+          <li><b>Voices, optional.</b> Python 3.13 and a one-time setup (see <a href="sound.html#voice">Sound</a>). Without them a film speaks with a macOS voice, or not at all.</li>
+        </ul>
+
+        <h2 id="install">Install</h2>
+        <p>Manovella is a Claude Code plugin with a marketplace of its own:</p>
+        <div class="code">
+          <button class="copy" type="button">copy</button>
+          <pre><code>claude plugin marketplace add gfazioli/manovella
+claude plugin install manovella@manovella</code></pre>
+        </div>
+        <p>To update by hand, run <code>claude plugin marketplace update manovella</code> and then <code>claude plugin update manovella@manovella</code>. Or declare it in <code>~/.claude/settings.json</code> (merged into what is there) and Claude Code keeps the plugin current: <code>{ "extraKnownMarketplaces": { "manovella": { "source": { "source": "github", "repo": "gfazioli/manovella" }, "autoUpdate": true } } }</code>.</p>
+
+        <h2 id="window">The window app</h2>
+        <p>The Studio opens in a small app of its own, built once per Mac (and again after a change to the window kit or to <code>studio.json</code>). Without it the Studio opens in a Chrome app window.</p>
+        <div class="code">
+          <button class="copy" type="button">copy</button>
+          <pre><code>S=$(ls -d ~/.claude/plugins/cache/manovella/manovella/*/skills/site-promo-film | sort -V | tail -1)
+"$S/studio/window/build.sh" "$S/studio"     # installs ~/Applications/Manovella.app</code></pre>
+        </div>
+
+        <h2 id="first-film">A first film</h2>
+        <p>Three ways in, all inside Claude Code:</p>
+        <div class="tablewrap">
+        <table class="keys">
+          <thead><tr><th>Ask</th><th>What happens</th></tr></thead>
+          <tbody>
+            <tr><td class="k"><code>/manovella:studio</code></td><td>The Studio, ending in a brief that Claude answers with three storyboards.</td></tr>
+            <tr><td class="k"><code>/manovella:site-promo-film</code></td><td>A promo, launch, teaser, tutorial or explainer film of a product, site or app. <code>?</code> is the guided mode.</td></tr>
+            <tr><td class="k"><code>/manovella:release-film</code></td><td>A &ldquo;what&rsquo;s new&rdquo; film of one release, the changed surfaces rebuilt from the app&rsquo;s source at the tag.</td></tr>
+            </tbody>
+        </table>
+        </div>
+        <p>Or just ask: <i>&ldquo;a 15 s promo loop of acme.app, 16:9 and 9:16, with our music&rdquo;</i>. Claude fills what you leave out with a default, asks what it cannot guess, and waits for you at the storyboards, at the contact sheet and at the delivery. <a href="films.html">Making a film</a> walks through each step.</p>
+        <div class="note">
+          <span class="ic">i</span>
+          <p>Not sure what to ask? <code>/manovella:site-promo-film ?</code> is the guided mode: what it makes, example requests, then the brief in two rounds of questions. Nothing renders in it.</p>
+        </div>
+
+        <div class="pager">
+          <a class="next" href="studio.html"><small>Next</small><b>The Studio &rarr;</b></a>
+        </div>
+      </article>
+    </main>
+  </div>
+</div>
+</body>
+</html>

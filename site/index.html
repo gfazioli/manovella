@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manovella: product films, written as code</title>
+<meta name="description" content="Manovella, a Claude Code plugin, makes product films as code on your Mac: every frame a pure function of time, real motion blur, loops exact to the pixel.">
+<meta name="theme-color" content="#1F1D39">
+<link rel="canonical" href="https://manovella.mov/">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Manovella">
+<meta property="og:title" content="Manovella: product films, written as code">
+<meta property="og:description" content="Every frame a pure function of time, real motion blur, loops exact to the pixel, rendered on your Mac. A Claude Code plugin.">
+<meta property="og:url" content="https://manovella.mov/">
+<meta property="og:image" content="https://manovella.mov/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Manovella: product films, written as code">
+<meta name="twitter:description" content="Every frame a pure function of time, real motion blur, loops exact to the pixel, rendered on your Mac. A Claude Code plugin.">
+<meta name="twitter:image" content="https://manovella.mov/og.png">
+<link rel="preload" href="fonts/geist/geist-100-900-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="base.css">
+<link rel="stylesheet" href="site.css">
+<script src="site.js" defer></script>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Manovella","description":"A Claude Code plugin that makes promo, launch, release and tutorial films of your product as code.","applicationCategory":"DeveloperApplication","operatingSystem":"macOS","url":"https://manovella.mov/","image":"https://manovella.mov/og.png","license":"https://opensource.org/licenses/MIT","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"author":{"@type":"Person","name":"Giovambattista Fazioli","url":"https://gfazioli.github.io/"},"sameAs":["https://github.com/gfazioli/manovella"]}
+</script>
+<!-- FAQPage: scripts/site.mjs fills this from the #faq section at build time, so the questions live in one place. -->
+<script type="application/ld+json" id="faq-ld"></script>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="i-github" viewBox="0 0 24 24"><path d="M12 .5C5.73.5.5 5.73.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.03 1.76 2.69 1.25 3.35.96.1-.74.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.68 0-1.25.45-2.28 1.18-3.08-.12-.29-.51-1.46.11-3.04 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.62 1.58.23 2.75.11 3.04.74.8 1.18 1.83 1.18 3.08 0 4.41-2.69 5.39-5.25 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.68.8.56A11.5 11.5 0 0 0 23.5 12C23.5 5.73 18.27.5 12 .5Z"/></symbol><symbol id="i-discord" viewBox="0 0 24 24"><path d="M14.983 3l.123 .006c2.014 .214 3.527 .672 4.966 1.673a1 1 0 0 1 .371 .488c1.876 5.315 2.373 9.987 1.451 12.28c-1.003 2.005 -2.606 3.553 -4.394 3.553c-.732 0 -1.693 -.968 -2.328 -2.045a21.512 21.512 0 0 0 2.103 -.493a1 1 0 1 0 -.55 -1.924c-3.32 .95 -6.13 .95 -9.45 0a1 1 0 0 0 -.55 1.924c.717 .204 1.416 .37 2.103 .494c-.635 1.075 -1.596 2.044 -2.328 2.044c-1.788 0 -3.391 -1.548 -4.428 -3.629c-.888 -2.217 -.39 -6.89 1.485 -12.204a1 1 0 0 1 .371 -.488c1.439 -1.001 2.952 -1.459 4.966 -1.673a1 1 0 0 1 .935 .435l.063 .107l.651 1.285l.137 -.016a12.97 12.97 0 0 1 2.643 0l.134 .016l.65 -1.284a1 1 0 0 1 .754 -.54l.122 -.009zm-5.983 7a2 2 0 0 0 -1.977 1.697l-.018 .154l-.005 .149l.005 .15a2 2 0 1 0 1.995 -2.15zm6 0a2 2 0 0 0 -1.977 1.697l-.018 .154l-.005 .149l.005 .15a2 2 0 1 0 1.995 -2.15z"/></symbol><symbol id="i-coffee" viewBox="0 0 24 24"><path d="M20 3H4v10c0 2.21 1.79 4 4 4h6c2.21 0 4-1.79 4-4v-3h2c1.11 0 2-.9 2-2V5c0-1.11-.89-2-2-2zm0 5h-2V5h2v3zM4 19h16v2H4z"/></symbol><symbol id="i-x" viewBox="0 0 24 24"><path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z"/></symbol><symbol id="i-linkedin" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.225 0z"/></symbol><symbol id="i-facebook" viewBox="0 0 24 24"><path d="M9.101 23.691v-7.98H6.627v-3.667h2.474v-1.58c0-4.085 1.848-5.978 5.858-5.978.401 0 .955.042 1.468.103a8.68 8.68 0 0 1 1.141.195v3.325a8.623 8.623 0 0 0-.653-.036 26.805 26.805 0 0 0-.733-.009c-.707 0-1.259.096-1.675.309a1.686 1.686 0 0 0-.679.622c-.258.42-.374.995-.374 1.752v1.297h3.919l-.386 2.103-.287 1.564h-3.246v8.245C19.396 23.238 24 18.179 24 12.044c0-6.628-5.373-12-12-12s-12 5.372-12 12c0 5.628 3.874 10.35 9.101 11.647Z"/></symbol><symbol id="i-bluesky" viewBox="0 0 24 24"><path d="M5.667 3.469c2.494 1.873 5.177 5.67 6.163 7.708.986-2.038 3.669-5.835 6.163-7.708 1.799-1.352 4.716-2.398 4.716.929 0 .665-.381 5.585-.605 6.383-.777 2.774-3.605 3.482-6.121 3.054 4.398.749 5.517 3.228 3.101 5.708-4.589 4.711-6.596-1.181-7.111-2.69-.095-.277-.139-.406-.143-.296-.004-.11-.049.019-.143.296-.515 1.509-2.522 7.401-7.111 2.69-2.416-2.48-1.297-4.959 3.101-5.708-2.516.428-5.344-.28-6.121-3.054C.381 9.983 0 5.063 0 4.398c0-3.327 2.917-2.281 4.716-.929z"/></symbol><symbol id="i-threads" viewBox="0 0 24 24"><path d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.472 12.01v-.017c.03-3.579.879-6.43 2.525-8.482C5.845 1.205 8.6.024 12.18 0h.014c2.746.02 5.043.725 6.826 2.098 1.677 1.29 2.858 3.13 3.509 5.467l-2.04.569c-1.104-3.96-3.898-5.984-8.304-6.015-2.91.022-5.11.936-6.54 2.717C4.307 6.504 3.616 8.914 3.589 12c.027 3.086.718 5.496 2.057 7.164 1.43 1.783 3.631 2.698 6.54 2.717 2.623-.02 4.358-.631 5.8-2.045 1.647-1.613 1.618-3.593 1.09-4.798-.31-.71-.873-1.3-1.634-1.75-.192 1.352-.622 2.446-1.284 3.272-.886 1.102-2.14 1.704-3.73 1.79-1.202.065-2.361-.218-3.259-.801-1.063-.689-1.685-1.74-1.752-2.964-.065-1.19.408-2.285 1.322-3.107.834-.75 2.02-1.181 3.535-1.288.567-.04 1.373.026 1.66.062 0 0-.13-2.293-1.717-2.303-.696-.004-1.324.28-1.749 1.062l-1.882-1.099c.677-1.376 1.94-2.174 3.607-2.174h.019c2.24.014 3.573 1.375 3.71 3.748.078.033.155.067.23.102 1.415.666 2.451 1.673 2.997 2.911.762 1.727.83 4.539-1.464 6.826-1.75 1.744-3.87 2.53-6.98 2.552Zm-1.478-9.006c-.086 0-.174.003-.262.008-1.216.068-1.976.628-1.937 1.428.036.792.881 1.148 1.667 1.106.723-.039 1.669-.319 1.83-2.484a6.084 6.084 0 0 0-1.298-.058Z"/></symbol></svg>
+<a class="skip" href="#main">Skip to content</a>
+
+<nav class="nav" aria-label="Primary">
+  <div class="nav-in">
+    <a class="nav-brand" href="#top"><img src="logo-mark.svg" alt="" width="28" height="28"><span>Manovella</span></a>
+    <div class="nav-links">
+      <a class="wide" href="#apart">Features</a>
+      <a class="wide" href="#studio">Studio</a>
+      <a href="guide/">Docs</a>
+      <a class="wide" href="#faq">FAQ</a>
+      <a class="nav-ic nav-gh" href="https://github.com/gfazioli/manovella" aria-label="Manovella on GitHub"><svg aria-hidden="true"><use href="#i-github"/></svg><span class="stars" data-stars hidden></span></a>
+      <a class="nav-ic wide" href="https://discord.gg/rdWu5yFCR6" target="_blank" rel="noopener noreferrer" aria-label="Join us on Discord"><svg aria-hidden="true"><use href="#i-discord"/></svg></a>
+      <a class="nav-ic coffee wide" href="https://donate.stripe.com/fZu4gy4Tn3b1dgudGx0co00" target="_blank" rel="noopener noreferrer" aria-label="Buy me a coffee"><svg aria-hidden="true"><use href="#i-coffee"/></svg></a>
+      <a class="cta" href="#sponsor"><span class="heart" aria-hidden="true">&#9829;</span> <span class="cta-word">Sponsor</span></a>
+    </div>
+  </div>
+</nav>
+
+<main id="main">
+
+<header class="hero" id="top">
+  <img class="logo" src="logo-256.png" srcset="logo-256.png 1x, logo-512.png 2x" width="128" height="128" alt="Manovella: a 1920s movie camera with two film reels and a violet hand crank">
+  <p class="eyebrow">Manovella</p>
+  <h1>Product films,<br>written as code</h1>
+  <p class="lede">A Claude Code plugin that makes promo, launch, release and tutorial films of your product, on your Mac. Every frame is a pure function of time, with real motion blur, loops exact to the pixel and your UI as vector.</p>
+  <div class="actions">
+    <div class="install" role="group" aria-label="Install commands">
+      <pre><code id="install-cmd"><span class="p">$</span> claude plugin marketplace add gfazioli/manovella
+<span class="p">$</span> claude plugin install manovella@manovella</code></pre>
+      <button type="button" class="copy" id="copy" aria-label="Copy the install commands">Copy</button>
+    </div>
+    <a class="btn" href="guide/">Read the docs</a>
+  </div>
+  <ul class="meta">
+    <li>Free and MIT-licensed</li>
+    <li>macOS on Apple Silicon</li>
+    <li>Renders on your Mac</li>
+    <li>For Claude Code</li>
+    <li data-stars-item hidden><a href="https://github.com/gfazioli/manovella/stargazers"><span aria-hidden="true">&#9733;</span> <span data-stars></span> on GitHub</a></li>
+  </ul>
+  <a class="ph" id="ph" data-post-id="" href="https://www.producthunt.com/@gfazioli" target="_blank" rel="noopener noreferrer" hidden><img alt="Manovella on Product Hunt" width="250" height="54"></a>
+</header>
+
+<section id="film" class="band" aria-labelledby="film-h">
+  <h2 id="film-h" data-reveal="rise">Made with Manovella</h2>
+  <p class="sub" data-reveal="rise">The launch film, one minute long, made with the plugin itself: every frame drawn by the engine and rendered on a Mac, the voice made on that Mac, the scenes timed to the music&rsquo;s bars.</p>
+  <figure class="film" data-reveal="lift">
+    <!-- A link to the video, so it plays with no script; site.js swaps in YouTube's player on a plain click. -->
+    <a class="film-open" id="film-open" href="https://www.youtube.com/watch?v=sasFqM4CEtg" target="_blank" rel="noopener noreferrer" aria-label="Play the launch film, 0:59, from YouTube">
+      <img src="film-poster.jpg" srcset="film-poster-800.jpg 800w, film-poster.jpg 1600w" sizes="(min-width: 1120px) 1024px, 92vw" width="1600" height="900" loading="lazy" decoding="async" alt="A frame of the launch film: the headline &quot;Every choice moves on the real engine, in your colour, on your device.&quot; beside the Studio's Which look? step, with the aurora look chosen">
+      <span class="film-play" aria-hidden="true"><svg viewBox="0 0 24 24" width="30" height="30"><path d="M8 5v14l11-7z" fill="currentColor"/></svg></span>
+      <span class="film-len" aria-hidden="true">0:59</span>
+    </a>
+  </figure>
+  <p class="note" data-reveal="rise">The voice is Orpheus, run on the Mac; the music was generated with Google Gemini, and every track carries Google&rsquo;s inaudible SynthID watermark. The player comes from YouTube and loads only when you press play (<a href="guide/privacy.html#youtube">privacy</a>), or <a href="https://www.youtube.com/watch?v=sasFqM4CEtg" target="_blank" rel="noopener noreferrer">watch it on YouTube</a>.</p>
+</section>
+
+<section id="engine" class="band" aria-labelledby="engine-h">
+  <h2 id="engine-h" data-reveal="rise">The engine, live</h2>
+  <p class="sub" data-reveal="rise">This is the real engine, running in your browser. Every frame is a function of time, <code>seek(t)</code>: drag the scrubber and the film is drawn at that instant, from scratch.</p>
+  <div class="player" id="player" data-reveal="lift">
+    <div class="stage" id="stage">
+      <img id="poster" src="hero-poster.jpg" width="1600" height="900" data-t="5.2" alt="A frame of the demo film: a dashboard card turned in perspective beside the headline &quot;One object, every surface.&quot;">
+    </div>
+    <div class="bar">
+      <button type="button" class="play" id="play" aria-label="Play">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path class="i-play" d="M8 5v14l11-7z"/><path class="i-pause" d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>
+      </button>
+      <input type="range" id="scrub" min="0" max="8" step="0.01" aria-label="Film time in seconds" disabled>
+      <output class="time" id="time" for="scrub"></output>
+    </div>
+  </div>
+  <p class="note" data-reveal="rise">An 8 s loop at 60 fps. Here it plays at screen speed; the renderer asks the same function for sixteen subframes per frame and blends them, which is where the motion blur comes from.</p>
+</section>
+
+<section id="apart" class="band" aria-labelledby="apart-h">
+  <h2 id="apart-h" data-reveal="rise">What sets it apart</h2>
+  <ul class="cards" data-scope data-stagger>
+    <li data-reveal="morph"><h3>Deterministic by construction</h3><p>Not by a list of rules to keep: there is no timeline state and no timer to forbid. <code>seek(t)</code> draws the frame at <code>t</code> from scratch, so a still, a draft and the master are the same drawing.</p></li>
+    <li data-reveal="morph"><h3>Motion blur on every frame</h3><p>Always on, never a setting to remember. Each frame is the mean of sixteen subframes on their own subpixel offsets, so it is a 16-sample antialias too; a fast move gets 48. The shutter goes from 360&deg; to a film camera's crisper 180&deg;.</p></li>
+    <li data-reveal="morph"><h3>Loops exact to the pixel</h3><p>A promo loop ends on the very frame it began with, so a page or a feed plays it forever without a seam. Checked, not eyeballed.</p></li>
+    <li data-reveal="morph"><h3>Your product's own UI, as vector</h3><p>Rebuilt from its source: windows, menus, a cursor and real shortcuts, sharp at any resolution, never a screen recording.</p></li>
+    <li data-reveal="morph"><h3>Sound you hear before you choose</h3><p>Six voice presets and thirteen voices from three local models say your line before you pick one. Your music, from a library of yours or a file, has its beat measured, the cuts land on it, and the voice is heard over it before you choose. Subtitles in the film, beside it, or both.</p></li>
+    <li data-reveal="morph"><h3>Release films from a tag</h3><p>Name a version: what it changed is shown changing in place, between two version cards.</p></li>
+    <li data-reveal="morph"><h3>On your Mac, and cool</h3><p>No upload, no render farm: every frame is drawn and encoded on your Mac. A render runs in the <code>utility</code> QoS class on a third of the cores, and a governor holds the workers when the chip passes 80&nbsp;&deg;C.</p></li>
+    <li data-reveal="morph"><h3>Small and steady</h3><p>A 5&nbsp;MB plugin with no build step: pages and Node scripts that drive the Chrome and ffmpeg on your Mac. One kind of film, made the same way every time.</p></li>
+  </ul>
+</section>
+
+<section id="studio" class="band" aria-labelledby="studio-h">
+  <h2 id="studio-h" data-reveal="rise">The Studio</h2>
+  <p class="sub" data-reveal="rise"><code>/manovella:studio</code> opens a window of its own: ten steps from a recipe to a brief, where every choice is shown moving on the real engine, in your product's colour and the film's aspect, and the sound is heard. Each step is a deck of cards that says at a glance what is chosen in it. It ends with a <code>brief.json</code> that Claude answers with three storyboards.</p>
+  <figure class="shot" data-reveal="lift">
+    <a class="frame zoom" href="img/studio.jpg"><img src="img/studio.jpg" width="1600" height="1016" loading="lazy" alt="The Studio's motion step: the cuts as tiles, the cube chosen and turning in the viewer, an iMac on the aurora look, with motion blur on"></a>
+  </figure>
+  <ol class="steps" data-scope data-stagger>
+    <li data-reveal="rise"><b>What film</b><span>promo loop, social teaser, film in chapters, release film, README GIF, tutorial, from scratch</span></li>
+    <li data-reveal="rise"><b>Which product</b><span>a repository or a URL; its accent guessed from the source</span></li>
+    <li data-reveal="rise"><b>Format</b><span>eleven, and the device the product is shown in: a Mac window, a MacBook, an iMac, an iPhone, an iPad, a browser, a terminal, or the UI alone</span></li>
+    <li data-reveal="rise"><b>Look</b><span>twenty-three, or a picture of yours</span></li>
+    <li data-reveal="rise"><b>Type</b><span>fifteen sets, or any installed family</span></li>
+    <li data-reveal="rise"><b>Motion</b><span>thirteen ways for a headline to arrive, twenty-four cuts, the pace, the shutter</span></li>
+    <li data-reveal="rise"><b>Music</b><span>your music library, a file of yours, or a new one from Gemini</span></li>
+    <li data-reveal="rise"><b>Voice</b><span>six presets, thirteen voices made on the Mac and heard over the music, subtitles</span></li>
+    <li data-reveal="rise"><b>Length and output</b><span>the kind's own length or one you type; aspects, frame rate, resolution, files</span></li>
+    <li data-reveal="rise"><b>Review</b><span>the brief, before the storyboards</span></li>
+  </ol>
+</section>
+
+<section id="catalogue" class="band" aria-labelledby="cat-h">
+  <h2 id="cat-h" data-reveal="rise">The catalogue</h2>
+  <p class="sub" data-reveal="rise">Every look, format, cut, type set, headline style and device, drawn by the engine itself. Open one to see it whole.</p>
+  <div class="grid" data-scope data-stagger>
+    <figure data-reveal="morph"><a class="frame zoom" href="img/looks.jpg"><img src="img/looks.jpg" width="1600" height="1000" loading="lazy" alt="The twenty-three looks"></a><figcaption><b>23 looks</b> backdrops, brand light, grain, glass, from flat to WebGL fields</figcaption></figure>
+    <figure data-reveal="morph"><a class="frame zoom" href="img/reel.jpg"><img src="img/reel.jpg" width="1600" height="1000" loading="lazy" alt="The reel, scene by scene"></a><figcaption><b>11 formats</b> the first decision of a film</figcaption></figure>
+    <figure data-reveal="morph"><a class="frame zoom" href="img/transitions.jpg"><img src="img/transitions.jpg" width="1600" height="1000" loading="lazy" alt="Every transition, half done"></a><figcaption><b>24 cuts</b> by what they do to the frame</figcaption></figure>
+    <figure data-reveal="morph"><a class="frame zoom" href="img/type.jpg"><img src="img/type.jpg" width="1600" height="1000" loading="lazy" alt="The fifteen type sets"></a><figcaption><b>15 type sets</b> open-licensed, in the kit</figcaption></figure>
+    <figure data-reveal="morph"><a class="frame zoom" href="img/text.jpg"><img src="img/text.jpg" width="1600" height="1000" loading="lazy" alt="Thirteen ways for a headline to arrive"></a><figcaption><b>13 headline styles</b> how a claim arrives, with a mark on one word</figcaption></figure>
+    <figure data-reveal="morph"><a class="frame zoom" href="img/parts.jpg"><img src="img/parts.jpg" width="1600" height="1000" loading="lazy" alt="The parts a product is shown in: windows, a browser, a terminal, a MacBook, an iMac, an iPhone, an iPad"></a><figcaption><b>8 devices</b> a Mac window, a MacBook, an iMac, an iPhone, an iPad, a browser, a terminal, the UI alone</figcaption></figure>
+  </div>
+</section>
+
+<section id="how" class="band" aria-labelledby="how-h">
+  <h2 id="how-h" data-reveal="rise">How a film is made</h2>
+  <ol class="flow" data-scope data-stagger>
+    <li data-reveal="rise"><b>Ask</b>, in words or in the Studio: what film, of what, for where.</li>
+    <li data-reveal="rise"><b>Three storyboards</b>, on three different formats, on the music's beat grid. You pick one.</li>
+    <li data-reveal="rise"><b>Stills and a contact sheet</b> of the first real frames, the looks sheet if the look is open.</li>
+    <li data-reveal="rise"><b>A draft</b> at a sixteenth of the work, then <b>the masters</b>: <code>.mp4</code> (H.264 or HEVC), <code>.mov</code> (ProRes 422 HQ), <code>.webm</code> or <code>.gif</code>, every aspect asked for, a cover per aspect, chapter marks for a long film. On the look <code>transparent</code> with <code>ALPHA=1</code>, a transparent film to lay over footage: <code>.mov</code> (ProRes 4444) or <code>.webm</code> (VP9 with alpha).</li>
+    <li data-reveal="rise"><b>Delivery</b>: the finished films leave the work folder for a folder of their own; once the film is out, the work folder goes to the Trash after its source is checked safe in the product's kit.</li>
+  </ol>
+</section>
+
+<section id="install" class="band" aria-labelledby="install-h">
+  <h2 id="install-h" data-reveal="rise">Install and requirements</h2>
+  <div class="two" data-scope data-stagger>
+    <div data-reveal="rise">
+      <h3>Install</h3>
+      <pre class="block"><code>claude plugin marketplace add gfazioli/manovella
+claude plugin install manovella@manovella</code></pre>
+      <p>To update by hand: <code>claude plugin marketplace update manovella</code>, then <code>claude plugin update manovella@manovella</code>. Or declare it in <code>~/.claude/settings.json</code> (merged into what is there) and Claude Code keeps the plugin current: <code>{ "extraKnownMarketplaces": { "manovella": { "source": { "source": "github", "repo": "gfazioli/manovella" }, "autoUpdate": true } } }</code>.</p>
+      <p>Then ask: <em>"a 15 s promo loop of acme.app, 16:9 and 9:16, with our music"</em>, or open <code>/manovella:studio</code>. The <a href="guide/">docs</a> take it from there.</p>
+    </div>
+    <div data-reveal="rise">
+      <h3>Requirements</h3>
+      <ul class="req">
+        <li><b>macOS on Apple Silicon</b>, with Claude Code.</li>
+        <li><b>Node</b> (tested with 24.3), <b>ffmpeg</b> (tested with 9.0.2) and <b>Google Chrome</b>, which the renderer drives through <code>playwright-core</code> installed in each film's work folder: nothing else is downloaded. With Homebrew: <code>brew install node ffmpeg</code>.</li>
+        <li><b>Xcode Command Line Tools</b> (<code>swiftc</code>), optional: for the Studio's own window and the chip's thermometer. Without them the Studio opens in a Chrome app window, and renders are held on macOS's thermal state.</li>
+        <li><b>Voices, optional</b>: Python 3.13 and a one-time voice setup. Without them a film speaks with a macOS voice, or not at all.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="faq" class="band" aria-labelledby="faq-h">
+  <h2 id="faq-h" data-reveal="rise">Questions</h2>
+  <div class="faq" data-scope data-stagger>
+    <details data-reveal="rise"><summary>Is Manovella free?</summary><div class="a"><p>Yes. Manovella is free and MIT-licensed. If it saves you time, you can <a href="#sponsor">sponsor its development</a> or buy me a coffee.</p></div></details>
+    <details data-reveal="rise"><summary>Is it an AI video generator?</summary><div class="a"><p>No. Claude writes the film as code: one HTML canvas whose every frame is a pure function of time, <code>seek(t)</code>. Headless Chrome captures it frame by frame, sixteen subframes each, and ffmpeg blends and encodes them. No generative video model draws a frame.</p></div></details>
+    <details data-reveal="rise"><summary>How is it different from other HTML-to-video tools?</summary><div class="a"><p>It is narrower on purpose. Many are general: any kind of video, a timeline editor, rendering in the cloud. Manovella makes films of your product, the same way every time: a pure function of time drawn on a canvas, motion blur on every frame, loops exact to the pixel, your UI rebuilt as vector, its sound heard before it is chosen, and every frame rendered on your Mac.</p></div></details>
+    <details data-reveal="rise"><summary>Does it record my screen?</summary><div class="a"><p>No. Your product's UI is rebuilt as vector from its source: windows, menus, a cursor and real shortcuts, sharp at any resolution, never a screen recording.</p></div></details>
+    <details data-reveal="rise"><summary>What do I need to run it?</summary><div class="a"><p>macOS on Apple Silicon with Claude Code, Node, ffmpeg and Google Chrome, and, optionally, the Xcode Command Line Tools for the Studio's own window and the chip's thermometer. Voices are optional: Python 3.13 and a one-time setup, or a macOS voice.</p></div></details>
+    <details data-reveal="rise"><summary>Does it run on Linux or Windows?</summary><div class="a"><p>Manovella is macOS-first: the Studio's window, the thermometer that keeps renders cool and the macOS voices are Mac code, and it is built and tested on macOS on Apple Silicon.</p></div></details>
+    <details data-reveal="rise"><summary>Which files do I get?</summary><div class="a"><p><code>.mp4</code> (H.264 or HEVC), <code>.mov</code> (ProRes 422 HQ), <code>.webm</code> or <code>.gif</code>, in every aspect you ask for, with a cover per aspect and chapter marks for a long film. A transparent film (the look <code>transparent</code>, rendered with <code>ALPHA=1</code>) comes as <code>.mov</code> (ProRes 4444) or <code>.webm</code> (VP9 with alpha).</p></div></details>
+    <details data-reveal="rise"><summary>Will a render overheat my Mac?</summary><div class="a"><p>A render is minutes of work, so it runs in the <code>utility</code> QoS class on a third of the cores, and a governor holds the workers whenever the chip passes 80&nbsp;&deg;C (without the Xcode Command Line Tools, whenever macOS says the Mac is hot).</p></div></details>
+    <details data-reveal="rise"><summary>Can I use my own music and voice?</summary><div class="a"><p>Yes. Point Manovella at a music library, a folder of audio files, and the Studio lists its tracks: their beat is measured and the cuts land on it. A voice-over comes from a local voice model or a macOS voice, with subtitles.</p></div></details>
+    <details data-reveal="rise"><summary>Will it render something I did not ask for?</summary><div class="a"><p>No. A film is made when it is asked for, after you have seen the storyboards and the stills.</p></div></details>
+    <details data-reveal="rise"><summary>Where do the finished films go?</summary><div class="a"><p>Where the project's own instructions keep finished media, else <code>&lt;name&gt;/</code> in the work folder, <code>~/Downloads</code> unless the Studio&rsquo;s Settings say otherwise. If you turn on <i>Deliver finished films into it too</i> in the Settings&rsquo; music library, they go to <code>&lt;library&gt;/&lt;Brand&gt;/video/&lt;name&gt;/</code> instead.</p></div></details>
+  </div>
+</section>
+
+</main>
+
+<footer class="foot">
+  <div class="foot-in">
+    <div class="foot-cols">
+      <div class="foot-brand">
+        <a class="foot-logo" href="#top"><img src="logo-mark.svg" alt="" width="40" height="40" loading="lazy"><b>Manovella</b></a>
+        <p>Product films, written as code. Built by <a href="https://gfazioli.github.io/">Undolog</a>: follow me on X, join the Discord, or sponsor the work.</p>
+        <div class="socials">
+          <a href="https://github.com/gfazioli" aria-label="Giovambattista Fazioli on GitHub"><svg aria-hidden="true"><use href="#i-github"/></svg></a>
+          <a href="https://twitter.com/gfazioli" target="_blank" rel="noopener noreferrer" aria-label="Giovambattista Fazioli on X"><svg aria-hidden="true"><use href="#i-x"/></svg></a>
+          <a href="https://discord.gg/rdWu5yFCR6" target="_blank" rel="noopener noreferrer" aria-label="Join us on Discord"><svg aria-hidden="true"><use href="#i-discord"/></svg></a>
+          <a href="https://it.linkedin.com/in/giovambattistafazioli" target="_blank" rel="noopener noreferrer" aria-label="Giovambattista Fazioli on LinkedIn"><svg aria-hidden="true"><use href="#i-linkedin"/></svg></a>
+        </div>
+      </div>
+      <nav class="foot-col" aria-label="Manovella">
+        <h2>Manovella</h2>
+        <ul>
+          <li><a href="guide/">Docs</a></li>
+          <li><a href="guide/releases.html">Release notes</a></li>
+          <li><a href="#install">Install</a></li>
+          <li><a href="#faq">Questions</a></li>
+          <li><a href="#sponsor">Sponsor</a></li>
+        </ul>
+      </nav>
+      <nav class="foot-col" aria-label="Resources">
+        <h2>Resources</h2>
+        <ul>
+          <li><a href="https://github.com/gfazioli/manovella">Repository</a></li>
+          <li><a href="https://github.com/gfazioli/manovella/issues">Issues</a></li>
+          <li><a href="https://github.com/gfazioli/manovella/blob/main/LICENSE">License</a></li>
+          <li><a href="https://discord.gg/rdWu5yFCR6" target="_blank" rel="noopener noreferrer">Discord</a></li>
+          <li><a href="https://undolog.com">Undolog blog</a></li>
+        </ul>
+      </nav>
+      <nav class="foot-col" aria-label="More from Undolog">
+        <h2>More from Undolog</h2>
+        <ul>
+          <li><a href="https://findergit.app">FinderGit</a></li>
+          <li><a href="https://netfox.app">Netfox</a></li>
+          <li><a href="https://lancetta.app">Lancetta</a></li>
+          <li><a href="https://vicenda.app">Vicenda</a></li>
+          <li><a href="https://gfazioli.github.io/octoscope/">octoscope</a></li>
+          <li><a href="https://gfazioli.github.io/glancecard/">Glancecard</a></li>
+          <li><a href="https://gfazioli.github.io/">All projects</a></li>
+        </ul>
+      </nav>
+    </div>
+
+    <div id="sponsor" class="support-card" data-reveal="lift">
+      <div class="support-copy">
+        <h2 class="support-title"><span class="heart" aria-hidden="true">&#10084;</span> Support Manovella</h2>
+        <p>If my open-source work saves you or your team time, consider sponsoring its development. Sponsors get their name or logo featured here and across all my projects&rsquo; documentation sites.</p>
+      </div>
+      <div class="support-actions">
+        <div class="sponsor-wall">
+          <a class="sponsor-item" href="https://github.com/kastov" target="_blank" rel="noopener noreferrer">
+            <img class="sponsor-avatar" src="https://github.com/kastov.png?size=112" alt="kastov" loading="lazy" width="72" height="72" />
+            <span class="sponsor-name">kastov</span>
+          </a>
+          <a class="sponsor-item" href="https://github.com/guimazza" target="_blank" rel="noopener noreferrer">
+            <img class="sponsor-avatar" src="https://github.com/guimazza.png?size=112" alt="guimazza" loading="lazy" width="72" height="72" />
+            <span class="sponsor-name">guimazza</span>
+          </a>
+          <a class="sponsor-item sponsor-slot" href="https://github.com/sponsors/gfazioli" target="_blank" rel="noopener noreferrer">
+            <span class="sponsor-avatar" aria-hidden="true">+</span>
+            <span class="sponsor-name">Your logo here</span>
+          </a>
+        </div>
+        <div class="sponsor-actions">
+          <a href="https://github.com/sponsors/gfazioli" class="sponsor-btn" target="_blank" rel="noopener noreferrer">
+            <span aria-hidden="true">&#10084;</span> Become a sponsor
+          </a>
+          <a href="https://donate.stripe.com/fZu4gy4Tn3b1dgudGx0co00" class="sponsor-btn coffee-btn" target="_blank" rel="noopener noreferrer">
+            <svg aria-hidden="true"><use href="#i-coffee"/></svg> Buy me a coffee
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="share-row">
+      <span class="share-label">Share Manovella</span>
+      <a href="https://twitter.com/intent/tweet?text=Manovella%20-%20Product%20films%2C%20written%20as%20code&amp;url=https%3A%2F%2Fmanovella.mov%2F" target="_blank" rel="noreferrer noopener" aria-label="Share Manovella on X"><svg aria-hidden="true"><use href="#i-x"/></svg></a>
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fmanovella.mov%2F" target="_blank" rel="noreferrer noopener" aria-label="Share Manovella on LinkedIn"><svg aria-hidden="true"><use href="#i-linkedin"/></svg></a>
+      <a href="https://www.facebook.com/sharer/sharer.php?u=https%3A%2F%2Fmanovella.mov%2F" target="_blank" rel="noreferrer noopener" aria-label="Share Manovella on Facebook"><svg aria-hidden="true"><use href="#i-facebook"/></svg></a>
+      <a href="https://bsky.app/intent/compose?text=Manovella%20-%20Product%20films%2C%20written%20as%20code%20https%3A%2F%2Fmanovella.mov%2F" target="_blank" rel="noreferrer noopener" aria-label="Share Manovella on Bluesky"><svg aria-hidden="true"><use href="#i-bluesky"/></svg></a>
+      <a href="https://www.threads.net/intent/post?text=Manovella%20-%20Product%20films%2C%20written%20as%20code%20https%3A%2F%2Fmanovella.mov%2F" target="_blank" rel="noreferrer noopener" aria-label="Share Manovella on Threads"><svg aria-hidden="true"><use href="#i-threads"/></svg></a>
+    </div>
+
+    <div class="foot-attribution">
+      Made with <span class="heart">&#9829;</span> by
+      <a href="https://gfazioli.github.io/" target="_blank" rel="noopener noreferrer">Undolog</a>
+      <span class="dot" aria-hidden="true">&middot;</span> MIT-licensed <span class="dot" aria-hidden="true">&middot;</span> Hosted on Vercel
+    </div>
+    <div class="foot-legal">
+      &copy; <span data-year>2026</span> Undolog &mdash; Giovambattista&nbsp;Fazioli<span class="dot" aria-hidden="true">&middot;</span><wbr>P.IVA&nbsp;12343751009<span class="dot" aria-hidden="true">&middot;</span><wbr><a href="guide/legal.html">Legal</a><span class="dot" aria-hidden="true">&middot;</span><wbr><a href="guide/privacy.html">Privacy</a>
+    </div>
+    <div class="wordmark" aria-hidden="true">manovella<span>.</span></div>
+  </div>
+</footer>
+
+<dialog class="zoom-dlg" id="zoom" aria-label="Picture, full size">
+  <form method="dialog"><button class="zoom-close" aria-label="Close">&times;</button></form>
+  <img alt="">
+</dialog>
+</body>
+</html>

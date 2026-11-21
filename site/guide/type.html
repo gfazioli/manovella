@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Type &middot; Manovella docs</title>
+<meta name="description" content="Manovella type: fifteen sets built from twenty open-licensed families, any family installed on the Mac, and how a film loads and draws its faces." />
+<link rel="canonical" href="https://manovella.mov/guide/type.html" />
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="Manovella" />
+<meta property="og:title" content="Type &middot; Manovella docs" />
+<meta property="og:description" content="Manovella type: fifteen sets built from twenty open-licensed families, any family installed on the Mac, and how a film loads and draws its faces." />
+<meta property="og:url" content="https://manovella.mov/guide/type.html" />
+<meta property="og:image" content="https://manovella.mov/og.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Manovella: product films, written as code" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Type &middot; Manovella docs" />
+<meta name="twitter:description" content="Manovella type: fifteen sets built from twenty open-licensed families, any family installed on the Mac, and how a film loads and draws its faces." />
+<meta name="twitter:image" content="https://manovella.mov/og.png" />
+<link rel="preload" href="../fonts/geist/geist-100-900-latin.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="stylesheet" href="../base.css" />
+<link rel="stylesheet" href="style.css" />
+<script src="docs.js" defer></script>
+</head>
+<body data-page="type" data-title="Type">
+<div class="layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main">
+    <header class="topbar" id="topbar"></header>
+    <main class="doc">
+      <article class="page">
+        <p class="eyebrow">Catalogue</p>
+        <h1>Type</h1>
+        <p class="lead">Twenty open-licensed families in fifteen sets of display, text and mono faces, or any family installed on your Mac, by its name.</p>
+
+        <p>Twenty families live in the kit (<code>template/fonts/</code>, open-licensed, latin and latin-ext), in fifteen sets of a display face, a text face and a mono, each a register of its own. Or use any family installed on the Mac, by its name.</p>
+        <figure class="shot">
+          <div class="frame">
+            <img src="../img/type.jpg" alt="The fifteen type sets, each as a specimen" width="1600" height="1000" loading="lazy" />
+          </div>
+          <figcaption>The fifteen type sets.</figcaption>
+        </figure>
+        <p>The sets, named for their display face: SF, Geist, Inter Tight, Familjen Grotesk, Space Grotesk, Fraunces, Instrument Serif, Bodoni Moda, Newsreader, Young Serif, Bricolage Grotesque, Syne, Archivo, Unbounded and Big Shoulders. In the Studio, each set is a specimen in its own faces, and the headline is set large on the stage.</p>
+
+        <h2 id="roles">Roles</h2>
+        <ul>
+          <li><b>display</b> sets every headline, <b>text</b> the sublines and captions, <b>mono</b> a terminal. The product&rsquo;s UI keeps its own face.</li>
+          <li><b>The brand&rsquo;s own faces</b> stay when no set is chosen.</li>
+          <li>A family from the kit is copied into the film&rsquo;s <code>src/fonts/</code>. <b>A family installed on the Mac renders only where it is installed</b>: keep it out of a kit in a public repository.</li>
+        </ul>
+
+        <h2 id="use">In a page</h2>
+        <div class="code">
+          <button class="copy" type="button">copy</button>
+          <pre><code>await TYPE.load('Fraunces', faces, 'fonts/')   // before frame 0
+// then the family in TYPE.draw</code></pre>
+        </div>
+        <h2 id="more">Another family</h2>
+        <p><code>scripts/fonts.mjs add "&lt;Family&gt;"</code> adds a family to the kit from Google Fonts with its licence; <code>check</code> and <code>list</code> read the kit. This is the one script that goes to the network to fetch something at your request (see <a href="privacy.html">Privacy</a>).</p>
+
+        <div class="pager">
+          <a href="formats.html"><small>Previous</small><b>&larr; Formats</b></a>
+          <a class="next" href="motion.html"><small>Next</small><b>Motion &rarr;</b></a>
+        </div>
+      </article>
+    </main>
+  </div>
+</div>
+</body>
+</html>

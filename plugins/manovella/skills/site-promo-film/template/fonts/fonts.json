@@ -1,0 +1,499 @@
+{
+  "note": "Open-licensed families for film pages, latin + latin-ext subsets, written by scripts/fonts.mjs. Each folder holds its OFL.txt.",
+  "families": {
+    "Archivo": {
+      "slug": "archivo",
+      "license": "OFL-1.1",
+      "copyright": "Copyright 2020 The Archivo Project Authors (https://github.com/Omnibus-Type/Archivo)",
+      "axes": "wdth,wght@62..125,100..900",
+      "source": "https://fonts.google.com/specimen/Archivo",
+      "faces": [
+        {
+          "file": "archivo/archivo-100-900-latin-ext.woff2",
+          "style": "normal",
+          "weight": "100 900",
+          "stretch": "62% 125%",
+          "unicodeRange": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF",
+          "subset": "latin-ext"
+        },
+        {
+          "file": "archivo/archivo-100-900-latin.woff2",
+          "style": "normal",
+          "weight": "100 900",
+          "stretch": "62% 125%",
+          "unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD",
+          "subset": "latin"
+        }
+      ]
+    },
+    "Big Shoulders Display": {
+      "slug": "bigshouldersdisplay",
+      "license": "OFL-1.1",
+      "copyright": "Copyright 2019 The Big Shoulders Project Authors (https://github.com/xotypeco/big_shoulders)",
+      "axes": "wght@100..900",
+      "source": "https://fonts.google.com/specimen/Big+Shoulders+Display",
+      "faces": [
+        {
+          "file": "bigshouldersdisplay/bigshouldersdisplay-100-900-latin-ext.woff2",
+          "style": "normal",
+          "weight": "100 900",
+          "unicodeRange": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF",
+          "subset": "latin-ext"
+        },
+        {
+          "file": "bigshouldersdisplay/bigshouldersdisplay-100-900-latin.woff2",
+          "style": "normal",
+          "weight": "100 900",
+          "unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD",
+          "subset": "latin"
+        }
+      ]
+    },
+    "Bodoni Moda": {
+      "slug": "bodonimoda",
+      "license": "OFL-1.1",
+      "copyright": "Copyright 2020 The Bodoni Moda Project Authors (https://github.com/indestructible-type/Bodoni)",
+      "axes": "opsz,wght@6..96,400..900",
+      "source": "https://fonts.google.com/specimen/Bodoni+Moda",
+      "faces": [
+        {
+          "file": "bodonimoda/bodonimoda-400-900-latin-ext.woff2",
+          "style": "normal",
+          "weight": "400 900",
+          "unicodeRange": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF",
+          "subset": "latin-ext"
+        },
+        {
+          "file": "bodonimoda/bodonimoda-400-900-latin.woff2",
+          "style": "normal",
+          "weight": "400 900",
+          "unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD",
+          "subset": "latin"
+        }
+      ]
+    },
+    "Bricolage Grotesque": {
+      "slug": "bricolagegrotesque",
+      "license": "OFL-1.1",
+      "copyright": "Copyright 2022 The Bricolage Grotesque Project Authors (https://github.com/ateliertriay/bricolage)",
+      "axes": "opsz,wdth,wght@12..96,75..100,200..800",
+      "source": "https://fonts.google.com/specimen/Bricolage+Grotesque",
+      "faces": [
+        {
+          "file": "bricolagegrotesque/bricolagegrotesque-200-800-latin-ext.woff2",
+          "style": "normal",
+          "weight": "200 800",
+          "stretch": "75% 100%",
+          "unicodeRange": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF",
+          "subset": "latin-ext"
+        },
+        {
+          "file": "bricolagegrotesque/bricolagegrotesque-200-800-latin.woff2",
+          "style": "normal",
+          "weight": "200 800",
+          "stretch": "75% 100%",
+          "unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD",
+          "subset": "latin"
+        }
+      ]
+    },
+    "Familjen Grotesk": {
+      "slug": "familjengrotesk",
+      "license": "OFL-1.1",
+      "copyright": "Copyright 2021 The Familjen Grotesk Project Authors (https://github.com/Familjen-Sthlm/Familjen-Grotesk)",
+      "axes": "wght@400..700",
+      "source": "https://fonts.google.com/specimen/Familjen+Grotesk",
+      "faces": [
+        {
+          "file": "familjengrotesk/familjengrotesk-400-700-latin-ext.woff2",
+          "style": "normal",
+          "weight": "400 700",
+          "unicodeRange": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF",
+          "subset": "latin-ext"
+        },
+        {
+          "file": "familjengrotesk/familjengrotesk-400-700-latin.woff2",
+          "style": "normal",
+          "weight": "400 700",
+          "unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD",
+          "subset": "latin"
+        }
+      ]
+    },
+    "Fraunces": {
+      "slug": "fraunces",
+      "license": "OFL-1.1",
+      "copyright": "Copyright 2018 The Fraunces Project Authors (https://github.com/undercasetype/Fraunces)",
+      "axes": "opsz,wght,SOFT,WONK@9..144,100..900,0..100,0..1",
+      "source": "https://fonts.google.com/specimen/Fraunces",
+      "faces": [
+        {
+          "file": "fraunces/fraunces-100-900-latin-ext.woff2",
+          "style": "normal",
+          "weight": "100 900",
+          "unicodeRange": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF",
+          "subset": "latin-ext"
+        },
+        {
+          "file": "fraunces/fraunces-100-900-latin.woff2",
+          "style": "normal",
+          "weight": "100 900",
+          "unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD",
+          "subset": "latin"
+        }
+      ]
+    },
+    "Geist": {
+      "slug": "geist",
+      "license": "OFL-1.1",
+      "copyright": "Copyright 2024 The Geist Project Authors (https://github.com/vercel/geist-font.git)",
+      "axes": "wght@100..900",
+      "source": "https://fonts.google.com/specimen/Geist",
+      "faces": [
+        {
+          "file": "geist/geist-100-900-latin-ext.woff2",
+          "style": "normal",
+          "weight": "100 900",
+          "unicodeRange": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF",
+          "subset": "latin-ext"
+        },
+        {
+          "file": "geist/geist-100-900-latin.woff2",
+          "style": "normal",
+          "weight": "100 900",
+          "unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD",
+          "subset": "latin"
+        }
+      ]
+    },
+    "Geist Mono": {
+      "slug": "geistmono",
+      "license": "OFL-1.1",
+      "copyright": "Copyright 2024 The Geist Project Authors (https://github.com/vercel/geist-font.git)",
+      "axes": "wght@100..900",
+      "source": "https://fonts.google.com/specimen/Geist+Mono",
+      "faces": [
+        {
+          "file": "geistmono/geistmono-100-900-latin-ext.woff2",
+          "style": "normal",
+          "weight": "100 900",
+          "unicodeRange": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF",
+          "subset": "latin-ext"
+        },
+        {
+          "file": "geistmono/geistmono-100-900-latin.woff2",
+          "style": "normal",
+          "weight": "100 900",
+          "unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD",
+          "subset": "latin"
+        }
+      ]
+    },
+    "Instrument Sans": {
+      "slug": "instrumentsans",
+      "license": "OFL-1.1",
+      "copyright": "Copyright 2022 The Instrument Sans Project Authors (https://github.com/Instrument/instrument-sans)",
+      "axes": "wdth,wght@75..100,400..700",
+      "source": "https://fonts.google.com/specimen/Instrument+Sans",
+      "faces": [
+        {
+          "file": "instrumentsans/instrumentsans-400-700-latin-ext.woff2",
+          "style": "normal",
+          "weight": "400 700",
+          "stretch": "75% 100%",
+          "unicodeRange": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF",
+          "subset": "latin-ext"
+        },
+        {
+          "file": "instrumentsans/instrumentsans-400-700-latin.woff2",
+          "style": "normal",
+          "weight": "400 700",
+          "stretch": "75% 100%",
+          "unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD",
+          "subset": "latin"
+        }
+      ]
+    },
+    "Instrument Serif": {
+      "slug": "instrumentserif",
+      "license": "OFL-1.1",
+      "copyright": "Copyright 2022 The Instrument Serif Project Authors (https://github.com/Instrument/instrument-serif)",
+      "axes": null,
+      "source": "https://fonts.google.com/specimen/Instrument+Serif",
+      "faces": [
+        {
+          "file": "instrumentserif/instrumentserif-italic-400-latin-ext.woff2",
+          "style": "italic",
+          "weight": "400",
+          "unicodeRange": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF",
+          "subset": "latin-ext"
+        },
+        {
+          "file": "instrumentserif/instrumentserif-italic-400-latin.woff2",
+          "style": "italic",
+          "weight": "400",
+          "unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD",
+          "subset": "latin"
+        },
+        {
+          "file": "instrumentserif/instrumentserif-400-latin-ext.woff2",
+          "style": "normal",
+          "weight": "400",
+          "unicodeRange": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF",
+          "subset": "latin-ext"
+        },
+        {
+          "file": "instrumentserif/instrumentserif-400-latin.woff2",
+          "style": "normal",
+          "weight": "400",
+          "unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD",
+          "subset": "latin"
+        }
+      ]
+    },
+    "Inter": {
+      "slug": "inter",
+      "license": "OFL-1.1",
+      "copyright": "Copyright 2020 The Inter Project Authors (https://github.com/rsms/inter)",
+      "axes": "opsz,wght@14..32,100..900",
+      "source": "https://fonts.google.com/specimen/Inter",
+      "faces": [
+        {
+          "file": "inter/inter-100-900-latin-ext.woff2",
+          "style": "normal",
+          "weight": "100 900",
+          "unicodeRange": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF",
+          "subset": "latin-ext"
+        },
+        {
+          "file": "inter/inter-100-900-latin.woff2",
+          "style": "normal",
+          "weight": "100 900",
+          "unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD",
+          "subset": "latin"
+        }
+      ]
+    },
+    "Inter Tight": {
+      "slug": "intertight",
+      "license": "OFL-1.1",
+      "copyright": "Copyright 2022 The Inter Project Authors (https://github.com/rsms/inter-tight)",
+      "axes": "wght@100..900",
+      "source": "https://fonts.google.com/specimen/Inter+Tight",
+      "faces": [
+        {
+          "file": "intertight/intertight-100-900-latin-ext.woff2",
+          "style": "normal",
+          "weight": "100 900",
+          "unicodeRange": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF",
+          "subset": "latin-ext"
+        },
+        {
+          "file": "intertight/intertight-100-900-latin.woff2",
+          "style": "normal",
+          "weight": "100 900",
+          "unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD",
+          "subset": "latin"
+        }
+      ]
+    },
+    "JetBrains Mono": {
+      "slug": "jetbrainsmono",
+      "license": "OFL-1.1",
+      "copyright": "Copyright 2020 The JetBrains Mono Project Authors (https://github.com/JetBrains/JetBrainsMono)",
+      "axes": "wght@100..800",
+      "source": "https://fonts.google.com/specimen/JetBrains+Mono",
+      "faces": [
+        {
+          "file": "jetbrainsmono/jetbrainsmono-100-800-latin-ext.woff2",
+          "style": "normal",
+          "weight": "100 800",
+          "unicodeRange": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF",
+          "subset": "latin-ext"
+        },
+        {
+          "file": "jetbrainsmono/jetbrainsmono-100-800-latin.woff2",
+          "style": "normal",
+          "weight": "100 800",
+          "unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD",
+          "subset": "latin"
+        }
+      ]
+    },
+    "Manrope": {
+      "slug": "manrope",
+      "license": "OFL-1.1",
+      "copyright": "Copyright 2018 The Manrope Project Authors (https://github.com/googlefonts/manrope)",
+      "axes": "wght@200..800",
+      "source": "https://fonts.google.com/specimen/Manrope",
+      "faces": [
+        {
+          "file": "manrope/manrope-200-800-latin-ext.woff2",
+          "style": "normal",
+          "weight": "200 800",
+          "unicodeRange": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF",
+          "subset": "latin-ext"
+        },
+        {
+          "file": "manrope/manrope-200-800-latin.woff2",
+          "style": "normal",
+          "weight": "200 800",
+          "unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD",
+          "subset": "latin"
+        }
+      ]
+    },
+    "Newsreader": {
+      "slug": "newsreader",
+      "license": "OFL-1.1",
+      "copyright": "Copyright 2020 The Newsreader Project Authors (http://github.com/productiontype/Newsreader)",
+      "axes": "opsz,wght@6..72,200..800",
+      "source": "https://fonts.google.com/specimen/Newsreader",
+      "faces": [
+        {
+          "file": "newsreader/newsreader-200-800-latin-ext.woff2",
+          "style": "normal",
+          "weight": "200 800",
+          "unicodeRange": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF",
+          "subset": "latin-ext"
+        },
+        {
+          "file": "newsreader/newsreader-200-800-latin.woff2",
+          "style": "normal",
+          "weight": "200 800",
+          "unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD",
+          "subset": "latin"
+        }
+      ]
+    },
+    "Space Grotesk": {
+      "slug": "spacegrotesk",
+      "license": "OFL-1.1",
+      "copyright": "Copyright 2020 The Space Grotesk Project Authors (https://github.com/floriankarsten/space-grotesk)",
+      "axes": "wght@300..700",
+      "source": "https://fonts.google.com/specimen/Space+Grotesk",
+      "faces": [
+        {
+          "file": "spacegrotesk/spacegrotesk-300-700-latin-ext.woff2",
+          "style": "normal",
+          "weight": "300 700",
+          "unicodeRange": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF",
+          "subset": "latin-ext"
+        },
+        {
+          "file": "spacegrotesk/spacegrotesk-300-700-latin.woff2",
+          "style": "normal",
+          "weight": "300 700",
+          "unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD",
+          "subset": "latin"
+        }
+      ]
+    },
+    "Space Mono": {
+      "slug": "spacemono",
+      "license": "OFL-1.1",
+      "copyright": "Copyright 2016 The Space Mono Project Authors (https://github.com/googlefonts/spacemono)",
+      "axes": "wght@400;700",
+      "source": "https://fonts.google.com/specimen/Space+Mono",
+      "faces": [
+        {
+          "file": "spacemono/spacemono-400-latin-ext.woff2",
+          "style": "normal",
+          "weight": "400",
+          "unicodeRange": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF",
+          "subset": "latin-ext"
+        },
+        {
+          "file": "spacemono/spacemono-400-latin.woff2",
+          "style": "normal",
+          "weight": "400",
+          "unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD",
+          "subset": "latin"
+        },
+        {
+          "file": "spacemono/spacemono-700-latin-ext.woff2",
+          "style": "normal",
+          "weight": "700",
+          "unicodeRange": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF",
+          "subset": "latin-ext"
+        },
+        {
+          "file": "spacemono/spacemono-700-latin.woff2",
+          "style": "normal",
+          "weight": "700",
+          "unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD",
+          "subset": "latin"
+        }
+      ]
+    },
+    "Syne": {
+      "slug": "syne",
+      "license": "OFL-1.1",
+      "copyright": "Copyright 2017 The Syne Project Authors (https://gitlab.com/bonjour-monde/fonderie/syne-typeface)",
+      "axes": "wght@400..800",
+      "source": "https://fonts.google.com/specimen/Syne",
+      "faces": [
+        {
+          "file": "syne/syne-400-800-latin-ext.woff2",
+          "style": "normal",
+          "weight": "400 800",
+          "unicodeRange": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF",
+          "subset": "latin-ext"
+        },
+        {
+          "file": "syne/syne-400-800-latin.woff2",
+          "style": "normal",
+          "weight": "400 800",
+          "unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD",
+          "subset": "latin"
+        }
+      ]
+    },
+    "Unbounded": {
+      "slug": "unbounded",
+      "license": "OFL-1.1",
+      "copyright": "Copyright 2022 The Unbounded Project Authors (https://github.com/googlefonts/unbounded)",
+      "axes": "wght@200..900",
+      "source": "https://fonts.google.com/specimen/Unbounded",
+      "faces": [
+        {
+          "file": "unbounded/unbounded-200-900-latin-ext.woff2",
+          "style": "normal",
+          "weight": "200 900",
+          "unicodeRange": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF",
+          "subset": "latin-ext"
+        },
+        {
+          "file": "unbounded/unbounded-200-900-latin.woff2",
+          "style": "normal",
+          "weight": "200 900",
+          "unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD",
+          "subset": "latin"
+        }
+      ]
+    },
+    "Young Serif": {
+      "slug": "youngserif",
+      "license": "OFL-1.1",
+      "copyright": "Copyright 2023 The Young Serif Project Authors (https://github.com/noirblancrouge/YoungSerif)",
+      "axes": null,
+      "source": "https://fonts.google.com/specimen/Young+Serif",
+      "faces": [
+        {
+          "file": "youngserif/youngserif-400-latin-ext.woff2",
+          "style": "normal",
+          "weight": "400",
+          "unicodeRange": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF",
+          "subset": "latin-ext"
+        },
+        {
+          "file": "youngserif/youngserif-400-latin.woff2",
+          "style": "normal",
+          "weight": "400",
+          "unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD",
+          "subset": "latin"
+        }
+      ]
+    }
+  }
+}

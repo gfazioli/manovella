@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://manovella.mov/sitemap.xml

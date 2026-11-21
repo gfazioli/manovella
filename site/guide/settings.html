@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Settings &middot; Manovella docs</title>
+<meta name="description" content="Manovella settings: the optional music library, settings.json, the environment variables and the folders where the Studio and the voices keep their files." />
+<link rel="canonical" href="https://manovella.mov/guide/settings.html" />
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="Manovella" />
+<meta property="og:title" content="Settings &middot; Manovella docs" />
+<meta property="og:description" content="Manovella settings: the optional music library, settings.json, the environment variables and the folders where the Studio and the voices keep their files." />
+<meta property="og:url" content="https://manovella.mov/guide/settings.html" />
+<meta property="og:image" content="https://manovella.mov/og.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Manovella: product films, written as code" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Settings &middot; Manovella docs" />
+<meta name="twitter:description" content="Manovella settings: the optional music library, settings.json, the environment variables and the folders where the Studio and the voices keep their files." />
+<meta name="twitter:image" content="https://manovella.mov/og.png" />
+<link rel="preload" href="../fonts/geist/geist-100-900-latin.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="stylesheet" href="../base.css" />
+<link rel="stylesheet" href="style.css" />
+<script src="docs.js" defer></script>
+</head>
+<body data-page="settings" data-title="Settings">
+<div class="layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main">
+    <header class="topbar" id="topbar"></header>
+    <main class="doc">
+      <article class="page">
+        <p class="eyebrow">Guide</p>
+        <h1>Settings</h1>
+        <p class="lead">Nothing needs configuring. The one optional setting is a music library; this page also lists the environment variables and folders.</p>
+
+
+        <h2 id="music-library">The music library</h2>
+        <p>A <b>music library</b> is a folder with the music of your films. The Studio offers every audio file in it (mp3, m4a, aac, wav, aiff, flac, ogg) at its top level and in each folder in it, directly or in that folder&rsquo;s <code>audio/</code> folder. A folder per brand is optional and groups its tracks; the folder named after the product is listed first. Dot-folders and the names in <code>musicLibraryIgnore</code> are skipped. An optional notes file beside the tracks (<code>&hellip;notes.txt</code> or <code>.md</code>: a paragraph per track, starting with its file name) says what each is for, and the Studio shows it.</p>
+        <div class="code">
+          <button class="copy" type="button">copy</button>
+          <pre><code>&lt;library&gt;/track.mp3                    a track at the top
+&lt;library&gt;/&lt;Brand&gt;/audio/               a brand's tracks, with &lt;brand&gt;-music-notes.txt beside them
+                                       (a paragraph per track, starting with its file name)
+&lt;library&gt;/&lt;Brand&gt;/video/&lt;name&gt;/        delivered films, when you ask for that</code></pre>
+        </div>
+        <p>The Studio&rsquo;s Settings is the normal way to set it: see <a href="#studio-settings">below</a>. By hand, point Manovella at it with the environment variable <code>MANOVELLA_MUSIC</code> (for one run), or in <code>~/Library/Application Support/manovella/settings.json</code> (<code>~/.config/manovella/settings.json</code> on other systems); a leading <code>~</code> is expanded. Nothing is auto-detected.</p>
+        <div class="code">
+          <button class="copy" type="button">copy</button>
+          <pre><code>{
+  "musicLibrary": "~/Documents/Music",
+  "musicLibraryIgnore": ["Archive", "Templates"],
+  "deliverToLibrary": false
+}</code></pre>
+        </div>
+        <p><code>musicLibraryIgnore</code> lists folder names in the library to skip, like dot-folders. <code>deliverToLibrary</code> (default false) delivers finished films into the library too, in <code>&lt;library&gt;/&lt;Brand&gt;/video/&lt;name&gt;/</code>. Otherwise, or without a library, a film goes where the project&rsquo;s own instructions keep finished media, else <code>&lt;name&gt;/</code> in the work folder (<code>~/Downloads</code> unless <code>workRoot</code> says otherwise). A new track made with Gemini is saved in the library, in the product&rsquo;s folder when the library keeps one per brand, with its paragraph in that folder&rsquo;s notes file; without a library it just goes in the film&rsquo;s <code>src/audio/</code>. Files a library keeps are copied, never moved out of it.</p>
+        <p>An older <code>settings.json</code> with <code>brandLibrary</code> and <code>brandLibraryIgnore</code> still works: it is read as <code>musicLibrary</code> and <code>musicLibraryIgnore</code> with <code>deliverToLibrary</code> on, what it did before, and is rewritten with the new keys at the first change you make in the Studio&rsquo;s Settings.</p>
+        <div class="note">
+          <span class="ic">i</span>
+          <p>A library in a file provider (Google Drive, iCloud Drive, Dropbox) may hold its files &ldquo;dataless&rdquo; until they are opened: open or copy a file before measuring it.</p>
+        </div>
+
+        <h2 id="studio-settings">The Studio&rsquo;s Settings</h2>
+        <p>The gear beside the logo at the top of the Studio&rsquo;s sidebar, or <b>Settings&hellip;</b> (<kbd>&#8984;</kbd><kbd>,</kbd>) in the app menu of <code>Manovella.app</code>, opens the Settings window, with four panes in its sidebar under About Manovella: <b>Projects</b>, <b>Pictures</b>, <b>Music library</b> and <b>Work folder</b>. A change is saved at once to <code>settings.json</code>, and a folder is chosen with the Mac&rsquo;s folder picker. A value the command line or the environment gives the run is shown as &ldquo;this run&rdquo; and not changed.</p>
+        <figure class="shot">
+          <div class="frame">
+            <img src="../shots/settings.jpg" alt="The Studio&#x27;s Settings: a sidebar with About Manovella and four panes, the Music library pane open on its folder" width="1600" height="1016" loading="lazy" />
+          </div>
+          <figcaption>The Settings window: About Manovella and four panes, the Music library open.</figcaption>
+        </figure>
+        <p>Three more keys of the same file, all optional. A folder that is not there counts as unset.</p>
+        <div class="code">
+          <button class="copy" type="button">copy</button>
+          <pre><code>{
+  "projectFolders": ["~/Documents/Code"],
+  "pictureFolders": ["~/Pictures", "~/Documents/Backdrops"],
+  "workRoot": "~/Documents/Films"
+}</code></pre>
+        </div>
+        <div class="tablewrap">
+        <table class="keys">
+          <thead><tr><th>Key</th><th>What it does</th></tr></thead>
+          <tbody>
+            <tr><td class="k"><code>projectFolders</code></td><td>Folders whose git repositories (two levels deep) the Studio offers as products. Unset: the parent of the repository the Studio starts in, its siblings.</td></tr>
+            <tr><td class="k"><code>pictureFolders</code></td><td>Folders whose most recent pictures (three levels deep) the Studio offers as backdrops. Unset: <code>~/Pictures</code>. Add <code>~/Desktop</code> or <code>~/Downloads</code> yourself if you keep backdrops there.</td></tr>
+            <tr><td class="k"><code>workRoot</code></td><td>Where a film&rsquo;s <code>&lt;name&gt;-work</code> folder goes and, unless it is delivered into the library or the project has an instruction, its <code>&lt;name&gt;/</code> delivery. Unset: <code>~/Downloads</code>.</td></tr>
+            </tbody>
+        </table>
+        </div>
+
+        <h2 id="env">Environment variables</h2>
+        <div class="tablewrap">
+        <table class="keys">
+          <thead><tr><th>Variable</th><th>What it does</th></tr></thead>
+          <tbody>
+            <tr><td class="k"><code>MANOVELLA_MUSIC</code></td><td>The music library folder, for one run; wins over <code>musicLibrary</code> in <code>settings.json</code>.</td></tr>
+            <tr><td class="k"><code>MANOVELLA_ROOTS</code></td><td>Comma-separated folders whose git repositories the Studio offers as products (two levels deep). Without it, <code>projectFolders</code> in <code>settings.json</code>, else the parent of the repository the command runs in.</td></tr>
+            <tr><td class="k"><code>FILM_DOWNLOADS</code></td><td>The work folder for one run of <code>deliver.mjs</code> (its tests use it); wins over <code>workRoot</code>.</td></tr>
+            <tr><td class="k"><code>MANOVELLA_WINDOW=chrome</code></td><td>Open the Studio in a Chrome app window even when <code>Manovella.app</code> is built.</td></tr>
+            <tr><td class="k"><code>VOICE_PYTHON</code></td><td>The Python that runs the voice models, instead of the one <code>voice.mjs --setup</code> makes.</td></tr>
+            <tr><td class="k"><code>VOICE_SETUP_PYTHON</code></td><td>The Python 3.13 <code>--setup</code> builds the environment from, when it is not the usual <code>python3.13</code>.</td></tr>
+            <tr><td class="k"><code>HF_HOME</code>, <code>HF_HUB_CACHE</code></td><td>Where the Studio looks for downloaded voice models (default <code>~/.cache/huggingface</code>).</td></tr>
+            <tr><td class="k"><code>OPTIM=0</code></td><td>Skip ImageOptim on delivered covers, for an image whose pixels must not change.</td></tr>
+            <tr><td class="k"><code>WORKERS</code>, <code>QOS</code>, <code>TEMP_MAX</code></td><td>The render&rsquo;s heat defaults: see <a href="rendering.html#heat">Rendering</a>.</td></tr>
+            </tbody>
+        </table>
+        </div>
+
+        <h2 id="files">Where Manovella keeps things</h2>
+        <div class="tablewrap">
+        <table class="keys">
+          <thead><tr><th>Path</th><th>What</th></tr></thead>
+          <tbody>
+            <tr><td class="k"><code>~/Library/Application Support/manovella/</code></td><td>The Studio&rsquo;s remembered briefs (one per product) and <code>settings.json</code>, which its Settings write.</td></tr>
+            <tr><td class="k"><code>~/Library/Caches/manovella/</code></td><td>Pictures converted for the Studio, and the Chrome app window&rsquo;s own profile.</td></tr>
+            <tr><td class="k"><code>~/Applications/Manovella.app</code></td><td>The Studio&rsquo;s window app, once built.</td></tr>
+            <tr><td class="k"><code>~/.local/share/film-voice</code></td><td>The voice models&rsquo; Python environment, made by <code>voice.mjs --setup</code>.</td></tr>
+            <tr><td class="k"><code>~/Downloads/&lt;name&gt;-work/</code></td><td>A film&rsquo;s work folder, until it is delivered. <code>~/Downloads</code> is the default work root: <code>workRoot</code> moves it.</td></tr>
+            </tbody>
+        </table>
+        </div>
+
+        <div class="pager">
+          <a href="sound.html"><small>Previous</small><b>&larr; Sound</b></a>
+          <a class="next" href="looks.html"><small>Next</small><b>Looks &rarr;</b></a>
+        </div>
+      </article>
+    </main>
+  </div>
+</div>
+</body>
+</html>

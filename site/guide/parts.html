@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Parts and tutorials &middot; Manovella docs</title>
+<meta name="description" content="Manovella parts and tutorials: windows, browsers, terminals and devices as vector, and films told by a voice, one sentence a step, with subtitles." />
+<link rel="canonical" href="https://manovella.mov/guide/parts.html" />
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="Manovella" />
+<meta property="og:title" content="Parts and tutorials &middot; Manovella docs" />
+<meta property="og:description" content="Manovella parts and tutorials: windows, browsers, terminals and devices as vector, and films told by a voice, one sentence a step, with subtitles." />
+<meta property="og:url" content="https://manovella.mov/guide/parts.html" />
+<meta property="og:image" content="https://manovella.mov/og.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Manovella: product films, written as code" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Parts and tutorials &middot; Manovella docs" />
+<meta name="twitter:description" content="Manovella parts and tutorials: windows, browsers, terminals and devices as vector, and films told by a voice, one sentence a step, with subtitles." />
+<meta name="twitter:image" content="https://manovella.mov/og.png" />
+<link rel="preload" href="../fonts/geist/geist-100-900-latin.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="stylesheet" href="../base.css" />
+<link rel="stylesheet" href="style.css" />
+<script src="docs.js" defer></script>
+</head>
+<body data-page="parts" data-title="Parts and tutorials">
+<div class="layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main">
+    <header class="topbar" id="topbar"></header>
+    <main class="doc">
+      <article class="page">
+        <p class="eyebrow">Catalogue</p>
+        <h1>Parts and tutorials</h1>
+        <p class="lead">The vector parts a film is built from, and tutorials: a task told by a voice with subtitles, each scene as long as its sentence.</p>
+
+        <h2 id="parts">Parts</h2>
+        <p>The surfaces a film is built from, as vector: they zoom without ever turning soft, and each returns the rect its content goes in (<code>parts.js</code>). They are a macOS window, a browser, a terminal, an iPhone, an iPad (lying down or upright, its camera on the long edge), a MacBook, an iMac (on its stand, in any of Apple&rsquo;s seven colours or the one nearest your accent), keycaps, a switch, a ring, a button and the pointer. The devices keep Apple&rsquo;s own proportions, and each returns its screen with its rounded corners, so what you draw in it is clipped as the glass clips it.</p>
+        <figure class="shot">
+          <div class="frame">
+            <img src="../img/parts.jpg" alt="Windows, a browser, a terminal, an iPhone, an iPad, a MacBook, an iMac, keycaps, a switch, a ring, a button and the pointer, drawn as vector" width="1600" height="1000" loading="lazy" />
+          </div>
+          <figcaption>Windows, a browser, a terminal, an iPhone, an iPad, a MacBook, an iMac, keycaps, a switch, a ring, a button and the pointer.</figcaption>
+        </figure>
+        <p>Your product&rsquo;s own interface is rebuilt the same way from its source, never pasted as a screenshot: every string on screen is sourced, and no real user data is shown.</p>
+
+        <h2 id="tutorials">Tutorials</h2>
+        <p>The Studio&rsquo;s <b>Tutorial</b> recipe is a film that is told: one task from start to finish, with a voice and subtitles, as long as its story takes. <code>scripts/narrate.mjs</code> turns the story (a sentence a step) into the voice, the clock and the subtitles. The page reads the clock back (<code>FILM.narrated</code>), so each scene lasts as long as its sentence and a line rewritten is a film retimed; <code>FILM.captions</code> draws the subtitle of the moment.</p>
+        <div class="code">
+          <button class="copy" type="button">copy</button>
+          <pre><code>node voice.mjs --setup chatterbox orpheus kokoro   # once on each Mac: the Python that runs the voice models, and the models
+node voice.mjs story.json                      # a voice model ("mlx" in the story): voice-mlx/*.wav, then all that narrate.mjs writes
+node narrate.mjs story.json                    # the Mac's voice: voice/*.aiff, narration.wav, narration.js, captions.srt, captions.vtt
+node narrate.mjs story.json --from recordings  # yours, or another synthesizer's: one file a step
+AUDIO=narration.wav AUDIO_LUFS=-16 PREVIEW=1 node render.mjs video draft.mp4</code></pre>
+        </div>
+        <p>A story with <code>"mlx": { "model", "voice", "tempo", "level", "seed" }</code> is told by <code>voice.mjs</code>, which says each step, trims, paces and levels it (to &minus;18 dB mean, the mean <code>say</code> has, with a limiter at &minus;1 dB), then calls <code>narrate.mjs</code>; <code>narrate.mjs</code> alone stops on such a story rather than saying it with <code>say</code>. Voices, takes and the one-time setup are on the <a href="sound.html#voice">Sound</a> page.</p>
+        <p>Measured on macOS 27 with <code>say</code>: the same sentence, voice and pace give the same file to the byte; an eight-step story came to 41.2 s, 33.6 s of them spoken, at about 170 words a minute; a 6.6 s draft with its voice rendered in 12 s.</p>
+
+        <div class="pager">
+          <a href="motion.html"><small>Previous</small><b>&larr; Motion</b></a>
+          <a class="next" href="rendering.html"><small>Next</small><b>Rendering &rarr;</b></a>
+        </div>
+      </article>
+    </main>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Release films &middot; Manovella docs</title>
+<meta name="description" content="Release films in Manovella: what one version changed, rebuilt from the source at its tag and shown changing in place, between two version cards." />
+<link rel="canonical" href="https://manovella.mov/guide/release-films.html" />
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="Manovella" />
+<meta property="og:title" content="Release films &middot; Manovella docs" />
+<meta property="og:description" content="Release films in Manovella: what one version changed, rebuilt from the source at its tag and shown changing in place, between two version cards." />
+<meta property="og:url" content="https://manovella.mov/guide/release-films.html" />
+<meta property="og:image" content="https://manovella.mov/og.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Manovella: product films, written as code" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Release films &middot; Manovella docs" />
+<meta name="twitter:description" content="Release films in Manovella: what one version changed, rebuilt from the source at its tag and shown changing in place, between two version cards." />
+<meta name="twitter:image" content="https://manovella.mov/og.png" />
+<link rel="preload" href="../fonts/geist/geist-100-900-latin.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="stylesheet" href="../base.css" />
+<link rel="stylesheet" href="style.css" />
+<script src="docs.js" defer></script>
+</head>
+<body data-page="release" data-title="Release films">
+<div class="layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main">
+    <header class="topbar" id="topbar"></header>
+    <main class="doc">
+      <article class="page">
+        <p class="eyebrow">Guide</p>
+        <h1>Release films</h1>
+        <p class="lead">A short &ldquo;what&rsquo;s new&rdquo; film of one release: the changed surfaces rebuilt from the source at the tag and shown changing in place.</p>
+
+        <p>A promo sells the product; a release film shows <b>one release&rsquo;s delta</b> to people who mostly know the product already. It is the same engine, with the state <i>before</i> mattering, every claim bounded by a tag, and the film one episode of a series. Run <code>/manovella:release-film</code>, or choose the Release film recipe in the <a href="studio.html">Studio</a>, which writes a release brief with the version.</p>
+
+        <h2 id="when">Is there a film in this release?</h2>
+        <p>Only asked once you have asked for a film: nothing is proposed on its own initiative.</p>
+        <ul>
+          <li><b>The list comes from the tag, never from memory</b>: the log since the previous tag, the merged PRs, the draft release notes.</li>
+          <li>It qualifies when something a person <b>sees or does</b> differently ships: a new surface, a new control, a redesign, a new shortcut. Fixes, speed and internals do not; Claude says so in a line and stops.</li>
+          <li><b>At most three changes are featured.</b> The rest go in the changelog roll, verbatim from the notes, or nowhere.</li>
+        </ul>
+        <div class="tablewrap">
+        <table class="keys">
+          <thead><tr><th>Ask</th><th>You get</th></tr></thead>
+          <tbody>
+            <tr><td class="k"><i>Release film for Acme 2.4 from the v2.4.0 tag: the three changes that show best, 16:9 plus a square cut.</i></td><td>The changes read from the tag, a line on why each one shows well, one storyboard when the product already has a kit.</td></tr>
+            <tr><td class="k"><i>A what&rsquo;s-new clip for 2.4 with only the new export sheet, 12 s, for the release notes.</i></td><td>One featured change, between two version cards.</td></tr>
+            <tr><td class="k"><i>Three storyboards for 2.4, I&rsquo;ll publish them in different places.</i></td><td>A, B and C, each with its square cut, delivered side by side.</td></tr>
+            </tbody>
+        </table>
+        </div>
+        <p>Claude asks in one message, each question with a default: the release and ref, the featured changes, the duration, the formats (a 16:9 master and a square cut as a second layout), the look, where it goes, and the music (none by default: release clips autoplay muted, so the text carries everything).</p>
+
+        <h2 id="source">Sourced from the app, at the ref</h2>
+        <ul>
+          <li><b>The code is read at the ref, not the working tree</b> (<code>git show &lt;ref&gt;:&lt;path&gt;</code>). View code gives the strings, symbols, spacing and colours; the project&rsquo;s scripted screenshots give proportions. Never a capture with real data in it.</li>
+          <li><b>The before-state comes from the previous tag&rsquo;s source</b>: recreated from memory it is wrong in exactly the detail the release changed.</li>
+          <li><b>Every string on screen exists at the ref</b>, menu items and keycap shortcuts included.</li>
+          <li><b>Headlines are the release notes&rsquo; benefit lines</b>: a few words, and nothing the release does not do.</li>
+          <li><b>A change that ships off by default needs its switch on screen</b>, or the film advertises something the viewer cannot find.</li>
+        </ul>
+
+        <h2 id="shape">The shape of the film</h2>
+        <ul>
+          <li><b>Open and close on the version card</b>: icon, name, &ldquo;What&rsquo;s new in X.Y&rdquo;, the version in the accent colour. It is the first and the last frame, so the loop closes.</li>
+          <li><b>Change in place.</b> The surface is shown as it was for a beat, then the change happens on it: the control lands in the toolbar, the list re-sorts, the panel grows a section. No before/after labels and no split screen; the transition is the explanation.</li>
+          <li><b>A new surface grows out of what opens it</b>: the click, the menu item, the shortcut, pressed on keycaps in the headline slot.</li>
+          <li><b>One featured change, one headline, one interaction.</b> The headline enters as the change lands.</li>
+          <li><b>The rest of the changelog</b> as a short roll, &ldquo;Also in X.Y&rdquo;, three to five lines verbatim from the notes.</li>
+          <li><b>Close on the update path, clicked for real</b>: the product&rsquo;s own route to the new version.</li>
+          <li>Change in place is the format, not the only one: when the kit&rsquo;s last film did it, the notes can open into the screens they describe, or the changed surface can turn in 3D depth. A major release can carry a long film in chapters beside the short clip.</li>
+        </ul>
+
+        <h2 id="clicks">Every click is seen</h2>
+        <p>A release film is mostly clicks, and a click is a beat the viewer has to see land. The camera has arrived before the click, the cursor rests before it presses and stays through the press, and what a click opens never covers what was clicked. <code>clickcheck.mjs</code> measures all of it before the go, and Claude pulls a frame from the mp4 at every click time after the render.</p>
+
+        <h2 id="kit">The kit and the delivery</h2>
+        <p>The first film of a product produces a <b>kit</b>: fonts, colour tokens, the icon as vector, the version card, the window chrome, the camera language and the look. Committed with the product, it lets the next release start from the kit: one storyboard, and only the content changes. A public repository keeps nothing unless you say so.</p>
+        <p>A release film ships with the release: the master mp4, a poster per aspect, the square cut if asked, chapter marks for a film of 30 seconds or more, and a YouTube title, description and tags beside it. Where each file goes is the project&rsquo;s decision. The work folder is thrown away after the release, once the kit is safe (<a href="films.html#delivery">Delivery and cleanup</a>).</p>
+
+        <div class="pager">
+          <a href="films.html"><small>Previous</small><b>&larr; Making a film</b></a>
+          <a class="next" href="sound.html"><small>Next</small><b>Sound &rarr;</b></a>
+        </div>
+      </article>
+    </main>
+  </div>
+</div>
+</body>
+</html>

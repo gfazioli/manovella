@@ -1,0 +1,11 @@
+/* Shared by every page: the faces (the build copies the files named here from the kit) and the palette. */
+/* Geist swaps in on the home, where a late face moves nothing; the guide makes it optional (guide/style.css) */
+@font-face{font-family:Geist;src:url(fonts/geist/geist-100-900-latin.woff2) format('woff2');font-weight:100 900;font-display:swap}
+@font-face{font-family:'Geist Mono';src:url(fonts/geistmono/geistmono-100-900-latin.woff2) format('woff2');font-weight:100 900;font-display:swap}
+:root{
+  --navy:#1F1D39;--violet-deep:#37027E;--accent:#8934FA;--ink:#F3F0F5;
+  --grey:#7B6D91;          /* borders and quiet decoration */
+  --muted:#B5A9C8;         /* secondary text: --grey is under 4.5:1 on the navy */
+  --lilac:#C9A6FF;         /* the light a landing card catches, and focus */
+  --sans:Geist,system-ui,-apple-system,'Segoe UI',sans-serif;--mono:'Geist Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+}

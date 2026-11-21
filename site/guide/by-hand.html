@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>By hand &middot; Manovella docs</title>
+<meta name="description" content="Run Manovella by hand: a quick start, what the engine contains, and the render, beats, voice, narrate, mix and deliver scripts with their commands." />
+<link rel="canonical" href="https://manovella.mov/guide/by-hand.html" />
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="Manovella" />
+<meta property="og:title" content="By hand &middot; Manovella docs" />
+<meta property="og:description" content="Run Manovella by hand: a quick start, what the engine contains, and the render, beats, voice, narrate, mix and deliver scripts with their commands." />
+<meta property="og:url" content="https://manovella.mov/guide/by-hand.html" />
+<meta property="og:image" content="https://manovella.mov/og.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Manovella: product films, written as code" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="By hand &middot; Manovella docs" />
+<meta name="twitter:description" content="Run Manovella by hand: a quick start, what the engine contains, and the render, beats, voice, narrate, mix and deliver scripts with their commands." />
+<meta name="twitter:image" content="https://manovella.mov/og.png" />
+<link rel="preload" href="../fonts/geist/geist-100-900-latin.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="stylesheet" href="../base.css" />
+<link rel="stylesheet" href="style.css" />
+<script src="docs.js" defer></script>
+</head>
+<body data-page="byhand" data-title="By hand">
+<div class="layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main">
+    <header class="topbar" id="topbar"></header>
+    <main class="doc">
+      <article class="page">
+        <p class="eyebrow">Reference</p>
+        <h1>By hand</h1>
+        <p class="lead">The quick start without Claude, the files of the engine and the scripts: render, beats, voice, mix and deliver.</p>
+
+        <p>Everything Claude does goes through scripts you can run yourself, from the skill&rsquo;s folder: <code>~/.claude/plugins/cache/manovella/manovella/&lt;version&gt;/skills/site-promo-film</code>, the newest version. The skills&rsquo; <code>SKILL.md</code> files are the method (how to ask, storyboard, source the brand, direct, verify); this page is the tooling.</p>
+
+        <h2 id="quick-start">Quick start</h2>
+        <div class="code">
+          <button class="copy" type="button">copy</button>
+          <pre><code>W=~/Downloads/acme-promo-work &amp;&amp; mkdir -p $W/src
+cp template/{reel.html,film.js,fx.js,parts.js,type.js} scripts/{render.mjs,contact.mjs,deliver.mjs,clickcheck.mjs,layoutcheck.mjs,thermo.swift} $W/src/
+cd $W/src &amp;&amp; npm i playwright-core
+PAGE=reel.html node render.mjs sheet sheet &amp;&amp; node contact.mjs sheet sheet.png 4   # stills to review
+PAGE=reel.html PREVIEW=1 node render.mjs video ../draft.mp4                       # a draft, ~16x faster
+PAGE=reel.html node render.mjs video ../acme-promo.mp4                            # the master
+PAGE=reel.html node render.mjs stills stills 0                                    # its cover
+node deliver.mjs ~/Downloads/acme-promo ../acme-promo.mp4 stills/t00.00.png=acme-promo-poster.png
+DRY=1 node deliver.mjs trash $W --kit &lt;repo&gt;/scripts/film                         # once the film is out</code></pre>
+        </div>
+
+        <h2 id="what-is-in-it">What is in it</h2>
+        <div class="tablewrap">
+        <table class="keys">
+          <thead><tr><th>File</th><th>What it is</th></tr></thead>
+          <tbody>
+            <tr><td class="k"><code>template/promo.html</code></td><td>A loop: one object travelling through the product&rsquo;s surfaces, a real cursor, 3D in WebGL.</td></tr>
+            <tr><td class="k"><code>template/reel.html</code></td><td>A long film on a timeline: six scenes, six formats, five transitions, a look per chapter.</td></tr>
+            <tr><td class="k"><code>template/film.js</code></td><td>The stage (subpixel jitter), rasters that hold still, springs and cameras, the timeline, transitions, effects.</td></tr>
+            <tr><td class="k"><code>template/fx.js</code></td><td>The looks: backdrops, fields, pictures, light, texture, glass, click ripples, palettes, chapter sequences.</td></tr>
+            <tr><td class="k"><code>template/type.js</code></td><td>Headlines: thirteen styles of arrival, an emphasis, a pace, <code>TYPE.load</code> for a family&rsquo;s faces.</td></tr>
+            <tr><td class="k"><code>template/parts.js</code></td><td>Vector parts: a macOS window, a browser, a terminal, an iPhone, an iPad, a MacBook, an iMac, keycaps, a switch, a ring.</td></tr>
+            <tr><td class="k"><code>template/fonts/</code></td><td>Twenty open-licensed families with their licences, and <code>fonts.json</code>.</td></tr>
+            <tr><td class="k"><code>../release-film/template/release.html</code></td><td>A &ldquo;what&rsquo;s new&rdquo; film: the change happening in place, on a version card.</td></tr>
+            <tr><td class="k"><code>studio/</code></td><td>The Studio: server, wizard, <code>stage.html</code>, <code>schema.json</code>, <code>studio.json</code>, its self-tests.</td></tr>
+            </tbody>
+        </table>
+        </div>
+
+        <h2 id="scripts">The scripts</h2>
+        <div class="tablewrap">
+        <table class="keys">
+          <thead><tr><th>Script</th><th>What it does</th></tr></thead>
+          <tbody>
+            <tr><td class="k"><code>render.mjs</code></td><td><code>stills</code>, <code>sheet</code>, <code>looks</code>, <code>loopcheck</code>, <code>video</code>, <code>beats</code>: formats, chapters, resumable chunks, the heat governor, the beat check.</td></tr>
+            <tr><td class="k"><code>beats.mjs</code></td><td>A soundtrack&rsquo;s tempo, beats, bars and sections, from its samples; the bpm and <code>AUDIO_AT</code> that put the film on its beat.</td></tr>
+            <tr><td class="k"><code>voice.mjs</code></td><td>A story told by a voice model on the Mac instead of <code>say</code>; <code>--setup</code> once on each Mac, <code>--audition</code> to compare takes.</td></tr>
+            <tr><td class="k"><code>narrate.mjs</code></td><td>A tutorial&rsquo;s story into a voice, a clock and subtitles: <code>narration.wav</code>, <code>narration.js</code>, <code>captions.srt</code> and <code>.vtt</code>.</td></tr>
+            <tr><td class="k"><code>mix.mjs</code></td><td>A voice and a music track into one soundtrack: the music measured under the voice, up between lines.</td></tr>
+            <tr><td class="k"><code>deliver.mjs</code></td><td>The finished films into a folder of their own, and the work folder to the Trash once its source is safe.</td></tr>
+            <tr><td class="k"><code>contact.mjs</code></td><td>A captioned contact sheet of a folder of stills; <code>--compare A=&lt;dir&gt; B=&lt;dir&gt; [C=&lt;dir&gt;] out.png</code> puts two or three folders side by side, a row per file name they share.</td></tr>
+            <tr><td class="k"><code>clickcheck.mjs</code></td><td>Is every click seen: the camera still, the cursor at rest before the press and through it.</td></tr>
+            <tr><td class="k"><code>layoutcheck.mjs</code></td><td>The headlines <code>TYPE.draw</code> draws, against the safe area, each other and what surrounds them; exit 1 on a failure, 2 when nothing could be checked (its header lists what it cannot judge).</td></tr>
+            <tr><td class="k"><code>fonts.mjs</code></td><td>Another family for the kit, from Google Fonts with its licence; <code>check</code>, <code>list</code>.</td></tr>
+            <tr><td class="k"><code>thermo.swift</code></td><td>The chip&rsquo;s temperature without sudo, for the governor.</td></tr>
+            </tbody>
+        </table>
+        </div>
+        <h3>Sound, from the command line</h3>
+        <div class="code">
+          <button class="copy" type="button">copy</button>
+          <pre><code>node beats.mjs track.mp3                                       # the track's tempo, bars and sections
+node voice.mjs --setup chatterbox orpheus kokoro               # once on each Mac
+node voice.mjs story.json                                      # a voice model tells the story
+node mix.mjs --voice narration.wav --music track.mp3 --out mix.wav
+node deliver.mjs ~/Downloads/acme-promo ../acme-promo.mp4      # the finished film, into its own folder</code></pre>
+        </div>
+        <p>Each script documents its options at the top of its file, and <code>deliver.mjs --selftest</code> and <code>beats.mjs --selftest</code> drive their own checks. <code>studio/selftest.mjs</code>, from a folder with <code>playwright-core</code>, drives the Studio through all ten steps in headless Chrome without opening a visible window or touching your prefs.</p>
+
+        <div class="pager">
+          <a href="rendering.html"><small>Previous</small><b>&larr; Rendering</b></a>
+          <a class="next" href="releases.html"><small>Next</small><b>Release notes &rarr;</b></a>
+        </div>
+      </article>
+    </main>
+  </div>
+</div>
+</body>
+</html>

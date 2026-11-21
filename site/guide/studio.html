@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>The Studio &middot; Manovella docs</title>
+<meta name="description" content="The Manovella Studio: ten steps from a recipe to a brief, each choice previewed on the real engine in your colour and aspect, with its keys and options." />
+<link rel="canonical" href="https://manovella.mov/guide/studio.html" />
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="Manovella" />
+<meta property="og:title" content="The Studio &middot; Manovella docs" />
+<meta property="og:description" content="The Manovella Studio: ten steps from a recipe to a brief, each choice previewed on the real engine in your colour and aspect, with its keys and options." />
+<meta property="og:url" content="https://manovella.mov/guide/studio.html" />
+<meta property="og:image" content="https://manovella.mov/og.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Manovella: product films, written as code" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="The Studio &middot; Manovella docs" />
+<meta name="twitter:description" content="The Manovella Studio: ten steps from a recipe to a brief, each choice previewed on the real engine in your colour and aspect, with its keys and options." />
+<meta name="twitter:image" content="https://manovella.mov/og.png" />
+<link rel="preload" href="../fonts/geist/geist-100-900-latin.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="stylesheet" href="../base.css" />
+<link rel="stylesheet" href="style.css" />
+<script src="docs.js" defer></script>
+</head>
+<body data-page="studio" data-title="The Studio">
+<div class="layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main">
+    <header class="topbar" id="topbar"></header>
+    <main class="doc">
+      <article class="page">
+        <p class="eyebrow">Guide</p>
+        <h1>The Studio</h1>
+        <p class="lead">Ten steps from a recipe to a brief, every choice shown moving on the real engine and the sound heard, ending in a brief that Claude answers with storyboards.</p>
+
+        <p>Run <code>/manovella:studio</code>, or the skill with no argument. The Studio opens a window of its own: ten steps from a recipe to a brief, where the recipes, formats, looks, your pictures, the type and the motion are shown moving on the real engine, in the product&rsquo;s colour and the film&rsquo;s aspect, and the sound is heard. Each step is a deck of cards, each saying at a glance what is chosen in it: one opens at a time, its controls in a panel under its row, and with all of them closed the step is an overview of its choices. The window is dark, in Manovella&rsquo;s violet whatever the product. It ends with <code>brief.json</code> in the film&rsquo;s work folder, the picture, the fonts and the track it needs beside it, and hands it back to Claude, who answers with the storyboards. Nothing is installed and nothing renders.</p>
+        <figure class="shot">
+          <div class="frame">
+            <img src="../img/studio.jpg" alt="The Studio&#x27;s motion step: the cuts as tiles, the cube chosen and turning in the viewer, an iMac on the aurora look, with motion blur on" width="1600" height="1016" loading="lazy" />
+          </div>
+          <figcaption>The motion step: the cuts as tiles, the cube chosen and turning in the viewer, an iMac on the aurora look, with motion blur on.</figcaption>
+        </figure>
+
+        <h2 id="steps">The ten steps</h2>
+        <div class="tablewrap">
+        <table class="keys">
+          <thead><tr><th>Step</th><th>What you choose</th></tr></thead>
+          <tbody>
+            <tr><td class="k">What film?</td><td>A recipe: promo loop, social teaser, film in chapters, release film, README GIF, tutorial, or from scratch. Each is shown as its own template, playing.</td></tr>
+            <tr><td class="k">Which product?</td><td>A repository among the workspace&rsquo;s siblings (or the project folders you set; the step says where its list comes from, with <i>Change folders&hellip;</i> and <i>Choose a repository&hellip;</i> for one outside them), or a website URL; the version for a release; the name. The Studio reads its homepage, latest tag and film kit, and guesses its accent from the source (the kit&rsquo;s last film, an Xcode AccentColor, a manifest&rsquo;s <code>theme_color</code>, a <code>--brand</code> variable).</td></tr>
+            <tr><td class="k">Which format?</td><td>Two cards. <i>Formats</i>: up to three of the <a href="formats.html">eleven</a>, or Claude&rsquo;s pick of three; the reel&rsquo;s scenes play on hover, in your colour and look. <i>Device</i>: what the product is shown in, whatever the format: a Mac window, a MacBook, an iMac, an iPhone, an iPad, a browser, a terminal, or <i>Just the UI</i> (the product&rsquo;s interface on its own, with no window and no device round it). Each is a tile of the stand-in product in that device, laid out as the device has it and tapped where it is touched; left to Claude, each format keeps its own. A release film and a tutorial have one format, and still choose their device: see <a href="#device">The device</a>.</td></tr>
+            <tr><td class="k">Which look?</td><td>One of the <a href="looks.html">twenty-three</a>, or a picture from your Mac with its blur, treatment and a Ken Burns drift; the palette scheme. Three cards: <i>Looks</i>, <i>Your picture</i> (dropped or chosen first, then the most recent ones in <code>~/Pictures</code> or the picture folders you add in Settings) and <i>Palette</i>, once there is a colour to derive one from. Every look is rendered on a stand-in product, in your colour and aspect, and in the device chosen.</td></tr>
+            <tr><td class="k">Which type?</td><td>A <a href="type.html">type set</a> from the kit, any family from the kit or installed on this Mac and its weight, or the brand&rsquo;s own.</td></tr>
+            <tr><td class="k">Which motion?</td><td>How <a href="motion.html">headlines</a> arrive (thirteen styles), an emphasis on one word, the family of cuts (twenty-four, by what they do to the frame), the pace and the motion blur&rsquo;s shutter.</td></tr>
+            <tr><td class="k">Which music?</td><td>A track of your music library, a file of yours, a prompt for Gemini to make a new one, a metronome, or none: see <a href="sound.html#music">Sound</a>. Each track is played, with its length and tempo measured.</td></tr>
+            <tr><td class="k">Which voice?</td><td>A preset (Promo, Launch, Narrator, Conversational, Recap, Lesson: a voice and its reading at once), or every setting by hand; what it says, the subtitles, and how far under it the music sits: see <a href="sound.html#voice">Voice-over</a>. Five cards (<i>Preset</i>, <i>Who speaks</i>, <i>How it reads</i>, <i>Lines and subtitles</i>, <i>With the music</i>) under a <i>Hear it</i> strip that stays at the top of the step: whichever card is open, the voice chosen says the line you type there, over the music chosen as the film will mix it, or alone.</td></tr>
+            <tr><td class="k">Length and output</td><td>Length (one of the film&rsquo;s own, any other typed under <i>Custom</i>, or as long as its voice for a film that speaks), aspects, tone, fps, resolution, files, a reference to take after and notes; for a tutorial, what it teaches. A rough render time is shown.</td></tr>
+            <tr><td class="k">Review</td><td>The brief, each line editable, and the one-line request that would have said it all.</td></tr>
+            </tbody>
+        </table>
+        </div>
+
+        <h2 id="device">The device</h2>
+        <p>The second card of <i>Which format?</i> chooses what the product is shown in. It holds for every scene that shows the product, whatever the format, and for a release film and a tutorial too.</p>
+        <div class="tablewrap">
+        <table class="keys">
+          <thead><tr><th>Device</th><th>What the film shows</th></tr></thead>
+          <tbody>
+            <tr><td class="k">Claude picks</td><td>Each format keeps the frame it was made for: a browser for a walkthrough, a terminal for a command line, a Mac window for a tutorial. The default.</td></tr>
+            <tr><td class="k">Mac window</td><td>The app in its own macOS window.</td></tr>
+            <tr><td class="k">MacBook</td><td>A MacBook Pro seen from the front, the app&rsquo;s window on its desktop.</td></tr>
+            <tr><td class="k">iMac</td><td>An iMac seen from the front, on its stand: the app&rsquo;s window on its desktop, inside the white bezel and over the chin, in the Apple colour nearest your accent.</td></tr>
+            <tr><td class="k">iPhone</td><td>An iPhone, the product in its phone layout. A tap is a touch, never the macOS pointer.</td></tr>
+            <tr><td class="k">iPad</td><td>An iPad Pro, lying down where the frame is wide and upright where it is tall. A tap is a touch.</td></tr>
+            <tr><td class="k">Browser</td><td>A browser window, the product as the web page it is.</td></tr>
+            <tr><td class="k">Terminal</td><td>A terminal window: commands typed, output streaming, no pointer.</td></tr>
+            <tr><td class="k">Just the UI</td><td>The product&rsquo;s interface on its own: a floating panel with rounded corners and a shadow, no window and no device round it. The product is still on screen; a film of words alone is the <a href="formats.html">Kinetic type</a> format.</td></tr>
+          </tbody>
+        </table>
+        </div>
+        <p>The tiles show a stand-in product, laid out again for each device. The film shows yours, and keeps it honest: an iPhone or an iPad holds the layout your product really has there, an iOS app&rsquo;s screens or a responsive site at that width. Where it has none, Claude says so before the storyboards and proposes the nearest honest frame; a desktop interface is never squeezed into a phone. In <i>Devices in 3D</i>, the one format that shows several, the device you chose leads the cover-flow. The brief carries the choice as <code>frame</code>.</p>
+
+        <figure class="shot">
+          <div class="frame">
+            <img src="../shots/device.jpg" alt="The format step with its Device card open: eight frames as tiles, the iMac chosen and playing in the viewer" width="1600" height="1016" loading="lazy" />
+          </div>
+          <figcaption>The format step&rsquo;s Device card: eight frames, each a tile of the stand-in product, the iMac chosen.</figcaption>
+        </figure>
+
+        <h2 id="previews">What the previews are</h2>
+        <ul>
+          <li><b>The engine&rsquo;s own pages</b>, played by calling their <code>seek(t)</code>. A look seen here is the look the renderer draws. One page plays at a time, at 60 fps when a frame is cheap and 30 when it is not; a new one cross-fades in over the last, and a paused one is not drawn again.</li>
+          <li><b>A hover is a look, not a choice.</b> The tile under the pointer plays, and the viewer goes back to the choice when the pointer leaves.</li>
+          <li><b>Motion blur</b> in the viewer&rsquo;s bar paints each frame as the mean of up to five moments, the way the render blends its sixteen: the way to judge a fast move.</li>
+          <li><b>Pictures</b> are converted once with <code>sips</code> (HEIC included) to a JPEG of at most 3840 px in <code>~/Library/Caches/manovella/</code>, and the chosen one is copied into the work folder. The brief records where the picture came from: a wallpaper pack&rsquo;s licence is often personal use only.</li>
+        </ul>
+
+        <h2 id="settings">Settings</h2>
+        <p>The gear beside the logo at the top of the sidebar, or <b>Settings&hellip;</b> (<kbd>&#8984;</kbd><kbd>,</kbd>) in the app menu of <code>Manovella.app</code>, opens the Settings window: a sidebar with About Manovella at its head and four panes, Projects, Pictures, Music library and Work folder. A change is saved at once, in <code>settings.json</code>; see <a href="settings.html#studio-settings">Settings</a>. The music step&rsquo;s library line names its folder, with <i>Change&hellip;</i>.</p>
+
+        <h2 id="keys">Keys and the window</h2>
+        <p>The window keeps Manovella&rsquo;s violet whatever the product: the product&rsquo;s colour is in the previews, and beside its name in the steps. The viewer scrubs by dragging. From the keyboard: <kbd>Space</kbd> plays, <kbd>&larr;</kbd> <kbd>&rarr;</kbd> step, <kbd>B</kbd> is the motion blur, <kbd>F</kbd> a larger preview, <kbd>Enter</kbd> continues and <kbd>Shift</kbd>+<kbd>Enter</kbd> goes back. Going back keeps every choice, and so does choosing another recipe, for the ones made by hand. When Continue is off, the page says what it waits for. The window works down to 900 &times; 600, its sidebar reduced to the steps&rsquo; numbers.</p>
+        <p>The Studio remembers the last brief, per product, in <code>~/Library/Application Support/manovella/</code>: <i>Like last time</i> starts from it.</p>
+
+        <h2 id="by-hand">Running it by hand</h2>
+        <p>From a workspace, <code>node studio/studio.mjs</code> in the skill&rsquo;s folder. It prints <code>STUDIO &lt;url&gt;</code>, then one of <code>BRIEF &lt;path&gt;</code>, <code>CANCELLED</code>, <code>CLOSED</code> or <code>TIMEOUT</code>, and exits. Options:</p>
+        <ul>
+          <li><code>--no-open</code>: print the URL only.</li>
+          <li><code>--roots &lt;dir&gt;,&hellip;</code>: where the repositories are. Without it, the project folders in Settings, else the parent of the repository the command runs in; <code>MANOVELLA_ROOTS</code> does the same.</li>
+          <li><code>--product &lt;path&gt;</code>: preselect a product.</li>
+          <li><code>--out &lt;dir&gt;</code>: where the work folder goes (default: the Work folder in Settings, <code>~/Downloads</code> unless changed); it wins over Settings for that run.</li>
+        </ul>
+        <p>The window is the Studio&rsquo;s own app, <code>~/Applications/Manovella.app</code>, where it has been built (see <a href="index.html#window">Getting started</a>): its name, version and icon in the Dock instead of one more Google Chrome. Otherwise, or with <code>MANOVELLA_WINDOW=chrome</code>, a Chrome app window on a profile of its own. Either way it closes with the Studio.</p>
+
+        <div class="pager">
+          <a href="index.html"><small>Previous</small><b>&larr; Getting started</b></a>
+          <a class="next" href="films.html"><small>Next</small><b>Making a film &rarr;</b></a>
+        </div>
+      </article>
+    </main>
+  </div>
+</div>
+</body>
+</html>

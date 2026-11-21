@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Promo</title>
+<style>
+/* Self-host the brand's faces beside the page, then list them in FONT_FACES below:
+@font-face{font-family:'Display';src:url(fonts/Display.woff2) format('woff2');font-weight:200 900;}
+@font-face{font-family:'Body';src:url(fonts/Body.woff2) format('woff2');font-weight:200 900;}
+*/
+html,body{margin:0;background:#F6F4EF;overflow:hidden}
+canvas{display:block}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script src="film.js"></script><!-- the stage: subpixel jitter, rasters that hold still -->
+<script src="fx.js"></script><!-- the look: backdrop, light, grain, glass, ripples -->
+<script>
+'use strict';
+/*
+ * A promo film engine. Every frame is a pure function of t: seek(t) redraws from scratch,
+ * nothing is carried between frames. Springs are closed-form step responses; a value with
+ * several targets is the sum of one spring per change. The demo below (8 s) exercises every
+ * piece — replace it scene by scene, keep the engine. The look (backdrop, light, grain, glass,
+ * click ripples) comes from fx.js beside this page: set it in LOOK below.
+ */
+const META = { width: 1920, height: 1080, fps: 60, duration: 8, bpm: 120 };
+window.PROMO_META = META;
+const W = META.width, H = META.height, DUR = META.duration, BEAT = 60 / META.bpm;
+const cv = document.getElementById('c');
+cv.width = W; cv.height = H;
+const mainCtx = cv.getContext('2d');
+// film.js: each subframe render.mjs asks for is offset by a subpixel amount, so the blend is also
+// a 16-sample antialias (text and rasters stop stepping in slow moves); smoothing is 'high'.
+const STAGE = FILM.stage(mainCtx);
+let ctx = mainCtx;
+let SHADOW_K = null; // device pixels per world unit while drawing into an offscreen layer
+const DISPLAY = 'Georgia', BODY = 'system-ui', UI = 'system-ui'; // swap for the brand's faces
+const FONT_FACES = []; // e.g. ['400 100px Display', '500 30px Body']: awaited before frame 0
+const B = (n) => n * BEAT; // beat → seconds
+
+// ---------------------------------------------------------------- math
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const lerp = (a, b, p) => a + (b - a) * p;
+const smooth = (x) => { x = clamp(x); return x * x * (3 - 2 * x); };
+/** Closed-form step response of a damped spring, 0 → 1, exactly 1 once settled. */
+function spr(t, t0, f = 1.8, z = 0.86) {
+  const tau = t - t0;
+  if (tau <= 0) return 0;
+  const w = 2 * Math.PI * f, a = z * w, env = Math.exp(-a * tau);
+  if (z >= 1) { const r = env * (1 + w * tau); return r < 2e-5 ? 1 : 1 - r; }
+  if (env < 2e-5) return 1;
+  const wd = w * Math.sqrt(1 - z * z);
+  return 1 - env * (Math.cos(wd * tau) + (a / wd) * Math.sin(wd * tau));
+}
+const P = (t, tb, f, z) => spr(t, B(tb), f, z); // progress of a transition starting on beat tb
+/** v0, then one spring per [beat, value, f, z]. */
+function track(v0, keys) {
+  return (t) => {
+    let v = v0, prev = v0;
+    for (const [tb, val, f = 1.8, z = 0.86] of keys) { v += (val - prev) * spr(t, B(tb), f, z); prev = val; }
+    return v;
+  };
+}
+/** A press: down, then back up — still a sum of two springs. */
+const bump = (t, tb) => spr(t, B(tb) - 0.03, 6, 1) - spr(t, B(tb) + 0.1, 6, 1);
+
+// ---------------------------------------------------------------- colour
+const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+const rgba = (c, a = 1) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
+const mixc = (a, b, p) => [lerp(a[0], b[0], p), lerp(a[1], b[1], p), lerp(a[2], b[2], p)];
+const C = { // replace with the brand's tokens
+  canvas: hex('#F6F4EF'), ink: hex('#1A1C24'), dim: hex('#6B6F7B'), accent: hex('#5B5BF7'),
+  surface: hex('#161A26'), card: hex('#1E2332'), sec: hex('#8A90A6'), ter: hex('#5C6278'),
+  a: hex('#2FBFA8'), b: hex('#E8833A'),
+};
+
+// ---------------------------------------------------------------- look: backdrop, light, texture (fx.js)
+// A preset, then overrides (every field is listed at the top of fx.js). `#look=<preset>` in the
+// URL swaps the preset without editing this line — `render.mjs looks` uses it to render one frame
+// per preset for choosing; the film itself names its look here.
+const HASH = new URLSearchParams(location.hash.slice(1));
+FX.previewAccent(C, HASH); // a preview's colour (the Studio's #accent=); a film's URL has none
+const LOOK = FX.look({ preset: HASH.get('look') || 'dots', palette: C }, { W, H, fps: META.fps, duration: DUR, track, spr });
+
+// ---------------------------------------------------------------- camera (springs on x, y, log zoom)
+let CAM = { x: 0, y: 0, z: 1 };
+const camKeys = [ // beat, x, y, zoom, f, zeta
+  [1, 0, -40, 1.25, 1.0, 0.9],     // settled before the first click
+  [5.5, 110, 0, 1.1, 0.8, 0.92],   // once the card has opened, settled before the second
+  [11.5, 0, 0, 1, 0.9, 0.92],
+];
+const camX = track(0, camKeys.map((k) => [k[0], k[1], k[4], k[5]]));
+const camY = track(0, camKeys.map((k) => [k[0], k[2], k[4], k[5]]));
+const camL = track(0, camKeys.map((k) => [k[0], Math.log(k[3]), k[4], k[5]]));
+function setCam(t) { CAM = { x: camX(t), y: camY(t), z: Math.exp(camL(t)) }; }
+const world = () => ctx.setTransform(CAM.z, 0, 0, CAM.z, W / 2 - CAM.x * CAM.z, H / 2 - CAM.y * CAM.z);
+const screen = () => ctx.setTransform(1, 0, 0, 1, 0, 0);
+const toScreen = (x, y) => [W / 2 + (x - CAM.x) * CAM.z, H / 2 + (y - CAM.y) * CAM.z];
+// shadows are device pixels, untouched by the transform: scale them yourself
+function shadow(blur, oy, col, k = SHADOW_K ?? CAM.z) { ctx.shadowBlur = blur * k; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = oy * k; ctx.shadowColor = col; }
+function noShadow() { ctx.shadowBlur = 0; ctx.shadowOffsetY = 0; ctx.shadowColor = 'transparent'; }
+
+// ---------------------------------------------------------------- drawing helpers
+function rr(x, y, w, h, r) {
+  w = Math.max(0, w); h = Math.max(0, h);
+  const m = Math.min(w, h) / 2;
+  ctx.beginPath(); ctx.roundRect(x, y, w, h, (Array.isArray(r) ? r : [r, r, r, r]).map((v) => clamp(v, 0, m)));
+}
+function T(s, x, y, size, o = {}) {
+  const { w = 400, fam = UI, col = '#fff', align = 'left', base = 'middle', ls = 0, alpha = 1 } = o;
+  if (alpha <= 0) return;
+  ctx.save(); ctx.globalAlpha *= clamp(alpha);
+  ctx.font = `${w} ${size}px ${fam}`; ctx.fillStyle = col; ctx.textAlign = align; ctx.textBaseline = base;
+  ctx.letterSpacing = ls + 'px'; ctx.fillText(s, x, y); ctx.restore();
+}
+const MWC = new Map();
+function MW(s, size, w = 400, fam = UI, ls = 0) {
+  const key = `${s}|${size}|${w}|${fam}|${ls}`;
+  if (!MWC.has(key)) { ctx.save(); ctx.font = `${w} ${size}px ${fam}`; ctx.letterSpacing = ls + 'px'; MWC.set(key, ctx.measureText(s).width); ctx.restore(); }
+  return MWC.get(key);
+}
+/** Width of a string set with tabular figures, as TN draws it. */
+const TW = (s, size, w = 400) => [...s].reduce((a, ch) => a + (/[0-9]/.test(ch) ? MW('0', size, w) : MW(ch, size, w)), 0);
+/** Tabular figures: canvas has no font-variant-numeric, so every digit gets the same cell. */
+function TN(s, x, y, size, o = {}) {
+  const { w = 400, align = 'left' } = o;
+  const dw = MW('0', size, w), total = TW(s, size, w);
+  let cx = align === 'right' ? x - total : align === 'center' ? x - total / 2 : x;
+  for (const ch of s) {
+    const digit = /[0-9]/.test(ch);
+    T(ch, cx + (digit ? (dw - MW(ch, size, w)) / 2 : 0), y, size, { ...o, align: 'left' });
+    cx += digit ? dw : MW(ch, size, w);
+  }
+}
+/** One string flips to another: the old leaves upward, the new arrives from below. */
+function ROLL(a, b, p, x, y, size, o = {}) {
+  if (p <= 0 || a === b) return TN(p <= 0 ? a : b, x, y, size, o);
+  if (p >= 1) return TN(b, x, y, size, o);
+  const h = size * 1.3, wMax = Math.max(TW(a, size, o.w), TW(b, size, o.w)) + 4;
+  const al = o.align || 'left', x0 = al === 'right' ? x - wMax : al === 'center' ? x - wMax / 2 : x - 2;
+  ctx.save(); ctx.beginPath(); ctx.rect(x0, y - h / 2, wMax + 4, h); ctx.clip();
+  TN(a, x, y - p * h, size, { ...o, alpha: (o.alpha ?? 1) * (1 - p * 0.6) });
+  TN(b, x, y + (1 - p) * h, size, { ...o, alpha: (o.alpha ?? 1) * (0.4 + p * 0.6) });
+  ctx.restore();
+}
+/** Enter/exit envelope for a piece of content. */
+const env = (pin, pout = 0) => ({ a: clamp(pin * 1.6) * clamp(1 - pout * 1.6), dy: (1 - clamp(pin, 0, 1.2)) * 8 - pout * 6 });
+function withEnv(e, fn) { if (e.a <= 0.001) return; ctx.save(); ctx.globalAlpha *= e.a; ctx.translate(0, e.dy); fn(); ctx.restore(); }
+/** A bar fill: deep → tint along its length, gloss across. */
+function drawFill(r, tint, vertical = false) {
+  if (r.w <= 0.2 || r.h <= 0.2) return;
+  ctx.save();
+  rr(r.x, r.y, r.w, r.h, Math.min(r.w, r.h) / 2);
+  const g = vertical ? ctx.createLinearGradient(0, r.y + r.h, 0, r.y) : ctx.createLinearGradient(r.x, 0, r.x + r.w, 0);
+  g.addColorStop(0, rgba(mixc(tint, [0, 0, 0], 0.32))); g.addColorStop(1, rgba(tint));
+  ctx.fillStyle = g; ctx.fill();
+  const gl = vertical ? ctx.createLinearGradient(r.x, 0, r.x + r.w, 0) : ctx.createLinearGradient(0, r.y, 0, r.y + r.h);
+  gl.addColorStop(0, 'rgba(255,255,255,0.4)'); gl.addColorStop(0.45, 'rgba(255,255,255,0)'); gl.addColorStop(1, 'rgba(0,0,0,0.15)');
+  ctx.fillStyle = gl; ctx.fill();
+  ctx.restore();
+}
+function drawTrack(x, y, w, h, tint) { rr(x, y, w, h, Math.min(w, h) / 2); ctx.fillStyle = rgba(tint, 0.16); ctx.fill(); }
+
+// ---------------------------------------------------------------- the one object: a morph chain
+// Each state is a rect; each transition starts on a beat. Centres, sizes and corner radii
+// are sums of springs (width leads, height lags a touch), weights tell which state's look wins.
+const LOGO = { x: -250, y: -60, w: 120, h: 120 };
+const CARD = { x: -120, y: -200, w: 660, h: 400 }; // right of centre: the headline takes the left
+const STATES = [
+  { kind: 0, r: () => ({ ...LOGO, c: [28, 28, 28, 28] }) },
+  { kind: 1, tb: 4.25, f: 1.4, z: 0.84, r: () => ({ ...CARD, c: [22, 22, 22, 22] }) }, // a beat after the click
+  { kind: 0, tb: 12, f: 1.3, z: 0.86, r: () => ({ ...LOGO, c: [28, 28, 28, 28] }) },
+];
+function shapeAt(t) {
+  let prev = STATES[0].r(t);
+  const s = { ...prev, c: [...prev.c] };
+  const wts = [1, 0];
+  for (let i = 1; i < STATES.length; i++) {
+    const st = STATES[i], cur = st.r(t);
+    const pw = spr(t, B(st.tb), st.f * 1.08, st.z), ph = spr(t, B(st.tb) + 0.035, st.f * 0.95, st.z);
+    const cx = s.x + s.w / 2 + (cur.x + cur.w / 2 - prev.x - prev.w / 2) * pw;
+    const cy = s.y + s.h / 2 + (cur.y + cur.h / 2 - prev.y - prev.h / 2) * ph;
+    s.w += (cur.w - prev.w) * pw; s.h += (cur.h - prev.h) * ph;
+    s.x = cx - s.w / 2; s.y = cy - s.h / 2;
+    s.c = s.c.map((v, j) => v + (cur.c[j] - prev.c[j]) * pw);
+    const p = spr(t, B(st.tb), st.f * 1.4, 0.95);
+    wts[STATES[i - 1].kind] -= p; wts[st.kind] += p;
+    prev = cur;
+  }
+  return { s, wts: wts.map((v) => clamp(v)) };
+}
+
+// ---------------------------------------------------------------- demo scene
+const WORD = { x: -100, base: 30, size: 110 };
+function drawWordmark(t) {
+  const p = 1 - P(t, 4.25, 2.4, 0.95) + P(t, 12.75, 2.0, 0.86);
+  ctx.save(); ctx.beginPath(); ctx.rect(WORD.x - 10, WORD.base - WORD.size, 700, WORD.size * 1.28); ctx.clip();
+  T('Product', WORD.x, WORD.base + (1 - clamp(p, -0.2, 1.2)) * WORD.size * 1.3, WORD.size, { fam: DISPLAY, col: rgba(LOOK.ink), base: 'alphabetic' });
+  ctx.restore();
+  withEnv({ a: clamp(p * 1.4), dy: (1 - clamp(p)) * 12 }, () => T('example.com', WORD.x + 3, WORD.base + 48, 28, { fam: BODY, w: 500, col: rgba(LOOK.dim), base: 'alphabetic' }));
+}
+function drawShape(t, { noShadow: skipShadow = false } = {}) {
+  const { s, wts } = shapeAt(t);
+  ctx.save();
+  if (!skipShadow) shadow(40, 18, 'rgba(20,20,40,0.28)');
+  rr(s.x, s.y, s.w, s.h, s.c);
+  ctx.fillStyle = rgba(mixc(C.surface, C.card, wts[1] * 0.3)); ctx.fill(); noShadow();
+  if (LOOK.edge) { ctx.lineWidth = 1; ctx.strokeStyle = LOOK.edge; ctx.stroke(); } // or it sinks into a dark backdrop
+  ctx.clip();
+  if (wts[0] > 0.001) { // the logo's mark: an accent bar, as a stand-in for the real vector logo
+    ctx.globalAlpha = wts[0] ** 3; // gone before the shape is big enough to smear it
+    const m = Math.min(s.w, s.h), bw = m * 0.22, bh = m * 0.55; // the mark keeps the logo's proportions
+    rr(s.x + s.w / 2 - bw / 2, s.y + s.h / 2 - bh / 2, bw, bh, bw / 2); ctx.fillStyle = rgba(C.accent); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+  return s;
+}
+const ROWS = [['Alpha', 0.62, C.a], ['Beta', 0.34, C.b], ['Gamma', 0.81, C.a]];
+function drawContent(t) {
+  const out = P(t, 11.5, 3, 1);
+  const E = (tb) => env(P(t, tb, 2.2, 0.86), out);
+  const X = CARD.x, Y = CARD.y;
+  withEnv(E(5), () => T('Dashboard', X + 36, Y + 52, 30, { w: 700 }));
+  const tab = track(0, [[8.5, 1, 2.4, 0.86]])(t); // the click at beat 8.5 moves the selection
+  withEnv(E(5.2), () => {
+    rr(X + 420 + tab * 110, Y + 34, 100, 36, 18); ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fill();
+    T('Week', X + 470, Y + 52, 15, { w: 600, align: 'center', col: rgba(mixc([255, 255, 255], C.sec, tab)) });
+    T('Month', X + 580, Y + 52, 15, { w: 600, align: 'center', col: rgba(mixc(C.sec, [255, 255, 255], tab)) });
+  });
+  ROWS.forEach(([label, v, tint], i) => withEnv(E(5.4 + i * 0.25), () => {
+    const y = Y + 120 + i * 54, f = lerp(v, 1 - v * 0.6, tab) * P(t, 5.6 + i * 0.25, 1.6, 0.85);
+    T(label, X + 36, y, 16, { w: 500, col: rgba(C.sec) });
+    drawTrack(X + 140, y - 5, 360, 10, tint); drawFill({ x: X + 140, y: y - 5, w: 360 * f, h: 10 }, tint);
+    TN(Math.round(f * 100) + '%', X + 620, y, 18, { w: 700, align: 'right' });
+  }));
+  withEnv(E(6.2), () => T('Updated just now', X + 36, Y + 350, 14, { col: rgba(C.ter) }));
+}
+
+// ---------------------------------------------------------------- true 3D: WebGL compositing
+// Canvas 2D is affine only. Draw layers into offscreen canvases (supersampled), then composite
+// them as WebGL2 quads with clip-space w, so texture mapping is perspective-correct. An identity
+// rig reproduces the flat frame; switch paths only while something moves.
+const DEG = Math.PI / 180;
+const RIG = { cx: CARD.x + CARD.w / 2, cy: CARD.y + CARD.h / 2, F: 1500 }; // pivot: the card's centre
+const rigY = track(0, [[5.5, -18 * DEG, 0.85, 0.9], [10, 0, 1.3, 0.92]]);
+const rigX = track(0, [[5.5, 9 * DEG, 0.85, 0.9], [10, 0, 1.3, 0.92]]);
+const rigLift = track(0, [[5.5, 40, 1.0, 0.85], [10, 0, 1.3, 0.92]]);
+const rig = (t) => ({ ry: rigY(t), rx: rigX(t), lift: rigLift(t) });
+function proj(x, y, z, R) { // a point on the plane (z toward the viewer) → world-2D and clip w
+  const X = x - RIG.cx, Y = y - RIG.cy;
+  const x1 = X * Math.cos(R.ry) + z * Math.sin(R.ry), z1 = -X * Math.sin(R.ry) + z * Math.cos(R.ry);
+  const y2 = Y * Math.cos(R.rx) - z1 * Math.sin(R.rx), z2 = Y * Math.sin(R.rx) + z1 * Math.cos(R.rx);
+  const w = (RIG.F - z2) / RIG.F;
+  return [RIG.cx + x1 / w, RIG.cy + y2 / w, w];
+}
+const TEXS = 3;
+const BASE = { x: CARD.x - 20, y: CARD.y - 20, w: CARD.w + 40, h: CARD.h + 40 };
+const LAYER = { ...CARD };
+const mk = (r) => { const c = document.createElement('canvas'); c.width = r.w * TEXS; c.height = r.h * TEXS; c.getContext('2d').imageSmoothingQuality = 'high'; return c; };
+const baseCv = mk(BASE), layerCv = mk(LAYER), baseCtx = baseCv.getContext('2d'), layerCtx = layerCv.getContext('2d');
+const glc = document.createElement('canvas'); glc.width = W; glc.height = H;
+const gl = glc.getContext('webgl2', { alpha: true, premultipliedAlpha: true, antialias: true, preserveDrawingBuffer: true });
+if (!gl) throw new Error('WebGL2 unavailable');
+const GLS = {};
+function glInit() {
+  const sh = (type, src) => { const o = gl.createShader(type); gl.shaderSource(o, src); gl.compileShader(o); if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(o)); return o; };
+  const prog = gl.createProgram();
+  gl.attachShader(prog, sh(gl.VERTEX_SHADER, '#version 300 es\nin vec4 aPos; in vec2 aUV; out vec2 vUV; void main(){ gl_Position = aPos; vUV = aUV; }'));
+  gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, '#version 300 es\nprecision highp float; uniform sampler2D uTex; in vec2 vUV; out vec4 o; void main(){ o = texture(uTex, vUV); }'));
+  gl.linkProgram(prog); gl.useProgram(prog);
+  GLS.pos = gl.createBuffer();
+  const aPos = gl.getAttribLocation(prog, 'aPos');
+  gl.bindBuffer(gl.ARRAY_BUFFER, GLS.pos); gl.enableVertexAttribArray(aPos); gl.vertexAttribPointer(aPos, 4, gl.FLOAT, false, 0, 0);
+  const uv = gl.createBuffer(), aUV = gl.getAttribLocation(prog, 'aUV');
+  gl.bindBuffer(gl.ARRAY_BUFFER, uv); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0, 0, 1, 0, 0, 1, 1, 1]), gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(aUV); gl.vertexAttribPointer(aUV, 2, gl.FLOAT, false, 0, 0);
+  const aniso = gl.getExtension('EXT_texture_filter_anisotropic');
+  GLS.tex = [0, 1].map(() => {
+    const tx = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tx);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    if (aniso) gl.texParameterf(gl.TEXTURE_2D, aniso.TEXTURE_MAX_ANISOTROPY_EXT, gl.getParameter(aniso.MAX_TEXTURE_MAX_ANISOTROPY_EXT));
+    return tx;
+  });
+  gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+  gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+  gl.viewport(0, 0, W, H);
+}
+function glLayer(i, canvas, r, z, R) {
+  gl.bindTexture(gl.TEXTURE_2D, GLS.tex[i]);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+  gl.generateMipmap(gl.TEXTURE_2D);
+  const v = [], J = mainCtx.jitter; // the quads take the subframe's jitter; the blit below does not
+  [[r.x, r.y], [r.x + r.w, r.y], [r.x, r.y + r.h], [r.x + r.w, r.y + r.h]].forEach(([x, y]) => {
+    const [X, Y, w] = proj(x, y, z, R), [sx, sy] = toScreen(X, Y);
+    v.push(((sx + J[0]) / W * 2 - 1) * w, (1 - (sy + J[1]) / H * 2) * w, 0, w);
+  });
+  gl.bindBuffer(gl.ARRAY_BUFFER, GLS.pos); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(v), gl.DYNAMIC_DRAW);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+}
+function drawIn3D(t) {
+  const R = rig(t);
+  const layer = (c, cv2, r, fn) => {
+    ctx = c; SHADOW_K = TEXS;
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv2.width, cv2.height);
+    ctx.setTransform(TEXS, 0, 0, TEXS, -r.x * TEXS, -r.y * TEXS);
+    fn();
+  };
+  let s;
+  layer(baseCtx, baseCv, BASE, () => { s = drawShape(t, { noShadow: true }); });
+  layer(layerCtx, layerCv, LAYER, () => {
+    ctx.save(); rr(s.x, s.y, s.w, s.h, s.c); ctx.clip(); drawContent(t);
+    // a lifted layer overhangs its base in projection: fade its bottom edge with the lift
+    const lf = clamp(R.lift / 40);
+    if (lf > 0.001) {
+      ctx.globalCompositeOperation = 'destination-out';
+      const g = ctx.createLinearGradient(0, LAYER.y + LAYER.h - 60, 0, LAYER.y + LAYER.h);
+      g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, `rgba(0,0,0,${lf})`);
+      ctx.fillStyle = g; ctx.fillRect(LAYER.x, LAYER.y + LAYER.h - 60, LAYER.w, 60);
+    }
+    ctx.restore();
+  });
+  ctx = mainCtx; SHADOW_K = null;
+  // the shadow follows the projected outline; the polygon itself is drawn off-canvas
+  screen(); ctx.save(); ctx.beginPath();
+  [[s.x, s.y], [s.x + s.w, s.y], [s.x + s.w, s.y + s.h], [s.x, s.y + s.h]].forEach(([x, y], i) => {
+    const [X, Y] = proj(x, y, 0, R), [sx, sy] = toScreen(X, Y);
+    if (i) ctx.lineTo(sx - 10000, sy); else ctx.moveTo(sx - 10000, sy);
+  });
+  ctx.closePath();
+  ctx.shadowColor = 'rgba(20,20,40,0.28)'; ctx.shadowBlur = 40 * CAM.z; ctx.shadowOffsetX = 10000; ctx.shadowOffsetY = 18 * CAM.z;
+  ctx.fillStyle = '#000'; ctx.fill(); ctx.restore();
+  gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+  glLayer(0, baseCv, BASE, 0, R);
+  glLayer(1, layerCv, LAYER, R.lift, R);
+  ctx.save(); ctx.rawSetTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(glc, 0, 0); ctx.restore(); world();
+}
+
+// ---------------------------------------------------------------- headlines, cursor
+// style 'rise' slides each word up through a clip; 'focus' pulls it into focus (FX.focus)
+const HEADS = [{ lines: ['One object,', 'every surface.'], tin: 6, tout: 11, style: 'focus' }];
+function drawHead(t, h) {
+  const tin = B(h.tin), tout = B(h.tout);
+  if (t < tin - 0.3 || t > tout + 1.6) return;
+  const size = 96, lh = 104, x = 120, top = 540 - (h.lines.length * lh) / 2;
+  let wi = 0;
+  h.lines.forEach((line, li) => {
+    const by = top + li * lh + size * 0.8;
+    let wx = x;
+    line.split(' ').forEach((word) => {
+      const pin = spr(t, tin + wi * 0.13, 2.0, 0.86), pout = spr(t, tout + wi * 0.05, 2.6, 0.95);
+      const ww = MW(word + ' ', size, 400, DISPLAY), o = { fam: DISPLAY, col: rgba(LOOK.ink), base: 'alphabetic' };
+      if (h.style === 'focus') FX.focus(ctx, pin, pout, size, () => T(word, wx, by, size, o));
+      else {
+        const off = (1 - pin) * size * 1.3 - pout * size * 1.3; // ≥ 1.3 em, or descenders linger in the clip
+        ctx.save(); ctx.beginPath(); ctx.rect(wx - 12, by - size * 0.98, ww + 24, size * 1.28); ctx.clip();
+        T(word, wx, by + off, size, o);
+        ctx.restore();
+      }
+      wx += ww; wi++;
+    });
+  });
+}
+// cursor: world position as springs (x and y at different rates, so paths arc)
+// Each move gives the cursor about two seconds to arrive and rest before its click, and it stays
+// through the press; the camera is still by then (scripts/clickcheck.mjs measures both).
+const CUR = [[0, -190, -10], [4.75, 0, 0], [12, 520, 330, 1.2]]; // the homing move is quicker: at rest by the loop point
+const CLICKS = [4, 8.5];
+let curX, curY;
+function buildCursor() {
+  // a click on a tilted plane aims at the point as projected at the moment of the click
+  const [X, Y] = proj(CARD.x + 580, CARD.y + 54, 0, rig(B(8.5)));
+  CUR[1][1] = X; CUR[1][2] = Y;
+  curX = track(520, CUR.map((c) => [c[0], c[1], c[3] ?? 0.85, 0.9]));
+  curY = track(330, CUR.map((c) => [c[0], c[2], c[3] ?? 0.75, 0.92]));
+  // a click lands on a cursor that has arrived: one still gliding leaves its ripple behind it
+  CLICKS.forEach((c) => {
+    const k = CUR.filter((q) => q[0] <= c).pop(), d = k ? Math.hypot(curX(B(c)) - k[1], curY(B(c)) - k[2]) : 0;
+    if (d > 2) console.error(`the click on beat ${c} lands ${d.toFixed(0)} px short of the cursor's target: start the move earlier`);
+  });
+}
+const ARROW = new Path2D('M0 0 L0 16.2 L3.9 12.5 L6.5 18.5 L9 17.4 L6.5 11.5 L11.8 11.5 Z');
+/** A press held long enough to see: down over 0.05 s, up 0.14 s later. */
+const hold = (t, tb) => spr(t, B(tb) - 0.05, 4, 1) - spr(t, B(tb) + 0.14, 4, 1);
+function drawCursor(t) {
+  const [sx, sy] = toScreen(curX(t), curY(t));
+  const press = CLICKS.reduce((a, c) => a + hold(t, c), 0);
+  const s = 2.0 * Math.pow(CAM.z, 0.35) * (1 - 0.16 * press);
+  // a ring where each click landed, pinned to that world point while the camera moves on
+  CLICKS.forEach((c) => LOOK.ripple(ctx, ...toScreen(curX(B(c)), curY(B(c))), t, B(c), 1.45 * Math.pow(CAM.z, 0.35)));
+  ctx.setTransform(s, 0, 0, s, sx, sy);
+  ctx.save();
+  ctx.shadowBlur = 3 * s; ctx.shadowOffsetY = 1.2 * s; ctx.shadowColor = 'rgba(0,0,0,0.28)';
+  ctx.lineJoin = 'round'; ctx.lineWidth = 2.2; ctx.strokeStyle = '#FFFFFF'; ctx.stroke(ARROW);
+  noShadow(); ctx.fillStyle = '#000000'; ctx.fill(ARROW);
+  ctx.restore();
+}
+
+// ---------------------------------------------------------------- frame
+const GL_FROM = B(4.75), GL_TO = B(11.75); // 3D path only while the card is on screen
+/** opts.loopcheck: leave out what changes every frame by design (grain), which render.mjs asks for. */
+function seek(t, opts = {}) {
+  t = ((t % DUR) + DUR) % DUR;
+  STAGE.begin(opts); // opts.jitter: this subframe's subpixel offset, from render.mjs
+  setCam(t);
+  ctx = mainCtx; SHADOW_K = null;
+  ctx.save();
+  LOOK.backdrop(ctx, t, CAM, opts);
+  world();
+  if (t >= GL_FROM && t < GL_TO) drawIn3D(t);
+  else {
+    const s = drawShape(t);
+    if (t > B(4.75) && t < B(12.5)) { ctx.save(); rr(s.x, s.y, s.w, s.h, s.c); ctx.clip(); drawContent(t); ctx.restore(); }
+  }
+  drawWordmark(t);
+  screen();
+  HEADS.forEach((h) => drawHead(t, h));
+  drawCursor(t);
+  ctx.restore();
+  screen();
+  LOOK.finish(ctx, t, opts);
+}
+window.seek = seek;
+window.ready = (async () => {
+  await Promise.all(FONT_FACES.map((f) => document.fonts.load(f)));
+  await LOOK.ready;
+  glInit(); buildCursor();
+  seek(0);
+  return true;
+})();
+</script>
+</body>
+</html>

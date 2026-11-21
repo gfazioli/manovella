@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Making a film &middot; Manovella docs</title>
+<meta name="description" content="How a Manovella film is made: asking, three storyboards, stills and a contact sheet, a draft, the masters, review rounds, delivery and cleanup." />
+<link rel="canonical" href="https://manovella.mov/guide/films.html" />
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="Manovella" />
+<meta property="og:title" content="Making a film &middot; Manovella docs" />
+<meta property="og:description" content="How a Manovella film is made: asking, three storyboards, stills and a contact sheet, a draft, the masters, review rounds, delivery and cleanup." />
+<meta property="og:url" content="https://manovella.mov/guide/films.html" />
+<meta property="og:image" content="https://manovella.mov/og.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Manovella: product films, written as code" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Making a film &middot; Manovella docs" />
+<meta name="twitter:description" content="How a Manovella film is made: asking, three storyboards, stills and a contact sheet, a draft, the masters, review rounds, delivery and cleanup." />
+<meta name="twitter:image" content="https://manovella.mov/og.png" />
+<link rel="preload" href="../fonts/geist/geist-100-900-latin.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="stylesheet" href="../base.css" />
+<link rel="stylesheet" href="style.css" />
+<script src="docs.js" defer></script>
+</head>
+<body data-page="films" data-title="Making a film">
+<div class="layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main">
+    <header class="topbar" id="topbar"></header>
+    <main class="doc">
+      <article class="page">
+        <p class="eyebrow">Guide</p>
+        <h1>Making a film</h1>
+        <p class="lead">From a request to a delivered film: three storyboards, stills, a draft, the masters, review rounds, other formats, delivery and cleanup.</p>
+
+        <h2 id="asking">Asking</h2>
+        <p>You ask in words, in any language, and nothing renders on its own. Each request below is one message: the skill fills whatever it does not say with a default, asks what it cannot guess, and waits for you three times, at the storyboards, at the contact sheet and at the delivery.</p>
+        <div class="tablewrap">
+        <table class="keys">
+          <thead><tr><th>Ask</th><th>You get</th></tr></thead>
+          <tbody>
+            <tr><td class="k"><i>Make a 15-second promo loop of https://acme.app: premium, dark, no music.</i></td><td>Three storyboards on three formats, one recommended, then a wait for your pick.</td></tr>
+            <tr><td class="k"><i>A 60-second film of Acme from its repo, one chapter per feature, 16:9 for YouTube.</i></td><td>A film on a timeline, chapter marks in the mp4, the chapter list for the description.</td></tr>
+            <tr><td class="k"><i>A 9:16 teaser of acme.app for social, 10 s, kinetic type on the site&rsquo;s own headline.</i></td><td>A vertical loop made of the site&rsquo;s own words.</td></tr>
+            <tr><td class="k"><i>A 6-second GIF loop for the README: the terminal typing <code>acme init</code>, 960 px wide.</i></td><td>A terminal film, encoded as a GIF.</td></tr>
+            <tr><td class="k"><i>Like last time&rsquo;s promo, but on the grid look with the brand&rsquo;s orange as the only colour.</i></td><td>The product&rsquo;s kit reused, the look changed.</td></tr>
+            </tbody>
+        </table>
+        </div>
+        <p>Behind a request, Claude asks for the website or repository to base the film on (the brand, strings and screens come from its source), the duration, the format, the output, the accent, the look, the sound and where it goes. A promo is made in two versions by default, 16:9 and 9:16, each composed for its own frame; Claude asks only when you name a single aspect. The same questions are the Studio&rsquo;s ten steps.</p>
+
+        <h2 id="storyboards">Three storyboards</h2>
+        <p>Before any code, Claude shows three storyboards as tables on the music&rsquo;s beat grid (time, beat, what happens), each on a different <a href="formats.html">format</a>: three storyboards are three formats, not three pacings of one idea. It recommends one, and you pick or tweak it: <i>Storyboard B, with A&rsquo;s ending.</i> For a product that already has a film kit, the style is settled and a release film gets one storyboard.</p>
+
+        <h2 id="stills">Stills and the contact sheet</h2>
+        <p>Next, one still per scene, the settled moment plus one mid-morph where a morph carries the scene, as a captioned contact sheet. Claude looks at every frame first (cramped, off-grid, illegible at that zoom, an empty hold, a ripple off the cursor&rsquo;s tip) and runs <code>clickcheck.mjs</code>, which fails a click the viewer would not see, and <code>layoutcheck.mjs</code> on a page whose headlines <code>TYPE.draw</code> draws: the safe area, overlaps and contrast. Two looks or two takes are compared on one image with <code>contact.mjs --compare</code>. Then it shows you the sheet with a line per scene, and the looks sheet too while the look is still open, and waits for a go. <i>Show me the looks sheet on the first real frame</i> puts every preset on one sheet, to choose by eye.</p>
+
+        <h2 id="draft">A draft</h2>
+        <p><i>A fast draft of the whole film first.</i> <code>PREVIEW=1</code> renders it at a sixteenth of the work, about 16 times faster.</p>
+
+        <h2 id="masters">The masters</h2>
+        <p>On your go, the film renders, one render at a time, <a href="rendering.html#heat">cool by default</a>. The output&rsquo;s extension picks the format: <code>.mp4</code> (H.264, or HEVC), <code>.mov</code> (ProRes 422 HQ), <code>.webm</code> or <code>.gif</code>, in every aspect asked for, with a cover per aspect and, for a long film, chapter marks. Afterwards the file is read back (size, frames, length, sound) and a file that does not match fails the render instead of passing for a finished film. A loop is checked too: <code>loopcheck</code> compares the first frame with the last, and its PSNR must be infinite.</p>
+
+        <h2 id="rounds">Review rounds</h2>
+        <ul>
+          <li><i>The headline lands on the click, not before, and a slower camera in the second scene.</i></li>
+          <li><i>Render 12&ndash;20 s at full quality, I want to see that transition.</i> One range (<code>FROM</code>, <code>TO</code>).</li>
+          <li><i>Put a metronome under it, so I can hear whether the cuts land.</i> <code>AUDIO=click</code>.</li>
+          <li><i>Put this track under it.</i> <code>AUDIO=track.mp3</code>, brought to &minus;14 LUFS (<code>AUDIO_LUFS</code> changes it, <code>AUDIO_NORM=0</code> keeps the track as it is).</li>
+          <li><i>Cut it on the track&rsquo;s beat.</i> See <a href="sound.html#beat">Sound</a>.</li>
+          <li><i>Crisper motion, like a film camera.</i> <code>SHUTTER=180</code> (or <code>PROMO_META.shutter</code>): the sixteen subframes cover half of each frame instead of all of it.</li>
+        </ul>
+
+        <h2 id="formats">Other formats of the same film</h2>
+        <ul>
+          <li><i>Also as .webm for the site, and a 960 px GIF.</i> With <code>KEEP=1</code> on the master, an encode in seconds rather than a new render.</li>
+          <li><i>A ProRes copy for Final Cut.</i> A <code>.mov</code>, ProRes 422 HQ.</li>
+          <li><i>A lighter mp4 under 8 MB for the newsletter.</i> Re-encoded from the master, not rendered smaller.</li>
+        </ul>
+
+        <h2 id="delivery">Delivery and cleanup</h2>
+        <p>While a film is made, everything lives in <code>~/Downloads/&lt;name&gt;-work/</code> (<code>~/Downloads</code> is the work folder unless <a href="settings.html#studio-settings">Settings</a> says otherwise): the source in <code>src/</code>, stills, sheets, drafts, the renders. A second folder holds only what gets used.</p>
+        <div class="tablewrap">
+        <table class="keys">
+          <thead><tr><th>Folder</th><th>Holds</th><th>Lifetime</th></tr></thead>
+          <tbody>
+            <tr><td class="k"><code>~/Downloads/&lt;name&gt;-work/</code></td><td>the source in <code>src/</code> (page, engine, fonts, tools, <code>node_modules</code>), stills, sheets, looks, drafts, the renders</td><td>until the film is out</td></tr>
+            <tr><td class="k"><code>&lt;name&gt;/</code>, where your instructions keep finished media (else in the work folder; with <i>Deliver finished films into it too</i> ticked under <a href="settings.html#music-library">Music library</a> in Settings, <code>&lt;Brand&gt;/video/&lt;name&gt;/</code> in it)</td><td>each format and aspect of the film, a cover per aspect, a chapter list for a long film</td><td>yours, to use</td></tr>
+            </tbody>
+        </table>
+        </div>
+        <ul>
+          <li><i>Deliver it.</i> <code>deliver.mjs</code> clones the finished files into the second folder and nothing else. It never overwrites, refuses a draft, probes every video (size, fps, frames, colour tags) and writes the chapter list a YouTube description wants. When <code>/Applications/ImageOptim.app</code> is installed, each cover goes through it, compared with the original by SSIM.</li>
+          <li><i>The film is out: throw the work folder away.</i> <code>deliver.mjs trash</code> does a dry run first, listing anything that exists nowhere else; then, on your OK, the work folder goes to the Trash. It refuses until every source file in it is in the product&rsquo;s kit (committed and on a remote branch) and every render was delivered.</li>
+          <li><i>Commit the kit to the repo, then clean up.</i> The source goes into the product&rsquo;s <code>scripts/film/</code>, pushed, and only then the work folder.</li>
+        </ul>
+
+        <div class="pager">
+          <a href="studio.html"><small>Previous</small><b>&larr; The Studio</b></a>
+          <a class="next" href="release-films.html"><small>Next</small><b>Release films &rarr;</b></a>
+        </div>
+      </article>
+    </main>
+  </div>
+</div>
+</body>
+</html>

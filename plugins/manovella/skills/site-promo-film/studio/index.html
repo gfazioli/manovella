@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manovella</title>
+<link rel="icon" href="brand-64.png">
+<link rel="stylesheet" href="studio.css">
+<style id="kitfonts"></style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="side-top">
+      <button class="brand" id="brand" title="About Manovella" aria-haspopup="dialog">
+        <img src="mark.svg" width="22" height="22" alt="">
+        <span>Manovella</span>
+        <span class="ver" id="ver"></span>
+      </button>
+      <button class="gear" id="settings" title="Settings (⌘,)" aria-label="Settings" aria-haspopup="dialog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></button>
+    </div>
+    <ol class="steps" id="steps"></ol>
+    <div class="side-foot">
+      <p class="hint">Nothing renders here. The brief goes back to Claude, who answers with three storyboards.</p>
+      <button id="cancel" class="ghost">Cancel</button>
+    </div>
+  </aside>
+  <main class="main">
+    <header class="head">
+      <div>
+        <div class="eyebrow" id="eyebrow"></div>
+        <h1 id="title"></h1>
+        <p id="lede"></p>
+      </div>
+    </header>
+    <section class="body" id="body">
+      <div class="pane" id="pane"></div>
+      <aside class="inspector">
+        <div class="stage">
+          <!-- the preview's own colours, behind it: sixteen pixels of the frame, blurred wide -->
+          <canvas class="glow" id="glow" width="32" height="18" aria-hidden="true"></canvas>
+          <div class="viewer" id="viewer">
+            <div class="frame" id="frame"><canvas id="screen"></canvas><div class="loading" aria-hidden="true"></div></div>
+            <div class="viewer-bar">
+              <button class="icon" id="play" title="Pause the preview (Space)" aria-label="Pause the preview"></button>
+              <div class="scrub" id="scrub" role="slider" tabindex="0" aria-label="Position in the preview" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" title="Drag to scrub">
+                <div class="track"><div class="marks" id="marks"></div><div class="fill" id="scrub-fill"></div></div>
+                <div class="knob" id="knob"></div>
+              </div>
+              <span class="time" id="time">0.0 s</span>
+              <button class="pill" id="blur" title="Each frame as the mean of several moments, the way the render blurs what moves fast (B)" aria-pressed="false"><span class="long">Motion </span>blur<b id="blur-state">off</b></button>
+              <button class="icon" id="theatre" title="A larger preview (F)" aria-label="A larger preview" aria-pressed="false"></button>
+            </div>
+            <div class="failed" id="failed"></div>
+          </div>
+        </div>
+        <div class="about" id="about"></div>
+        <p class="keys" aria-label="Keyboard shortcuts"><kbd>Space</kbd> play <kbd>←</kbd><kbd>→</kbd> step <kbd>B</kbd> blur <kbd>F</kbd> larger <kbd>⏎</kbd> continue <kbd>⇧⏎</kbd> back</p>
+      </aside>
+    </section>
+    <footer class="foot">
+      <div class="request"><span class="request-label">The request this makes</span><span id="request"></span></div>
+      <div class="nav">
+        <span class="why" id="why" role="status"></span>
+        <button id="back" class="ghost">Back</button>
+        <button id="next" class="primary">Continue</button>
+      </div>
+    </footer>
+  </main>
+</div>
+<!-- The Settings, About their first pane: the gear opens them, the brand opens them on About. And the window app's menu items (studio.json "pageItems") -->
+<dialog class="dlg set-dlg" id="settings-dlg" aria-label="Settings"></dialog>
+<iframe id="liveA" class="offscreen" aria-hidden="true" tabindex="-1"></iframe>
+<iframe id="liveB" class="offscreen" aria-hidden="true" tabindex="-1"></iframe>
+<iframe id="renderer" class="offscreen" aria-hidden="true" tabindex="-1"></iframe>
+<input type="file" id="file" accept="image/jpeg,image/png,image/heic,image/heif,image/webp,image/tiff,.heic,.heif" hidden>
+<input type="file" id="audiofile" accept="audio/*,.mp3,.m4a,.wav,.aif,.aiff,.flac,.ogg" hidden>
+<script src="../template/film.js"></script>
+<script src="../template/fx.js"></script>
+<script src="../template/type.js"></script>
+<script src="studio.js"></script>
+</body>
+</html>

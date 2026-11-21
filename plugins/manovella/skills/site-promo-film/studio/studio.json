@@ -1,0 +1,20 @@
+{
+  "name": "Manovella",
+  "id": "manovella",
+  "version": "1.18.0",
+  "ping": "/api/ping",
+  "hint": "Manovella opens from Claude Code: /manovella:studio.",
+  "width": 1480,
+  "height": 940,
+  "appearance": "dark",
+  "pageItems": [
+    {
+      "id": "about"
+    },
+    {
+      "id": "settings",
+      "title": "Settings…",
+      "key": ","
+    }
+  ]
+}

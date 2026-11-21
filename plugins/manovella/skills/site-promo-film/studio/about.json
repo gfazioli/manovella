@@ -1,0 +1,24 @@
+{
+  "tagline": "Product films, written as code.",
+  "links": [
+    { "title": "Website", "icon": "globe", "url": "https://manovella.mov/" },
+    { "title": "Documentation", "icon": "book", "url": "https://manovella.mov/guide/" },
+    { "title": "Release notes", "icon": "sparkles", "url": "https://manovella.mov/guide/releases.html" },
+    { "title": "Source code", "icon": "code", "url": "https://github.com/gfazioli/manovella" },
+    { "title": "Report an issue", "icon": "bubble", "url": "https://github.com/gfazioli/manovella/issues" },
+    { "title": "Blog", "icon": "news", "url": "https://undolog.com" },
+    { "title": "Discord", "icon": "discord", "url": "https://discord.gg/rdWu5yFCR6" },
+    { "title": "Legal notice", "icon": "doc", "url": "https://manovella.mov/guide/legal.html" },
+    { "title": "Privacy policy", "icon": "hand", "url": "https://manovella.mov/guide/privacy.html" }
+  ],
+  "sponsors": ["kastov", "guimazza"],
+  "sponsorUrl": "https://github.com/sponsors/gfazioli",
+  "donateUrl": "https://donate.stripe.com/fZu4gy4Tn3b1dgudGx0co00",
+  "apps": [
+    { "name": "FinderGit", "tagline": "A Git-aware file browser for macOS.", "url": "https://findergit.app/", "icon": "about/findergit.png" },
+    { "name": "Netfox", "tagline": "Network monitor for macOS: devices, history, alerts.", "url": "https://netfox.app/", "icon": "about/netfox.png" },
+    { "name": "Lancetta", "tagline": "Your coding agents' quota, in the menu bar.", "url": "https://lancetta.app/", "icon": "about/lancetta.png" },
+    { "name": "Octoscope", "tagline": "Your GitHub at a glance, in your terminal.", "url": "https://gfazioli.github.io/octoscope/", "icon": "about/octoscope.png" }
+  ],
+  "maker": { "name": "Undolog", "url": "https://gfazioli.github.io/" }
+}

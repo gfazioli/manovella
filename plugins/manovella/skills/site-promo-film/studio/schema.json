@@ -1,0 +1,1894 @@
+{
+  "$comment": "The Studio's single source of truth: the wizard renders its controls from `fields`, offers `recipes` as starting points, shows `formats` (a format's `stage` is what the stand-in product is in the other previews: one of the frames' stages, `none` for words alone, else a window), `frames` (what the product is shown in, when the user chooses it: the brief's `frame`, null for each format's own; a frame's `stage` is what stage.html draws for it, `ui=`, `says` how the request line puts it, `touch` that taps take the place of clicks), `looks`, `typesets`, `motion`, `picture` and `voices` as pickers, and `voicePresets` as a voice and its reading set at once. studio.mjs validates a brief against it, and the skills read the brief it writes (site-promo-film SKILL.md, Studio). Adding an option here adds it to the wizard; a look, a style or a transition must exist in fx.js, type.js or film.js too.",
+  "version": 3,
+  "fields": {
+    "kind": {
+      "type": "enum",
+      "label": "Film",
+      "default": "promo",
+      "options": [
+        {
+          "value": "promo",
+          "label": "Promo loop",
+          "hint": "6–30 s, ends where it starts"
+        },
+        {
+          "value": "film",
+          "label": "Film in chapters",
+          "hint": "1–5 min, not a loop"
+        },
+        {
+          "value": "release",
+          "label": "Release film",
+          "hint": "what one version changed"
+        },
+        {
+          "value": "tutorial",
+          "label": "Tutorial",
+          "hint": "a task told step by step, with a voice"
+        }
+      ]
+    },
+    "duration": {
+      "type": "enum",
+      "label": "Length",
+      "unit": "s",
+      "default": 15,
+      "description": "A loop closes to the pixel; a film in chapters has a first and a last frame. A film that speaks can last as long as its voice. Custom takes any other length.",
+      "range": {
+        "promo": [
+          3,
+          60
+        ],
+        "film": [
+          30,
+          900
+        ],
+        "tutorial": [
+          30,
+          900
+        ]
+      },
+      "units": {
+        "promo": "s",
+        "film": "min+s",
+        "tutorial": "min+s"
+      },
+      "byKind": {
+        "promo": [
+          6,
+          10,
+          15,
+          30,
+          0
+        ],
+        "film": [
+          60,
+          90,
+          180,
+          300,
+          0
+        ],
+        "release": [
+          0
+        ],
+        "tutorial": [
+          0,
+          120,
+          300,
+          600
+        ]
+      },
+      "options": [
+        {
+          "value": 0,
+          "label": "From the changes",
+          "hint": "about 6–8 s a change plus the version card"
+        },
+        {
+          "value": 6,
+          "label": "6 s"
+        },
+        {
+          "value": 10,
+          "label": "10 s"
+        },
+        {
+          "value": 15,
+          "label": "15 s"
+        },
+        {
+          "value": 30,
+          "label": "30 s"
+        },
+        {
+          "value": 60,
+          "label": "1 min"
+        },
+        {
+          "value": 90,
+          "label": "90 s"
+        },
+        {
+          "value": 120,
+          "label": "2 min"
+        },
+        {
+          "value": 180,
+          "label": "3 min"
+        },
+        {
+          "value": 300,
+          "label": "5 min"
+        },
+        {
+          "value": 600,
+          "label": "10 min"
+        }
+      ]
+    },
+    "aspects": {
+      "type": "multi",
+      "label": "Aspect",
+      "default": [
+        "16:9",
+        "1:1"
+      ],
+      "min": 1,
+      "description": "A second aspect is a second layout of the same film, never a crop.",
+      "options": [
+        {
+          "value": "16:9",
+          "label": "16:9",
+          "hint": "site, YouTube",
+          "w": 1920,
+          "h": 1080
+        },
+        {
+          "value": "1:1",
+          "label": "1:1",
+          "hint": "feeds, README",
+          "w": 1080,
+          "h": 1080
+        },
+        {
+          "value": "4:5",
+          "label": "4:5",
+          "hint": "Instagram",
+          "w": 1080,
+          "h": 1350
+        },
+        {
+          "value": "9:16",
+          "label": "9:16",
+          "hint": "Reels, Shorts, TikTok",
+          "w": 1080,
+          "h": 1920
+        }
+      ]
+    },
+    "tone": {
+      "type": "enum",
+      "label": "Tone",
+      "default": "premium",
+      "options": [
+        {
+          "value": "premium",
+          "label": "Premium",
+          "hint": "cinematic, slow camera, few words"
+        },
+        {
+          "value": "swiss",
+          "label": "Swiss",
+          "hint": "minimal, grid, typographic"
+        },
+        {
+          "value": "bold",
+          "label": "Bold",
+          "hint": "energetic, on the beat, big type"
+        }
+      ]
+    },
+    "fps": {
+      "type": "enum",
+      "label": "Frame rate",
+      "default": 60,
+      "options": [
+        {
+          "value": 30,
+          "label": "30 fps"
+        },
+        {
+          "value": 60,
+          "label": "60 fps"
+        }
+      ]
+    },
+    "resolution": {
+      "type": "enum",
+      "label": "Resolution",
+      "default": 1080,
+      "description": "Pixels on the short side.",
+      "options": [
+        {
+          "value": 720,
+          "label": "720p"
+        },
+        {
+          "value": 1080,
+          "label": "1080p"
+        },
+        {
+          "value": 1440,
+          "label": "1440p"
+        },
+        {
+          "value": 2160,
+          "label": "4K"
+        }
+      ]
+    },
+    "files": {
+      "type": "multi",
+      "label": "Files",
+      "default": [
+        "mp4"
+      ],
+      "min": 1,
+      "description": "Every file after the first is an encode of the same render, not a new one.",
+      "options": [
+        {
+          "value": "mp4",
+          "label": ".mp4",
+          "hint": "H.264, plays everywhere"
+        },
+        {
+          "value": "hevc",
+          "label": "HEVC",
+          "hint": "10-bit, half the size"
+        },
+        {
+          "value": "webm",
+          "label": ".webm",
+          "hint": "for a web page"
+        },
+        {
+          "value": "mov",
+          "label": "ProRes .mov",
+          "hint": "for an editor"
+        },
+        {
+          "value": "gif",
+          "label": ".gif",
+          "hint": "for a README"
+        }
+      ]
+    },
+    "music": {
+      "type": "enum",
+      "label": "Music",
+      "default": "none",
+      "options": [
+        {
+          "value": "none",
+          "label": "No music",
+          "hint": "silent: autoplay mutes it anyway"
+        },
+        {
+          "value": "track",
+          "label": "A track",
+          "hint": "from your music library, or a file of yours: its beat is measured"
+        },
+        {
+          "value": "generate",
+          "label": "A new one, made with Gemini",
+          "hint": "the Studio writes the prompt; Gemini makes the track in its app"
+        },
+        {
+          "value": "click",
+          "label": "Metronome",
+          "hint": "to hear the cuts land on the beat"
+        }
+      ],
+      "description": "The Studio does not make music: it plays your music library's tracks, measures yours, and writes the prompt for a new one."
+    },
+    "musicFile": {
+      "type": "string",
+      "label": "Or its path",
+      "placeholder": "~/Music/track.mp3",
+      "showIf": {
+        "music": "track"
+      }
+    },
+    "musicUnder": {
+      "type": "enum",
+      "label": "The music under the voice",
+      "default": 14,
+      "options": [
+        {
+          "value": 10,
+          "label": "Present",
+          "hint": "10 LU under: a bed you hear"
+        },
+        {
+          "value": 14,
+          "label": "Under",
+          "hint": "14 LU under: a voice-over's"
+        },
+        {
+          "value": 18,
+          "label": "Far under",
+          "hint": "18 LU under: a lesson's"
+        }
+      ]
+    },
+    "musicLift": {
+      "type": "enum",
+      "label": "Between lines",
+      "default": 6,
+      "options": [
+        {
+          "value": 6,
+          "label": "It comes up",
+          "hint": "6 dB where nobody speaks"
+        },
+        {
+          "value": 0,
+          "label": "It stays under",
+          "hint": "one level all along"
+        }
+      ]
+    },
+    "reference": {
+      "type": "string",
+      "label": "A reference to take after",
+      "placeholder": "a link or a name: Linear’s launch film, Apple’s keynote titles, stripe.com…",
+      "description": "A film, a site or a style this film should take after. Claude says what it takes from it (its pacing, its type, its cuts) before the storyboards. Left empty, Claude picks a real, named reference itself and says what it takes."
+    },
+    "notes": {
+      "type": "text",
+      "label": "Notes for Claude",
+      "placeholder": "the claim, a feature to show, a word to avoid…",
+      "description": "Whatever the choices above cannot say: the claim to make, a feature that must show, a word to avoid. Claude reads it with the brief."
+    },
+    "task": {
+      "type": "text",
+      "label": "What it teaches",
+      "placeholder": "the task, start to finish: open the app, pick a repository, write the message, commit…",
+      "showIf": {
+        "kind": "tutorial"
+      },
+      "description": "Claude writes the story from this, a sentence a step, and shows it to you before anything is drawn."
+    },
+    "voice": {
+      "type": "enum",
+      "label": "Voice-over",
+      "default": "none",
+      "options": [
+        {
+          "value": "none",
+          "label": "No voice",
+          "hint": "the pictures and the type tell it"
+        },
+        {
+          "value": "model",
+          "label": "A voice model",
+          "hint": "made on this Mac, closer to a person: US English, and Italian with Kokoro"
+        },
+        {
+          "value": "mac",
+          "label": "A macOS voice",
+          "hint": "spoken by macOS: every language it has"
+        },
+        {
+          "value": "mine",
+          "label": "My own recordings",
+          "hint": "a file a line: yours, or another synthesizer’s"
+        }
+      ],
+      "description": "A voice sets the clock: each line lasts as long as it takes to say, and the pictures follow it."
+    },
+    "voiceModel": {
+      "type": "enum",
+      "label": "Which model",
+      "default": "chatterbox",
+      "options": [
+        {
+          "value": "chatterbox",
+          "label": "Chatterbox",
+          "size": "3 GB"
+        },
+        {
+          "value": "orpheus",
+          "label": "Orpheus",
+          "size": "3.5 GB"
+        },
+        {
+          "value": "kokoro",
+          "label": "Kokoro",
+          "hint": "small and quick; no tone to set",
+          "size": "330 MB",
+          "tone": false
+        }
+      ],
+      "description": "Free, local, offline once downloaded: 330 MB (Kokoro) to 3.5 GB (Orpheus) a model, once on each Mac (Apple Silicon). Kokoro adds about 160 MB of text packages, which only it needs."
+    },
+    "voiceSpeaker": {
+      "type": "enum",
+      "label": "The model’s voice",
+      "default": "leah",
+      "options": [
+        {
+          "value": "leah",
+          "label": "Leah"
+        },
+        {
+          "value": "tara",
+          "label": "Tara"
+        },
+        {
+          "value": "jess",
+          "label": "Jess"
+        },
+        {
+          "value": "mia",
+          "label": "Mia"
+        },
+        {
+          "value": "zoe",
+          "label": "Zoe"
+        },
+        {
+          "value": "leo",
+          "label": "Leo"
+        },
+        {
+          "value": "dan",
+          "label": "Dan"
+        },
+        {
+          "value": "zac",
+          "label": "Zac"
+        },
+        {
+          "value": "af_heart",
+          "label": "Heart"
+        },
+        {
+          "value": "af_bella",
+          "label": "Bella"
+        },
+        {
+          "value": "am_michael",
+          "label": "Michael"
+        },
+        {
+          "value": "if_sara",
+          "label": "Sara"
+        }
+      ]
+    },
+    "voiceTone": {
+      "type": "enum",
+      "label": "Tone",
+      "default": "warm",
+      "options": [
+        {
+          "value": "calm",
+          "label": "Calm",
+          "hint": "steadier, even"
+        },
+        {
+          "value": "warm",
+          "label": "Warm",
+          "hint": "the model’s own reading"
+        },
+        {
+          "value": "bright",
+          "label": "Bright",
+          "hint": "livelier: a launch"
+        }
+      ],
+      "description": "How freely the model reads a line (its sampling temperature): the same words, another reading. Hear it before choosing."
+    },
+    "voiceTempo": {
+      "type": "enum",
+      "label": "Speed",
+      "default": 1,
+      "options": [
+        {
+          "value": 0.88,
+          "label": "Slow",
+          "hint": "unhurried: a lesson"
+        },
+        {
+          "value": 0.94,
+          "label": "Relaxed"
+        },
+        {
+          "value": 1,
+          "label": "Normal",
+          "hint": "the model’s own pace"
+        },
+        {
+          "value": 1.08,
+          "label": "Brisk",
+          "hint": "a recap"
+        }
+      ],
+      "description": "Stretched with the pitch kept: past these it stops sounding like the same person."
+    },
+    "voiceHuman": {
+      "type": "enum",
+      "label": "Human touch",
+      "default": "natural",
+      "options": [
+        {
+          "value": "clean",
+          "label": "Clean read",
+          "hint": "one pace, even pauses"
+        },
+        {
+          "value": "natural",
+          "label": "Natural",
+          "hint": "pace and pauses vary a little, as a person’s do"
+        },
+        {
+          "value": "expressive",
+          "label": "Expressive",
+          "hint": "and a chuckle or a sigh where a line calls for one"
+        }
+      ],
+      "description": "Natural varies each line’s pace by up to 3 % and each pause by up to a fifth, the same on every run. Expressive lets Claude write a sound into a line ([chuckle], [sigh]): the model makes it, the subtitles leave it out."
+    },
+    "voiceName": {
+      "type": "voice",
+      "label": "Which voice",
+      "where": "System Settings › Accessibility › Read & Speak (Spoken Content on older macOS) › System voice › Manage Voices…"
+    },
+    "voiceRate": {
+      "type": "enum",
+      "label": "Speed",
+      "default": 175,
+      "options": [
+        {
+          "value": 130,
+          "label": "Calm",
+          "hint": "unhurried: a lesson"
+        },
+        {
+          "value": 175,
+          "label": "Natural",
+          "hint": "the voice’s own pace"
+        },
+        {
+          "value": 195,
+          "label": "Brisk",
+          "hint": "a recap"
+        }
+      ]
+    },
+    "voiceScript": {
+      "type": "text",
+      "label": "What it says",
+      "placeholder": "the lines, one a line — or leave it empty: Claude writes them from the product and shows them to you first",
+      "description": "A promo says few words: a line a scene, eight to fourteen words each."
+    },
+    "captions": {
+      "type": "enum",
+      "label": "Subtitles",
+      "default": "both",
+      "options": [
+        {
+          "value": "both",
+          "label": "In the film and as a file",
+          "hint": "on the frame, and .srt + .vtt beside it"
+        },
+        {
+          "value": "burned",
+          "label": "In the film only",
+          "hint": "always on, wherever it plays"
+        },
+        {
+          "value": "file",
+          "label": "As a file only",
+          "hint": ".srt + .vtt: the player turns them on"
+        },
+        {
+          "value": "none",
+          "label": "No subtitles"
+        }
+      ],
+      "description": "Made from the same sentences the voice says, timed on it."
+    }
+  },
+  "recipes": [
+    {
+      "id": "loop",
+      "label": "Promo loop",
+      "about": "A 15 s loop for the site and social: the product's real UI, a cursor, its own headlines.",
+      "preview": {
+        "page": "template/promo.html",
+        "from": 0,
+        "to": 8
+      },
+      "set": {
+        "kind": "promo",
+        "duration": 15,
+        "aspects": [
+          "16:9",
+          "1:1"
+        ],
+        "formats": [],
+        "files": [
+          "mp4"
+        ],
+        "tone": "premium"
+      }
+    },
+    {
+      "id": "teaser",
+      "label": "Social teaser",
+      "about": "Vertical, 10 s, the site's own headline as kinetic type.",
+      "preview": {
+        "page": "template/reel.html",
+        "chapter": "Intro"
+      },
+      "set": {
+        "kind": "promo",
+        "duration": 10,
+        "aspects": [
+          "9:16"
+        ],
+        "formats": [
+          "kinetic"
+        ],
+        "files": [
+          "mp4"
+        ],
+        "tone": "bold",
+        "motion": {
+          "text": "weight",
+          "transition": "push",
+          "pace": "brisk"
+        }
+      }
+    },
+    {
+      "id": "chapters",
+      "label": "Film in chapters",
+      "about": "60–90 s for YouTube: one chapter per feature, each on its own format, chapter marks in the mp4.",
+      "preview": {
+        "page": "template/reel.html",
+        "chapter": "Features"
+      },
+      "set": {
+        "kind": "film",
+        "duration": 60,
+        "aspects": [
+          "16:9"
+        ],
+        "formats": [],
+        "files": [
+          "mp4"
+        ],
+        "tone": "premium",
+        "motion": {
+          "text": "focus",
+          "transition": "iris",
+          "pace": "measured"
+        }
+      }
+    },
+    {
+      "id": "release",
+      "label": "Release film",
+      "about": "What one version changed, shown changing in place, between two version cards.",
+      "preview": {
+        "page": "release/release.html",
+        "from": 0,
+        "to": 16
+      },
+      "set": {
+        "kind": "release",
+        "duration": 0,
+        "aspects": [
+          "16:9",
+          "1:1"
+        ],
+        "formats": [
+          "whatsnew"
+        ],
+        "files": [
+          "mp4"
+        ],
+        "tone": "premium",
+        "motion": {
+          "text": "rise",
+          "transition": "window",
+          "pace": "measured"
+        }
+      }
+    },
+    {
+      "id": "readme",
+      "label": "README GIF",
+      "about": "6 s of the terminal typing the install command, 960 px wide.",
+      "preview": {
+        "page": "template/reel.html",
+        "chapter": "Command line"
+      },
+      "set": {
+        "kind": "promo",
+        "duration": 6,
+        "aspects": [
+          "16:9"
+        ],
+        "formats": [
+          "terminal"
+        ],
+        "files": [
+          "gif"
+        ],
+        "fps": 30,
+        "resolution": 720,
+        "tone": "swiss",
+        "motion": {
+          "text": "type",
+          "transition": "fade",
+          "pace": "measured"
+        }
+      }
+    },
+    {
+      "id": "tutorial",
+      "label": "Tutorial",
+      "about": "One task told from start to finish: a voice, subtitles, a chapter a step. As long as its story takes.",
+      "preview": {
+        "page": "studio/stage.html",
+        "hash": {
+          "mode": "tutorial"
+        },
+        "from": 0,
+        "to": 8
+      },
+      "set": {
+        "kind": "tutorial",
+        "duration": 0,
+        "aspects": [
+          "16:9"
+        ],
+        "formats": [
+          "tutorial"
+        ],
+        "files": [
+          "mp4"
+        ],
+        "fps": 30,
+        "tone": "swiss",
+        "voicePreset": "lesson",
+        "captions": "both",
+        "motion": {
+          "text": "rise",
+          "transition": "fade",
+          "pace": "calm"
+        }
+      }
+    },
+    {
+      "id": "custom",
+      "label": "From scratch",
+      "about": "Every choice open, the defaults in place.",
+      "preview": {
+        "page": "studio/stage.html",
+        "from": 0,
+        "to": 8
+      },
+      "set": {}
+    }
+  ],
+  "formats": [
+    {
+      "id": "morph",
+      "label": "One-object morph",
+      "about": "One shape travels through the product's surfaces and back into the mark.",
+      "fits": "an app with a strong shape language",
+      "preview": {
+        "page": "template/promo.html",
+        "from": 0,
+        "to": 8,
+        "thumb": 4.0
+      }
+    },
+    {
+      "id": "kinetic",
+      "label": "Kinetic type",
+      "about": "The claim is the picture: words land on the beat, one word a window onto the product.",
+      "fits": "a launch, a teaser, a manifesto",
+      "stage": "none",
+      "preview": {
+        "page": "template/reel.html",
+        "chapter": "Intro"
+      }
+    },
+    {
+      "id": "browser",
+      "label": "Browser walkthrough",
+      "about": "The real page, clicked and scrolled, sections revealing.",
+      "fits": "a web product, a site",
+      "stage": "browser",
+      "preview": {
+        "page": "template/reel.html",
+        "chapter": "On the web"
+      }
+    },
+    {
+      "id": "bento",
+      "label": "Bento",
+      "about": "A grid of live tiles, each one proof working; the camera racks focus onto one.",
+      "fits": "a product with many small features",
+      "preview": {
+        "page": "template/reel.html",
+        "chapter": "Features"
+      }
+    },
+    {
+      "id": "terminal",
+      "label": "Terminal",
+      "about": "A command typed by a person, output streaming, a summary line.",
+      "fits": "a CLI, a developer tool",
+      "stage": "terminal",
+      "preview": {
+        "page": "template/reel.html",
+        "chapter": "Command line"
+      }
+    },
+    {
+      "id": "devices",
+      "label": "Devices in 3D",
+      "about": "The surfaces as objects: a cover-flow on a glossy floor.",
+      "fits": "cross-platform, works everywhere",
+      "preview": {
+        "page": "template/reel.html",
+        "chapter": "Everywhere"
+      }
+    },
+    {
+      "id": "zoom",
+      "label": "Zoom-through",
+      "about": "Each scene is inside a detail of the last: the camera dives through a letter.",
+      "fits": "nested products, a story of depth",
+      "preview": {
+        "page": "template/reel.html",
+        "chapter": "On the web",
+        "around": [
+          -2.6,
+          1.4
+        ]
+      }
+    },
+    {
+      "id": "beforeafter",
+      "label": "Before / after",
+      "about": "The same task twice, the old way and the new, split or wiped.",
+      "fits": "a speed-up, a redesign",
+      "preview": {
+        "page": "template/reel.html",
+        "chapter": "Everywhere",
+        "around": [
+          -1.6,
+          1.0
+        ]
+      },
+      "demo": "the wipe transition; no before/after demo yet"
+    },
+    {
+      "id": "data",
+      "label": "Data story",
+      "about": "A number that grows, a chart that draws itself: the measurement is the hero.",
+      "fits": "monitoring, analytics, a quota",
+      "preview": null
+    },
+    {
+      "id": "tutorial",
+      "label": "Tutorial",
+      "about": "One real task end to end: keycaps, clicks, captions.",
+      "fits": "onboarding, docs, a long film",
+      "preview": {
+        "page": "studio/stage.html",
+        "hash": {
+          "mode": "tutorial"
+        },
+        "from": 0,
+        "to": 8
+      },
+      "demo": "the stand-in product, told in three steps"
+    },
+    {
+      "id": "whatsnew",
+      "label": "What's new",
+      "about": "One release's delta, shown changing in place.",
+      "fits": "a release",
+      "kind": "release",
+      "preview": {
+        "page": "release/release.html",
+        "from": 0,
+        "to": 16,
+        "thumb": 6.5
+      }
+    }
+  ],
+  "frames": [
+    {
+      "id": "window",
+      "label": "Mac window",
+      "about": "The app in its own macOS window: a title bar, the three lights, a shadow on the backdrop.",
+      "fits": "a Mac app",
+      "says": "in a Mac window",
+      "stage": "window"
+    },
+    {
+      "id": "macbook",
+      "label": "MacBook",
+      "about": "A MacBook Pro seen from the front: the app's window on its desktop, under the menu bar and the notch.",
+      "fits": "a Mac app shown as hardware, a site on a laptop",
+      "says": "on a MacBook",
+      "stage": "macbook"
+    },
+    {
+      "id": "imac",
+      "label": "iMac",
+      "about": "An iMac seen from the front, on its stand: the app's window on its desktop under the menu bar, inside the white bezel and over the chin, in the Apple colour nearest yours.",
+      "fits": "a Mac app on a desktop, a site on a large screen",
+      "says": "on an iMac",
+      "stage": "imac"
+    },
+    {
+      "id": "iphone",
+      "label": "iPhone",
+      "about": "An iPhone, with the product in its own phone layout. A tap is a touch, never the macOS pointer.",
+      "fits": "an iOS app, a site at phone width",
+      "says": "on an iPhone",
+      "stage": "iphone",
+      "touch": true
+    },
+    {
+      "id": "ipad",
+      "label": "iPad",
+      "about": "An iPad Pro, the camera on its long edge: lying down where the frame is wide, upright where it is tall. A tap is a touch.",
+      "fits": "an iPadOS app, a site at tablet width",
+      "says": "on an iPad",
+      "stage": "ipad",
+      "touch": true
+    },
+    {
+      "id": "browser",
+      "label": "Browser",
+      "about": "A browser window, the address in its field, the product as the web page it is.",
+      "fits": "a web app, a site",
+      "says": "in a browser",
+      "stage": "browser"
+    },
+    {
+      "id": "terminal",
+      "label": "Terminal",
+      "about": "A terminal window: commands typed by a person, output streaming. No pointer.",
+      "fits": "a CLI, a developer tool",
+      "says": "in a terminal",
+      "stage": "terminal"
+    },
+    {
+      "id": "bare",
+      "label": "Just the UI",
+      "about": "The product's UI on its own: a floating panel with rounded corners and a shadow, no window chrome and no device round it. The product is still there: a film of words alone is the Kinetic type format.",
+      "fits": "a component, a widget, a UI that needs nothing round it",
+      "says": "as its UI alone, with no frame round it",
+      "stage": "bare"
+    }
+  ],
+  "looks": [
+    {
+      "id": "plain",
+      "tone": "light"
+    },
+    {
+      "id": "paper",
+      "tone": "light"
+    },
+    {
+      "id": "dots",
+      "tone": "light"
+    },
+    {
+      "id": "grid",
+      "tone": "light"
+    },
+    {
+      "id": "aura",
+      "tone": "light"
+    },
+    {
+      "id": "spotlight",
+      "tone": "light"
+    },
+    {
+      "id": "mesh",
+      "tone": "light"
+    },
+    {
+      "id": "silk",
+      "tone": "light"
+    },
+    {
+      "id": "sunrise",
+      "tone": "light"
+    },
+    {
+      "id": "halo",
+      "tone": "light"
+    },
+    {
+      "id": "night",
+      "tone": "dark"
+    },
+    {
+      "id": "studio",
+      "tone": "dark"
+    },
+    {
+      "id": "meshdark",
+      "tone": "dark"
+    },
+    {
+      "id": "lava",
+      "tone": "dark"
+    },
+    {
+      "id": "aurora",
+      "tone": "dark"
+    },
+    {
+      "id": "caustics",
+      "tone": "light",
+      "new": true
+    },
+    {
+      "id": "topo",
+      "tone": "light",
+      "new": true
+    },
+    {
+      "id": "halftone",
+      "tone": "light",
+      "new": true
+    },
+    {
+      "id": "clouds",
+      "tone": "light",
+      "new": true
+    },
+    {
+      "id": "lines",
+      "tone": "light",
+      "new": true
+    },
+    {
+      "id": "dunes",
+      "tone": "light",
+      "new": true
+    },
+    {
+      "id": "floor",
+      "tone": "dark",
+      "new": true
+    },
+    {
+      "id": "ember",
+      "tone": "dark",
+      "new": true
+    }
+  ],
+  "schemes": [
+    "analogous",
+    "complementary",
+    "triad",
+    "split",
+    "mono"
+  ],
+  "picture": {
+    "about": "A picture from this Mac as the backdrop: cover-fit, a soft vignette, in parallax. Use one you may publish: your own photo, or an image whose licence covers a film (a wallpaper pack is often personal use only).",
+    "blur": [
+      {
+        "value": 0,
+        "label": "Sharp"
+      },
+      {
+        "value": 10,
+        "label": "Soft"
+      },
+      {
+        "value": 28,
+        "label": "Blurred"
+      }
+    ],
+    "treatment": [
+      {
+        "value": "none",
+        "label": "As it is"
+      },
+      {
+        "value": "dim",
+        "label": "Dimmed",
+        "hint": "for light text"
+      },
+      {
+        "value": "tint",
+        "label": "Brand tint",
+        "hint": "soft-light accent"
+      },
+      {
+        "value": "duotone",
+        "label": "Duotone",
+        "hint": "deep → pale"
+      }
+    ],
+    "drift": {
+      "label": "Ken Burns",
+      "hint": "a slow push and pan, still at the loop point"
+    }
+  },
+  "typesets": [
+    {
+      "id": "system",
+      "label": "SF",
+      "about": "The Mac's own face: native, neutral, nothing to load.",
+      "tone": "swiss",
+      "display": {
+        "family": "system-ui",
+        "source": "system",
+        "weight": 700
+      },
+      "text": {
+        "family": "system-ui",
+        "source": "system",
+        "weight": 500
+      },
+      "mono": {
+        "family": "ui-monospace",
+        "source": "system",
+        "weight": 500
+      }
+    },
+    {
+      "id": "geist",
+      "label": "Geist",
+      "about": "Swiss and technical: Vercel's grotesque and its mono.",
+      "tone": "swiss",
+      "display": {
+        "family": "Geist",
+        "source": "kit",
+        "weight": 650
+      },
+      "text": {
+        "family": "Geist",
+        "source": "kit",
+        "weight": 450
+      },
+      "mono": {
+        "family": "Geist Mono",
+        "source": "kit",
+        "weight": 500
+      }
+    },
+    {
+      "id": "inter",
+      "label": "Inter Tight",
+      "about": "Neutral and precise; tight for headlines, Inter to read.",
+      "tone": "swiss",
+      "display": {
+        "family": "Inter Tight",
+        "source": "kit",
+        "weight": 700
+      },
+      "text": {
+        "family": "Inter",
+        "source": "kit",
+        "weight": 450
+      },
+      "mono": {
+        "family": "JetBrains Mono",
+        "source": "kit",
+        "weight": 500
+      }
+    },
+    {
+      "id": "familjen",
+      "label": "Familjen Grotesk",
+      "about": "A Scandinavian grotesque with a little character.",
+      "tone": "swiss",
+      "display": {
+        "family": "Familjen Grotesk",
+        "source": "kit",
+        "weight": 650
+      },
+      "text": {
+        "family": "Inter",
+        "source": "kit",
+        "weight": 450
+      },
+      "mono": {
+        "family": "JetBrains Mono",
+        "source": "kit",
+        "weight": 500
+      }
+    },
+    {
+      "id": "space",
+      "label": "Space Grotesk",
+      "about": "Geometric and a little odd: developer tools.",
+      "tone": "swiss",
+      "display": {
+        "family": "Space Grotesk",
+        "source": "kit",
+        "weight": 650
+      },
+      "text": {
+        "family": "Space Grotesk",
+        "source": "kit",
+        "weight": 450
+      },
+      "mono": {
+        "family": "Space Mono",
+        "source": "kit",
+        "weight": 400
+      }
+    },
+    {
+      "id": "fraunces",
+      "label": "Fraunces",
+      "about": "A warm, soft serif with optical sizes: premium, human.",
+      "tone": "premium",
+      "display": {
+        "family": "Fraunces",
+        "source": "kit",
+        "weight": 600
+      },
+      "text": {
+        "family": "Inter",
+        "source": "kit",
+        "weight": 450
+      },
+      "mono": {
+        "family": "JetBrains Mono",
+        "source": "kit",
+        "weight": 500
+      }
+    },
+    {
+      "id": "instrument",
+      "label": "Instrument Serif",
+      "about": "Editorial, quiet luxury; one weight, and an italic.",
+      "tone": "premium",
+      "display": {
+        "family": "Instrument Serif",
+        "source": "kit",
+        "weight": 400
+      },
+      "text": {
+        "family": "Instrument Sans",
+        "source": "kit",
+        "weight": 450
+      },
+      "mono": {
+        "family": "Geist Mono",
+        "source": "kit",
+        "weight": 500
+      }
+    },
+    {
+      "id": "bodoni",
+      "label": "Bodoni Moda",
+      "about": "Fashion contrast: cinematic, for a few big words.",
+      "tone": "premium",
+      "display": {
+        "family": "Bodoni Moda",
+        "source": "kit",
+        "weight": 600
+      },
+      "text": {
+        "family": "Manrope",
+        "source": "kit",
+        "weight": 450
+      },
+      "mono": {
+        "family": "Geist Mono",
+        "source": "kit",
+        "weight": 500
+      }
+    },
+    {
+      "id": "newsreader",
+      "label": "Newsreader",
+      "about": "A calm, literary serif for a story told slowly.",
+      "tone": "premium",
+      "display": {
+        "family": "Newsreader",
+        "source": "kit",
+        "weight": 500
+      },
+      "text": {
+        "family": "Inter",
+        "source": "kit",
+        "weight": 450
+      },
+      "mono": {
+        "family": "JetBrains Mono",
+        "source": "kit",
+        "weight": 500
+      }
+    },
+    {
+      "id": "young",
+      "label": "Young Serif",
+      "about": "A friendly, chunky serif: warm and approachable.",
+      "tone": "premium",
+      "display": {
+        "family": "Young Serif",
+        "source": "kit",
+        "weight": 400
+      },
+      "text": {
+        "family": "Manrope",
+        "source": "kit",
+        "weight": 450
+      },
+      "mono": {
+        "family": "Geist Mono",
+        "source": "kit",
+        "weight": 500
+      }
+    },
+    {
+      "id": "bricolage",
+      "label": "Bricolage Grotesque",
+      "about": "Characterful and bold, a little quirky: a launch.",
+      "tone": "bold",
+      "display": {
+        "family": "Bricolage Grotesque",
+        "source": "kit",
+        "weight": 700
+      },
+      "text": {
+        "family": "Bricolage Grotesque",
+        "source": "kit",
+        "weight": 450
+      },
+      "mono": {
+        "family": "Geist Mono",
+        "source": "kit",
+        "weight": 500
+      }
+    },
+    {
+      "id": "syne",
+      "label": "Syne",
+      "about": "Art-school bold, wide at its heaviest.",
+      "tone": "bold",
+      "display": {
+        "family": "Syne",
+        "source": "kit",
+        "weight": 700
+      },
+      "text": {
+        "family": "Manrope",
+        "source": "kit",
+        "weight": 450
+      },
+      "mono": {
+        "family": "Space Mono",
+        "source": "kit",
+        "weight": 400
+      }
+    },
+    {
+      "id": "archivo",
+      "label": "Archivo",
+      "about": "A poster grotesque with a width axis: kinetic type.",
+      "tone": "bold",
+      "display": {
+        "family": "Archivo",
+        "source": "kit",
+        "weight": 800
+      },
+      "text": {
+        "family": "Archivo",
+        "source": "kit",
+        "weight": 420
+      },
+      "mono": {
+        "family": "JetBrains Mono",
+        "source": "kit",
+        "weight": 500
+      }
+    },
+    {
+      "id": "unbounded",
+      "label": "Unbounded",
+      "about": "Wide and rounded: playful, confident.",
+      "tone": "bold",
+      "display": {
+        "family": "Unbounded",
+        "source": "kit",
+        "weight": 700
+      },
+      "text": {
+        "family": "Manrope",
+        "source": "kit",
+        "weight": 450
+      },
+      "mono": {
+        "family": "Geist Mono",
+        "source": "kit",
+        "weight": 500
+      }
+    },
+    {
+      "id": "bigshoulders",
+      "label": "Big Shoulders",
+      "about": "Condensed, a stadium poster: loud and tall.",
+      "tone": "bold",
+      "display": {
+        "family": "Big Shoulders Display",
+        "source": "kit",
+        "weight": 800
+      },
+      "text": {
+        "family": "Inter",
+        "source": "kit",
+        "weight": 450
+      },
+      "mono": {
+        "family": "JetBrains Mono",
+        "source": "kit",
+        "weight": 500
+      }
+    }
+  ],
+  "motion": {
+    "text": [
+      {
+        "id": "rise",
+        "label": "Rise",
+        "fits": "the classic: any film"
+      },
+      {
+        "id": "focus",
+        "label": "Focus",
+        "fits": "premium, calm"
+      },
+      {
+        "id": "settle",
+        "label": "Settle",
+        "fits": "premium: dropped in from the camera"
+      },
+      {
+        "id": "track",
+        "label": "Track",
+        "fits": "a title, cinematic"
+      },
+      {
+        "id": "wipe",
+        "label": "Wipe",
+        "fits": "editorial, calm"
+      },
+      {
+        "id": "cascade",
+        "label": "Cascade",
+        "fits": "playful, letter by letter"
+      },
+      {
+        "id": "weight",
+        "label": "Weight",
+        "fits": "a launch, kinetic type (a variable family)"
+      },
+      {
+        "id": "split",
+        "label": "Split",
+        "fits": "bold, energetic"
+      },
+      {
+        "id": "flap",
+        "label": "Flap",
+        "fits": "a launch, a countdown, a departure board"
+      },
+      {
+        "id": "type",
+        "label": "Typed",
+        "fits": "developer tools, a CLI"
+      },
+      {
+        "id": "swap",
+        "label": "Swap",
+        "fits": "one line, many audiences"
+      },
+      {
+        "id": "odometer",
+        "label": "Odometer",
+        "fits": "a number that matters"
+      },
+      {
+        "id": "decode",
+        "label": "Decode",
+        "fits": "developer tools, AI, data: a line resolving out of noise",
+        "new": true
+      }
+    ],
+    "emphasis": [
+      {
+        "value": null,
+        "label": "None"
+      },
+      {
+        "value": "highlight",
+        "label": "Highlight"
+      },
+      {
+        "value": "underline",
+        "label": "Underline"
+      },
+      {
+        "value": "color",
+        "label": "Colour"
+      }
+    ],
+    "transitions": [
+      {
+        "id": "fade",
+        "label": "Fade",
+        "fits": "quiet, anywhere",
+        "family": "quiet"
+      },
+      {
+        "id": "dip",
+        "label": "Dip",
+        "fits": "a pause between chapters",
+        "family": "quiet"
+      },
+      {
+        "id": "blur",
+        "label": "Focus pull",
+        "fits": "premium, soft",
+        "family": "quiet"
+      },
+      {
+        "id": "wipe",
+        "label": "Wipe",
+        "fits": "before / after",
+        "family": "quiet"
+      },
+      {
+        "id": "push",
+        "label": "Push",
+        "fits": "siblings: the next screen",
+        "family": "move"
+      },
+      {
+        "id": "cover",
+        "label": "Cover",
+        "fits": "a sheet arriving",
+        "family": "move"
+      },
+      {
+        "id": "split",
+        "label": "Split",
+        "fits": "doors opening onto the next",
+        "family": "move"
+      },
+      {
+        "id": "stripes",
+        "label": "Stripes",
+        "fits": "Swiss, energetic",
+        "family": "move"
+      },
+      {
+        "id": "snap",
+        "label": "Snap",
+        "fits": "a cut on the move: fast, on the beat",
+        "family": "move",
+        "new": true
+      },
+      {
+        "id": "whip",
+        "label": "Whip pan",
+        "fits": "energy between siblings, a montage",
+        "family": "move",
+        "new": true,
+        "gl": true
+      },
+      {
+        "id": "zoom",
+        "label": "Zoom",
+        "fits": "into a detail",
+        "family": "depth"
+      },
+      {
+        "id": "window",
+        "label": "Window",
+        "fits": "an app opening, a card becoming a page",
+        "family": "depth"
+      },
+      {
+        "id": "zoomblur",
+        "label": "Dive",
+        "fits": "going deeper, at speed",
+        "family": "depth",
+        "new": true,
+        "gl": true
+      },
+      {
+        "id": "flip",
+        "label": "Flip",
+        "fits": "the other side: before and after, light and dark",
+        "family": "depth",
+        "new": true,
+        "gl": true
+      },
+      {
+        "id": "cube",
+        "label": "Cube",
+        "fits": "the next face: platforms, plans, chapters",
+        "family": "depth",
+        "new": true,
+        "gl": true
+      },
+      {
+        "id": "page",
+        "label": "Page curl",
+        "fits": "editorial, docs, the next page",
+        "family": "depth",
+        "new": true,
+        "gl": true
+      },
+      {
+        "id": "iris",
+        "label": "Iris",
+        "fits": "from where the cursor clicked",
+        "family": "reveal"
+      },
+      {
+        "id": "shape",
+        "label": "Shape",
+        "fits": "through the product's own mark",
+        "family": "reveal"
+      },
+      {
+        "id": "frost",
+        "label": "Frost",
+        "fits": "a pane of glass sliding past",
+        "family": "reveal"
+      },
+      {
+        "id": "sweep",
+        "label": "Sweep",
+        "fits": "a crisp line in the accent",
+        "family": "reveal"
+      },
+      {
+        "id": "tiles",
+        "label": "Tiles",
+        "fits": "a wall turning over from the click",
+        "family": "reveal",
+        "new": true
+      },
+      {
+        "id": "ripple",
+        "label": "Ripple",
+        "fits": "a click that spreads like water",
+        "family": "reveal",
+        "new": true,
+        "gl": true
+      },
+      {
+        "id": "halftone",
+        "label": "Halftone",
+        "fits": "print, editorial: dots in the accent",
+        "family": "reveal",
+        "new": true,
+        "gl": true
+      },
+      {
+        "id": "liquid",
+        "label": "Liquid",
+        "fits": "organic, premium: one scene melts into the next",
+        "family": "reveal",
+        "new": true,
+        "gl": true
+      }
+    ],
+    "families": [
+      {
+        "value": "quiet",
+        "label": "Quiet",
+        "hint": "the cut is not the point"
+      },
+      {
+        "value": "move",
+        "label": "Move",
+        "hint": "the frame travels"
+      },
+      {
+        "value": "depth",
+        "label": "Depth",
+        "hint": "toward the camera, or a surface turning"
+      },
+      {
+        "value": "reveal",
+        "label": "Reveal",
+        "hint": "the next scene through a shape"
+      }
+    ],
+    "pace": [
+      {
+        "value": "calm",
+        "label": "Calm",
+        "factor": 0.8,
+        "hint": "slower springs, more air"
+      },
+      {
+        "value": "measured",
+        "label": "Measured",
+        "factor": 1,
+        "hint": "the default"
+      },
+      {
+        "value": "brisk",
+        "label": "Brisk",
+        "factor": 1.25,
+        "hint": "quicker, on the beat"
+      }
+    ],
+    "shutter": [
+      {
+        "value": 360,
+        "label": "Smooth",
+        "hint": "the whole frame: the default"
+      },
+      {
+        "value": 270,
+        "label": "Natural",
+        "hint": "three quarters: a touch crisper"
+      },
+      {
+        "value": 180,
+        "label": "Cinema",
+        "hint": "a film camera's half: crisp, with cadence"
+      }
+    ]
+  },
+  "voices": [
+    {
+      "model": "chatterbox",
+      "speaker": null,
+      "label": "Chatterbox",
+      "about": "Even and calm: a lesson’s voice.",
+      "chosen": true
+    },
+    {
+      "model": "orpheus",
+      "speaker": "leah",
+      "label": "Leah",
+      "about": "Warm, more inflection: a promo’s voice.",
+      "chosen": true
+    },
+    {
+      "model": "orpheus",
+      "speaker": "tara",
+      "label": "Tara",
+      "about": "Conversational; her takes vary in length."
+    },
+    {
+      "model": "orpheus",
+      "speaker": "jess",
+      "label": "Jess",
+      "about": "A woman’s voice."
+    },
+    {
+      "model": "orpheus",
+      "speaker": "mia",
+      "label": "Mia",
+      "about": "A woman’s voice."
+    },
+    {
+      "model": "orpheus",
+      "speaker": "zoe",
+      "label": "Zoe",
+      "about": "A woman’s voice."
+    },
+    {
+      "model": "orpheus",
+      "speaker": "leo",
+      "label": "Leo",
+      "about": "A man’s voice."
+    },
+    {
+      "model": "orpheus",
+      "speaker": "dan",
+      "label": "Dan",
+      "about": "A man’s voice."
+    },
+    {
+      "model": "orpheus",
+      "speaker": "zac",
+      "label": "Zac",
+      "about": "A man’s voice."
+    },
+    {
+      "model": "kokoro",
+      "speaker": "af_heart",
+      "label": "Heart",
+      "about": "A woman’s voice, American English: Kokoro’s default voice, small and quick.",
+      "lang": "en-US"
+    },
+    {
+      "model": "kokoro",
+      "speaker": "af_bella",
+      "label": "Bella",
+      "about": "A woman’s voice, American English.",
+      "lang": "en-US"
+    },
+    {
+      "model": "kokoro",
+      "speaker": "am_michael",
+      "label": "Michael",
+      "about": "A man’s voice, American English.",
+      "lang": "en-US"
+    },
+    {
+      "model": "kokoro",
+      "speaker": "if_sara",
+      "label": "Sara",
+      "about": "A woman’s voice, in Italian: the one heard in another language.",
+      "lang": "it-IT",
+      "sample": "Ecco {product}. Tutto quello che ti serve, a un clic di distanza, e niente di superfluo."
+    }
+  ],
+  "voicePresets": [
+    {
+      "id": "promo",
+      "label": "Promo",
+      "about": "Warm, more inflection, at the model’s own pace: a promo’s voice.",
+      "set": { "voice": "model", "voiceModel": "orpheus", "voiceSpeaker": "leah", "voiceTone": "warm", "voiceTempo": 1, "voiceHuman": "natural" }
+    },
+    {
+      "id": "launch",
+      "label": "Launch",
+      "about": "Livelier, quick to the point: a launch, a teaser.",
+      "set": { "voice": "model", "voiceModel": "orpheus", "voiceSpeaker": "leah", "voiceTone": "bright", "voiceTempo": 1, "voiceHuman": "natural" }
+    },
+    {
+      "id": "narrator",
+      "label": "Narrator",
+      "about": "A man’s voice, unhurried: a film in chapters, a story told.",
+      "set": { "voice": "model", "voiceModel": "orpheus", "voiceSpeaker": "leo", "voiceTone": "warm", "voiceTempo": 0.94, "voiceHuman": "natural" }
+    },
+    {
+      "id": "conversation",
+      "label": "Conversational",
+      "about": "A person talking: a chuckle or a sigh where a line calls for one.",
+      "set": { "voice": "model", "voiceModel": "orpheus", "voiceSpeaker": "tara", "voiceTone": "warm", "voiceTempo": 1, "voiceHuman": "expressive" }
+    },
+    {
+      "id": "recap",
+      "label": "Recap",
+      "about": "Brisk and bright: what a release changed.",
+      "set": { "voice": "model", "voiceModel": "orpheus", "voiceSpeaker": "dan", "voiceTone": "bright", "voiceTempo": 1.08, "voiceHuman": "natural" }
+    },
+    {
+      "id": "lesson",
+      "label": "Lesson",
+      "about": "Even and calm, slow enough to follow along: a tutorial’s voice.",
+      "set": { "voice": "model", "voiceModel": "chatterbox", "voiceTone": "warm", "voiceTempo": 0.88, "voiceHuman": "clean" }
+    }
+  ],
+  "sampleLine": "Meet {product}. Everything you need, one click away, and nothing you don’t."
+}

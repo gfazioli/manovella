@@ -1,0 +1,20 @@
+{
+  "name": "manovella",
+  "owner": {
+    "name": "Giovambattista Fazioli"
+  },
+  "metadata": {
+    "description": "Manovella: product promo and release films written as code, and the Studio that briefs them."
+  },
+  "plugins": [
+    {
+      "name": "manovella",
+      "description": "Product promo and release films written as code: one canvas whose every frame is a pure seek(t), captured in headless Chrome with real motion blur and loops exact to the pixel; the product's UI rebuilt as vector; release films built from a tag; and the Studio, a window where recipe, format, look and sound are chosen on live previews.",
+      "version": "1.18.0",
+      "author": {
+        "name": "Giovambattista Fazioli"
+      },
+      "source": "./plugins/manovella"
+    }
+  ]
+}
