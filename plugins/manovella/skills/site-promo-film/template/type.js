@@ -31,7 +31,7 @@
  *   minWeight: 120                        weight: where the swell starts (a variable family)
  *   tiles: true                           flap: the letters on tiles, a split across each
  *   ui: true                              text inside the product's UI (a counter), not a headline:
- *                                         layoutcheck.mjs holds it to the UI's rule, not the phone minimum
+ *                                         layoutcheck.mjs skips the phone minimum; its size is checked by eye
  * }
  *
  * Rules the styles keep, from the films (site-promo-film §3, §5):
