@@ -8,7 +8,7 @@
 //     in a 1920-wide film, 25 px in a 1080-wide vertical one (the height it is drawn at, through its
 //     transform; not judged before it begins, while it leaves, when its style may draw it invisible,
 //     nor at alpha 0). Text inside the product's UI drawn with TYPE.draw (a counter) takes `ui: true`
-//     in its spec and keeps the UI rule instead (SKILL §5). Captions and the parts' labels are drawn
+//     in its spec: no phone minimum, its size stays a check by eye (SKILL §5's UI rule). Captions and the parts' labels are drawn
 //     outside TYPE.draw: not checked;
 //   - contrast: each colour its words are drawn in at that moment (the ink; the accent for swap's
 //     slot and for a 'color' emphasis once it has begun), laid over the median of a 6 px ring round
