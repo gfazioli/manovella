@@ -767,6 +767,7 @@ the viewer will not see. Run `node layoutcheck.mjs <page>` too. Fix and re-rende
 sheet with one line per scene — and the looks sheet (§4) while the look is still
 open — and **wait for a go** before the full render. Review material stays in the work
 folder, already in `~/Downloads`: end with its `open` command, never a copy in the delivery.
+Scratch files too (a probe's output, a list, a test still): in the work folder, never in `/tmp`.
 
 ## 7 — Render and verify
 
