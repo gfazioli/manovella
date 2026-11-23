@@ -6,7 +6,7 @@
 //   - overlap: no two headlines' blocks crossing by more than 2 px;
 //   - size: at least 9 pt on a phone that shows the film 390 pt wide, where most people watch it: 45 px
 //     in a 1920-wide film, 25 px in a 1080-wide vertical one (the height it is drawn at, through its
-//     transform; judged at rest, between its arrival and its leaving, and never drawn invisible).
+//     transform; not judged while it leaves, when its style may draw it invisible, nor at alpha 0).
 //     Captions and the parts' labels are drawn outside TYPE.draw: not checked;
 //   - contrast: each colour its words are drawn in at that moment (the ink; the accent for swap's
 //     slot and for a 'color' emphasis once it has begun), laid over the median of a 6 px ring round
@@ -63,7 +63,7 @@ try {
           window.__heads.push({ canvas: g.canvas, lines: spec.lines, style, alpha: g.globalAlpha, tiles: style === 'flap' && spec.tiles !== false,
             inks: inks.map(([k, c]) => [k, Array.isArray(c) ? `rgb(${c.join(',')})` : c]), px: spec.size * Math.hypot(m.a, m.b),
             tall: spec.size * Math.abs(m.a * m.d - m.b * m.c) / Math.hypot(m.a, m.b), // across the baseline
-            resting: t >= TYPE.settled(spec) && (spec.out == null || t < spec.out), // arrived, not leaving
+            leaving: spec.out != null && t >= spec.out, // its style may draw it invisible then
             box: [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)] });
         }
         return draw(g, t, spec);
@@ -106,7 +106,7 @@ try {
           const w = Math.min(x1, q.box[2]) - Math.max(x0, q.box[0]), h = Math.min(y1, q.box[3]) - Math.max(y0, q.box[1]);
           if (w > L.overlap && h > L.overlap) out.fails.push(`overlaps "${q.lines.join(' ')}" by ${Math.round(w)} x ${Math.round(h)} px`);
         }
-        out.sized = r.alpha > 0.02 && r.resting;
+        out.sized = r.alpha > 0.02 && !r.leaving;
         if (out.sized && r.tall < least) out.fails.push(`${(r.tall * L.phone / W).toFixed(1)} pt on a phone, under ${L.minPt} (${Math.ceil(least)} px here)`);
         if (r.alpha < 0.98) { out.notes.push(`drawn at ${Math.round(r.alpha * 100)} % (a scene fading): contrast not judged`); return out; }
         const ring = []; // [luminance, index] of each pixel round the block
@@ -147,7 +147,7 @@ try {
       const head = `"${r.text.length > 40 ? r.text.slice(0, 39) + '…' : r.text}" ${r.style} ${Math.round(r.px)} px`;
       const tag = r.fails.length ? 'FAIL' : r.notes.length ? '--  ' : 'ok  ';
       const what = [...r.fails, ...r.notes];
-      console.log(`  ${tag} ${head.padEnd(58)} ${what.length ? what.join('; ') : `contrast ${r.contrast.toFixed(1)}:1, inside, alone, ${r.sized ? 'big enough' : 'size not judged (arriving or leaving)'}`}`);
+      console.log(`  ${tag} ${head.padEnd(58)} ${what.length ? what.join('; ') : `contrast ${r.contrast.toFixed(1)}:1, inside, alone, ${r.sized ? 'big enough' : 'size not judged (leaving)'}`}`);
     }
   }
   if (!seen) { console.log(`no headline drawn by TYPE.draw at ${points.length} moments: nothing to check`); code = 2; }
