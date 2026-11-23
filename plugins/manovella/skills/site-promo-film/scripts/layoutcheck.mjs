@@ -1,8 +1,12 @@
-// Is every headline in the frame, clear of the others, and readable on what is behind it? At each
-// moment worth a still (the page's PROMO_META.checkpoints: each scene settled, each cut half way; or
-// 8 even times), every headline TYPE.draw draws is checked as the block it covers (TYPE.extent):
+// Is every headline in the frame, clear of the others, big enough for a phone, and readable on what is
+// behind it? At each moment worth a still (the page's PROMO_META.checkpoints: each scene settled, each
+// cut half way; or 8 even times), every headline TYPE.draw draws is checked as the block it covers
+// (TYPE.extent):
 //   - the safe area: inside the frame less 5 % of the short side on every edge;
 //   - overlap: no two headlines' blocks crossing by more than 2 px;
+//   - size: at least 9 pt on a phone that shows the film 390 pt wide, where most people watch it: 44 px
+//     in a 1920-wide film, 25 px in a 1080-wide vertical one (the size it is drawn at, through its
+//     transform). Captions and the parts' labels are drawn outside TYPE.draw: not checked;
 //   - contrast: each colour its words are drawn in at that moment (the ink; the accent for swap's
 //     slot and for a 'color' emphasis once it has begun), laid over the median of a 6 px ring round
 //     its block in that frame (a translucent ink is as readable as what it makes there), by WCAG's
@@ -29,7 +33,7 @@ import { chromium } from 'playwright-core';
 import { resolve } from 'node:path';
 
 const [file, hash = ''] = (process.argv[2] || 'promo.html').split('#');
-const LIMITS = { safe: 0.05, overlap: 2, ring: 6, large: 24, minLarge: 3, min: 4.5 };
+const LIMITS = { safe: 0.05, overlap: 2, phone: 390, minPt: 9, ring: 6, large: 24, minLarge: 3, min: 4.5 };
 const browser = await chromium.launch({ channel: 'chrome' });
 let code = 0;
 try {
@@ -88,7 +92,7 @@ try {
         const k = JSON.stringify([r.lines, r.canvas === frame, r.box.map(Math.round)]);
         return !keys.has(k) && keys.add(k);
       });
-      const onFrame = all.filter((r) => r.canvas === frame), m = L.safe * Math.min(W, H);
+      const onFrame = all.filter((r) => r.canvas === frame), m = L.safe * Math.min(W, H), least = L.minPt * W / L.phone;
       return all.map((r) => {
         const out = { text: r.lines.join(' '), style: r.style, px: r.px, fails: [], notes: [] };
         if (r.canvas !== frame) { out.notes.push('drawn into a buffer (a transition): not judged'); return out; }
@@ -99,6 +103,7 @@ try {
           const w = Math.min(x1, q.box[2]) - Math.max(x0, q.box[0]), h = Math.min(y1, q.box[3]) - Math.max(y0, q.box[1]);
           if (w > L.overlap && h > L.overlap) out.fails.push(`overlaps "${q.lines.join(' ')}" by ${Math.round(w)} x ${Math.round(h)} px`);
         }
+        if (r.px < least) out.fails.push(`${(r.px * L.phone / W).toFixed(1)} pt on a phone, under ${L.minPt} (${Math.round(least)} px here)`);
         if (r.alpha < 0.98) { out.notes.push(`drawn at ${Math.round(r.alpha * 100)} % (a scene fading): contrast not judged`); return out; }
         const ring = []; // [luminance, index] of each pixel round the block
         let onOther = 0;
@@ -138,13 +143,13 @@ try {
       const head = `"${r.text.length > 40 ? r.text.slice(0, 39) + '…' : r.text}" ${r.style} ${Math.round(r.px)} px`;
       const tag = r.fails.length ? 'FAIL' : r.notes.length ? '--  ' : 'ok  ';
       const what = [...r.fails, ...r.notes];
-      console.log(`  ${tag} ${head.padEnd(58)} ${what.length ? what.join('; ') : `contrast ${r.contrast.toFixed(1)}:1, inside, alone`}`);
+      console.log(`  ${tag} ${head.padEnd(58)} ${what.length ? what.join('; ') : `contrast ${r.contrast.toFixed(1)}:1, inside, alone, big enough`}`);
     }
   }
   if (!seen) { console.log(`no headline drawn by TYPE.draw at ${points.length} moments: nothing to check`); code = 2; }
   else if (!code && !judged) { console.log(`${seen} headlines at ${points.length} moments, none of them judged (each above says why): nothing checked`); code = 2; }
-  else console.log(code ? 'a headline fails: move it inside the safe area, apart from the others, or onto a backdrop it reads on (the stills show where)'
-    : `${seen} headlines at ${points.length} moments, ${judged} judged: all inside the safe area, apart and readable`);
+  else console.log(code ? 'a headline fails: move it inside the safe area, apart from the others, onto a backdrop it reads on, or make it bigger (the stills show where)'
+    : `${seen} headlines at ${points.length} moments, ${judged} judged: all inside the safe area, apart, big enough and readable`);
 } catch (e) { // a page that could not be checked is never a pass
   console.log(`layoutcheck: ${e.message.split('\n')[0]}`);
   code = 2;
