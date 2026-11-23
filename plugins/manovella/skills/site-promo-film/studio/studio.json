@@ -1,7 +1,7 @@
 {
   "name": "Manovella",
   "id": "manovella",
-  "version": "1.18.0",
+  "version": "1.18.1",
   "ping": "/api/ping",
   "hint": "Manovella opens from Claude Code: /manovella:studio.",
   "width": 1480,
