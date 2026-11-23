@@ -547,7 +547,8 @@ tone, its speed and how human it sounds are the user's choice. It is told as a t
   stays readable at that zoom (≥ ~14 px at 1080p).
 - **Every headline and tagline reads on a phone**, where most people watch: at least 9 pt
   on a screen 390 pt wide, `9 × width / 390` px (45 px in a 1920-wide film, 25 px in a
-  1080-wide vertical one), and a title well above that. A title card on a big backdrop looks fine in a
+  1080-wide vertical one), and a title well above that. Text inside the product drawn with
+  `TYPE.draw` (a counter in a dashboard) takes `ui: true` and keeps the UI rule above. A title card on a big backdrop looks fine in a
   still at full size and shrinks to a line on a phone: `layoutcheck.mjs` fails a smaller one.
 - **Camera language varies with the format**: locked off while the UI moves (a terminal),
   a slow push (type), a rack focus (a grid), a dive (zoom-through), an orbit or a
