@@ -4,9 +4,10 @@
 // (TYPE.extent):
 //   - the safe area: inside the frame less 5 % of the short side on every edge;
 //   - overlap: no two headlines' blocks crossing by more than 2 px;
-//   - size: at least 9 pt on a phone that shows the film 390 pt wide, where most people watch it: 44 px
-//     in a 1920-wide film, 25 px in a 1080-wide vertical one (the size it is drawn at, through its
-//     transform). Captions and the parts' labels are drawn outside TYPE.draw: not checked;
+//   - size: at least 9 pt on a phone that shows the film 390 pt wide, where most people watch it: 45 px
+//     in a 1920-wide film, 25 px in a 1080-wide vertical one (the height it is drawn at, through its
+//     transform; a headline drawn invisible is not judged). Captions and the parts' labels are drawn
+//     outside TYPE.draw: not checked;
 //   - contrast: each colour its words are drawn in at that moment (the ink; the accent for swap's
 //     slot and for a 'color' emphasis once it has begun), laid over the median of a 6 px ring round
 //     its block in that frame (a translucent ink is as readable as what it makes there), by WCAG's
@@ -61,6 +62,7 @@ try {
           const inks = [...(inkless ? [] : [['its ink', ink]]), ...(slot || marked ? [['its accent', spec.accent ?? ink]] : [])];
           window.__heads.push({ canvas: g.canvas, lines: spec.lines, style, alpha: g.globalAlpha, tiles: style === 'flap' && spec.tiles !== false,
             inks: inks.map(([k, c]) => [k, Array.isArray(c) ? `rgb(${c.join(',')})` : c]), px: spec.size * Math.hypot(m.a, m.b),
+            tall: spec.size * Math.abs(m.a * m.d - m.b * m.c) / Math.hypot(m.a, m.b), // across the baseline
             box: [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)] });
         }
         return draw(g, t, spec);
@@ -103,7 +105,7 @@ try {
           const w = Math.min(x1, q.box[2]) - Math.max(x0, q.box[0]), h = Math.min(y1, q.box[3]) - Math.max(y0, q.box[1]);
           if (w > L.overlap && h > L.overlap) out.fails.push(`overlaps "${q.lines.join(' ')}" by ${Math.round(w)} x ${Math.round(h)} px`);
         }
-        if (r.px < least) out.fails.push(`${(r.px * L.phone / W).toFixed(1)} pt on a phone, under ${L.minPt} (${Math.round(least)} px here)`);
+        if (r.alpha > 0.02 && r.tall < least) out.fails.push(`${(r.tall * L.phone / W).toFixed(1)} pt on a phone, under ${L.minPt} (${Math.ceil(least)} px here)`);
         if (r.alpha < 0.98) { out.notes.push(`drawn at ${Math.round(r.alpha * 100)} % (a scene fading): contrast not judged`); return out; }
         const ring = []; // [luminance, index] of each pixel round the block
         let onOther = 0;
