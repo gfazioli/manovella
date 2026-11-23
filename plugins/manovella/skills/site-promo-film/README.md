@@ -184,7 +184,7 @@ verify); this page is the catalogue.
 | `scripts/render.mjs` | `stills`, `sheet`, `looks`, `loopcheck`, `video`, `beats`: formats, chapters, resumable chunks, the heat governor, the beat check. |
 | `scripts/contact.mjs` | A captioned contact sheet of a folder of stills, at its natural height or exactly `--size WxH` (`--font`, `--gap`, `--pad`; a `.jpg` is a JPEG), light by default or `--dark` (#15151b, light captions) for a picture on a dark page. |
 | `scripts/clickcheck.mjs` | Is every click seen: the camera still, the cursor at rest before the press and through it. |
-| `scripts/layoutcheck.mjs` | Is every headline in the frame, clear of the others and readable on what is behind it, at each moment worth a still. |
+| `scripts/layoutcheck.mjs` | Is every headline in the frame, clear of the others, big enough to read on a phone and readable on what is behind it, at each moment worth a still. |
 | `scripts/settings.mjs` | The user's settings (`settings.json`): project and picture folders, the music library, where films are made and delivered. |
 | `scripts/beats.mjs` | A soundtrack's tempo, beats, bars and sections, from its samples; the bpm and `AUDIO_AT` that put the film on its beat. |
 | `scripts/thermo.swift` | The chip's temperature without sudo, for the governor. |

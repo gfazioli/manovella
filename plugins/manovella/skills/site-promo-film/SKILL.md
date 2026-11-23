@@ -31,7 +31,7 @@ the engine.**
 | `scripts/contact.mjs` | A captioned contact sheet of a stills or looks folder (captions from `labels.json` in it); `--size WxH` makes it exactly that size (`--font`, `--gap`, `--pad`; stills never cropped; a `.jpg` is written as JPEG); `--dark` for a dark sheet. `--compare A=<dir> B=<dir> [C=<dir>] <out.png>`: two or three folders side by side, a labelled column each and a row per still they share, for an A/B choice on one image. |
 | `scripts/beats.mjs` | A soundtrack's beat, from its samples: the tempo, whether it holds, every beat, the bars, the sections, and the bpm and `AUDIO_AT` to give the page; `--out beats.js` for a page that follows a track that drifts (`FILM.beats`). `render.mjs` imports it to measure the page's beats against the track's. `--selftest`. |
 | `scripts/clickcheck.mjs` | Is every click seen: for each of the page's `CLICKS`, how fast the clicked point moves on screen and how far the cursor travels before the press and during it. Exit 1 on a click nobody will see (release-film §3b), 2 on a page with no cursor. |
-| `scripts/layoutcheck.mjs` | Is every headline in the frame, apart and readable: at each checkpoint, each headline `TYPE.draw` draws, against the safe area, the other headlines and the backdrop round it (the limits are in its header). Exit 1 on a headline that fails, 2 on a page that draws none through `TYPE.draw`. |
+| `scripts/layoutcheck.mjs` | Is every headline in the frame, apart, big enough for a phone and readable: at each checkpoint, each headline `TYPE.draw` draws, against the safe area, the other headlines, its size on a phone and the backdrop round it (the limits are in its header). Exit 1 on a headline that fails, 2 on a page that draws none through `TYPE.draw`. |
 | `scripts/deliver.mjs` | The last step (§8): the finished videos and their covers leave the work folder for a folder of their own; once the film is out, `trash` throws the work folder away after checking its source is safe in the kit. `--selftest`. |
 | `scripts/fonts.mjs` | The kit's fonts: `add "<Family>" [axes]` from Google Fonts with its licence, `check`, `list`. |
 
@@ -545,6 +545,10 @@ tone, its speed and how human it sounds are the user's choice. It is told as a t
 - **Springs everywhere**, damping 0.78–0.92 (at most ~3 % overshoot).
 - **The camera zooms so each moment fills the frame**; the smallest text on screen
   stays readable at that zoom (≥ ~14 px at 1080p).
+- **Every headline and tagline reads on a phone**, where most people watch: at least 9 pt
+  on a screen 390 pt wide, `9 × width / 390` px (44 px in a 1920-wide film, 25 px in a
+  1080-wide vertical one), and a title well above that. A title card on a big backdrop looks fine in a
+  still at full size and shrinks to a line on a phone: `layoutcheck.mjs` fails a smaller one.
 - **Camera language varies with the format**: locked off while the UI moves (a terminal),
   a slow push (type), a rack focus (a grid), a dive (zoom-through), an orbit or a
   cover-flow in 3D (devices), a whip pan between siblings. One per film carries it.
