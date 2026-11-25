@@ -43,6 +43,14 @@ and `npm i playwright-core` there. It drives the installed Chrome through `chann
 nothing else is downloaded. `<name>` is `<product>-<what>` (`acme-promo`,
 `acme-2.4-whats-new`), and it names the delivery folder and every delivered file too (§8).
 
+Off macOS (Linux, Windows) the recipes below hold with these in place of the Mac's: `open <file>`
+is `xdg-open` on Linux and `start "" <file>` on Windows (deliver.mjs prints the one for the
+system); `trash` is `deliver.mjs trash`, which moves to the trash through `gio` or trash-cli, or
+to the Recycle Bin; pictures are converted with ffmpeg where this says `sips`; the settings file is
+`~/.config/manovella/settings.json` (Windows: `%APPDATA%\manovella\settings.json`); the voice models
+run on PyTorch (§2b, "Off an Apple Silicon Mac"), and the macOS voices are not there. A film of a Mac app that
+needs SF Pro or SF Symbols is made on a Mac: their licence is Apple platforms'.
+
 ## Studio: the brief in a window
 
 The visual way in. A wizard in a window of its own: recipes, formats, looks, pictures
