@@ -41,6 +41,7 @@
 //
 // Pictures: the most recent images in the picture folders (pictureFolders in settings.json, else
 // ~/Pictures; three levels deep, no photo libraries or app bundles), or one the user drops or chooses; each is converted once with sips
+// (ffmpeg off macOS)
 // to a JPEG Chrome can decode (HEIC included), at most 3840 px, in the cache. On Create the chosen one
 // is copied into the work folder, src/backdrops/. The brief keeps where it came from: a wallpaper
 // pack's licence is often personal use only, and the skill asks before a film with it goes out.
@@ -85,6 +86,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync, readdirSync, copyFileSync, createReadStream, openSync, readSync, closeSync, unlinkSync } from 'node:fs';
 import { basename, dirname, extname, join, resolve, sep } from 'node:path';
 import { HOME, untilde, tl, MANY, prefsDir, readSettings, writeSettings, folder, folders, workRoot } from '../scripts/settings.mjs';
+import { cacheDir, findChrome, openInBrowser } from '../scripts/platform.mjs';
 
 const run = promisify(execFile);
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -118,7 +120,7 @@ if (!process.env.STUDIO_PREFS) {
   const old = join(dirname(PREFS_DIR), 'gf-film-studio', 'prefs.json');
   if (existsSync(old) && !existsSync(PREFS)) try { mkdirSync(PREFS_DIR, { recursive: true }); renameSync(old, PREFS); } catch { /* the briefs stay where they were: Like last time starts empty */ }
 }
-const CACHE = process.env.STUDIO_PREFS ? join(PREFS_DIR, 'cache') : platform() === 'darwin' ? join(HOME, 'Library', 'Caches', 'manovella') : join(HOME, '.cache', 'manovella');
+const CACHE = process.env.STUDIO_PREFS ? join(PREFS_DIR, 'cache') : cacheDir();
 
 // ---------------------------------------------------------------- the agent the brief goes back to
 // The copy (studio.js, index.html, the schema's labels) is written naming Claude and Claude Code; served to
@@ -526,11 +528,11 @@ function listImages() {
     return { id, name: basename(f.path), dir: tl(dirname(f.path)), mtime: f.mtime, bytes: f.bytes };
   });
 }
-let sipsBusy = 0; const sipsWait = [];
-function sips(args) { // three at a time: a folder of 5K pictures would otherwise start a hundred at once
+let convBusy = 0; const convWait = [];
+function convert(cmd, args) { // three at a time: a folder of 5K pictures would otherwise start a hundred at once
   return new Promise((ok, ko) => {
-    const go = () => { sipsBusy++; execFile('sips', args, (e, out) => { sipsBusy--; if (sipsWait.length) sipsWait.shift()(); e ? ko(e) : ok(out); }); };
-    sipsBusy < 3 ? go() : sipsWait.push(go);
+    const go = () => { convBusy++; execFile(cmd, args, (e, out) => { convBusy--; if (convWait.length) convWait.shift()(); e ? ko(e) : ok(out); }); };
+    convBusy < 3 ? go() : convWait.push(go);
   });
 }
 /** The picture as a JPEG Chrome decodes (sips reads HEIC, PNG, TIFF, WebP), never upscaled: 'thumb' at
@@ -542,9 +544,14 @@ async function prepared(id, kind) {
   if (existsSync(out)) return out;
   mkdirSync(dirname(out), { recursive: true });
   const max = kind === 'thumb' ? 480 : 3840;
-  const dims = String(await sips(['-g', 'pixelWidth', '-g', 'pixelHeight', img.path])).match(/pixelWidth: (\d+)[\s\S]*pixelHeight: (\d+)/);
+  if (platform() !== 'darwin') { // ffmpeg, the film's own tool, where there is no sips: never upscaled either
+    await convert('ffmpeg', ['-v', 'error', '-y', '-i', img.path, '-frames:v', '1', '-vf', `scale=w='min(${max},iw)':h='min(${max},ih)':force_original_aspect_ratio=decrease`,
+      '-q:v', kind === 'thumb' ? '5' : '2', out]);
+    return out;
+  }
+  const dims = String(await convert('sips', ['-g', 'pixelWidth', '-g', 'pixelHeight', img.path])).match(/pixelWidth: (\d+)[\s\S]*pixelHeight: (\d+)/);
   const big = dims && Math.max(+dims[1], +dims[2]) > max;
-  await sips(['-s', 'format', 'jpeg', '-s', 'formatOptions', kind === 'thumb' ? '78' : '92', ...(big ? ['-Z', String(max)] : []), img.path, '--out', out]);
+  await convert('sips', ['-s', 'format', 'jpeg', '-s', 'formatOptions', kind === 'thumb' ? '78' : '92', ...(big ? ['-Z', String(max)] : []), img.path, '--out', out]);
   return out;
 }
 
@@ -962,13 +969,6 @@ const server = createServer(async (req, res) => {
   } catch (e) { return json(res, 500, { error: String(e.message || e) }); }
 });
 
-function findChrome() {
-  return [
-    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-    join(HOME, 'Applications/Google Chrome.app/Contents/MacOS/Google Chrome'),
-    '/Applications/Chromium.app/Contents/MacOS/Chromium',
-  ].find((p) => existsSync(p));
-}
 
 ROOTS = await roots();
 server.listen(PORT, '127.0.0.1', () => {
@@ -990,10 +990,13 @@ server.listen(PORT, '127.0.0.1', () => {
 // keeps Chrome, and so does STUDIO_CHROME_ARGS (a test's headless Chrome).
 function openWindow(url) {
   const app = join(HOME, 'Applications', `${STUDIO.name}.app`, 'Contents', 'MacOS', STUDIO.name);
-  if (existsSync(app) && process.env.MANOVELLA_WINDOW !== 'chrome' && !process.env.STUDIO_CHROME_ARGS) return spawn(app, ['--url', url], { stdio: 'ignore' });
+  if (platform() === 'darwin' && existsSync(app) && process.env.MANOVELLA_WINDOW !== 'chrome' && !process.env.STUDIO_CHROME_ARGS) return spawn(app, ['--url', url], { stdio: 'ignore' });
   const bin = findChrome();
-  if (!bin) { spawn('open', [url], { stdio: 'ignore' }); return null; }
-  const profile = process.env.STUDIO_PREFS ? join(PREFS_DIR, 'chrome') : join(HOME, 'Library', 'Caches', 'manovella', 'chrome');
+  if (!bin) { // the default browser, with no window of ours to close; or, without a desktop, the address alone
+    if (!openInBrowser(url)) console.error(`no browser to open here: open ${url}`);
+    return null;
+  }
+  const profile = process.env.STUDIO_PREFS ? join(PREFS_DIR, 'chrome') : join(CACHE, 'chrome');
   mkdirSync(profile, { recursive: true });
   return spawn(bin, [
     `--app=${url}`, `--user-data-dir=${profile}`, `--window-size=${STUDIO.width || 1480},${STUDIO.height || 940}`,

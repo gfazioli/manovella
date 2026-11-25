@@ -198,6 +198,11 @@ function main() {
     console.error(`narrate.mjs: this story is told by a voice model ("mlx": ${JSON.stringify(story.mlx.model ?? null)}), not by \`say\`.\n  Tell it with: node ${join(dirname(fileURLToPath(import.meta.url)), 'voice.mjs')} ${file}`);
     process.exit(3);
   }
+  if (!from && process.platform !== 'darwin') { // `say` is the Mac's: elsewhere a voice model, or recordings
+    console.error('narrate.mjs: a story told by `say` needs macOS. Here, tell it with a voice model ("mlx" in story.json, then\n'
+      + `  node ${join(dirname(fileURLToPath(import.meta.url)), 'voice.mjs')} ${file}), or bring recordings with --from.`);
+    process.exit(3);
+  }
   if (voice && !from) {
     // A voice this Mac does not have: `say -v` does not fail on one, it speaks with the default voice
     // and exits 0 (macOS 27), so the story would be told by another voice and nothing would say so.

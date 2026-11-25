@@ -1,5 +1,6 @@
 // Manovella's user settings: settings.json in its own folder, ~/Library/Application Support/manovella
-// (~/.config/manovella off macOS; STUDIO_PREFS, for a test, names another). The Studio's Settings write
+// (~/.config/manovella on Linux, %APPDATA%\manovella on Windows: platform.mjs; STUDIO_PREFS, for a test,
+// names another). The Studio's Settings write
 // it; the Studio and deliver.mjs read it. Every key is optional, and a folder that is not there counts
 // as unset, so a missing or broken file means today's defaults everywhere.
 //
@@ -16,18 +17,18 @@
 // music library was the brand library (brandLibrary, brandLibraryIgnore), reads as the new keys, delivering
 // into it as it did then, and is written with them at its first change.
 import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
-import { homedir, platform } from 'node:os';
-import { join, resolve } from 'node:path';
+import { homedir } from 'node:os';
+import { join, resolve, sep } from 'node:path';
+import { configDir } from './platform.mjs';
 
 export const HOME = homedir();
 /** A path as typed, ~ expanded; and one for showing, the home folder as ~. */
-export const untilde = (p) => (p === '~' ? HOME : typeof p === 'string' && p.startsWith('~/') ? join(HOME, p.slice(2)) : p);
-export const tl = (p) => (p && (p === HOME || p.startsWith(HOME + '/')) ? '~' + p.slice(HOME.length) : p);
+export const untilde = (p) => (p === '~' ? HOME : typeof p === 'string' && /^~[\\/]/.test(p) ? join(HOME, p.slice(2)) : p);
+export const tl = (p) => (p && (p === HOME || p.startsWith(HOME + sep)) ? '~' + p.slice(HOME.length) : p);
 /** The folder settings the Studio's Settings show and change: true, a list of folders; false, one folder. */
 export const MANY = { projectFolders: true, pictureFolders: true, musicLibrary: false, workRoot: false };
 
-export const prefsDir = () => process.env.STUDIO_PREFS ? resolve(untilde(process.env.STUDIO_PREFS))
-  : platform() === 'darwin' ? join(HOME, 'Library', 'Application Support', 'manovella') : join(HOME, '.config', 'manovella');
+export const prefsDir = () => (process.env.STUDIO_PREFS ? resolve(untilde(process.env.STUDIO_PREFS)) : configDir());
 const FILE = () => join(prefsDir(), 'settings.json');
 
 /** The settings, or {} when the file is missing or unreadable. */

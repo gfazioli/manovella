@@ -1333,6 +1333,9 @@ if (s.code() === null) s.p.kill();
 }
 
 // ---------------------------------------------------------------- the window: the Studio's own app, where it is built
+const until = async (f, ms = 8000) => { for (const t0 = Date.now(); Date.now() - t0 < ms; await sleep(200)) if (f()) return true; return false; };
+// macOS only: the app is a macOS bundle, and its stand-in a bash script.
+if (process.platform === 'darwin') {
 // A stand-in for ~/Applications/Manovella.app under a temporary HOME: it writes down how it was
 // started and the SIGTERM that ends it, and exits by itself (its window closed) when told to.
 const HOME = join(TMP, 'home'), BIN = join(HOME, 'Applications', `${IDENTITY.name}.app`, 'Contents', 'MacOS');
@@ -1348,7 +1351,6 @@ chmodSync(join(BIN, IDENTITY.name), 0o755);
 const log = () => (existsSync(join(BIN, 'log')) ? readFileSync(join(BIN, 'log'), 'utf8') : '');
 const reset = () => { rmSync(join(BIN, 'log'), { force: true }); rmSync(join(BIN, 'close'), { force: true }); };
 const appEnv = { HOME, STUDIO_CHROME_ARGS: undefined, MANOVELLA_WINDOW: undefined }; // undefined: not passed on
-const until = async (f, ms = 8000) => { for (const t0 = Date.now(); Date.now() - t0 < ms; await sleep(200)) if (f()) return true; return false; };
 
 reset();
 s = start([], appEnv);
@@ -1397,6 +1399,7 @@ check(readFileSync(join(support, 'manovella', 'prefs.json'), 'utf8') === '{"last
   'the remembered briefs move from gf-film-studio to manovella on the first start, a settings.json there or not');
 await fetch(mvUrl.origin + '/api/cancel', { method: 'POST', headers: { 'x-studio-key': mvUrl.searchParams.get('k') } });
 await until(() => s.code() !== null);
+}
 
 // ---------------------------------------------------------------- the Settings, saved and followed
 // A run that is given no folders, as a user's: it lists the repositories round the folder it starts in (here
