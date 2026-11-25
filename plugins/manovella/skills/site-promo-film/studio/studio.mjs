@@ -131,7 +131,9 @@ const AGENTS = {
   copilot: { name: 'Copilot', app: 'Copilot CLI', run: ask('copilot -i') },
   gemini: { name: 'Gemini CLI', app: 'Gemini CLI', run: ask('gemini -i') }, // not just Gemini: the copy names the Gemini app, for music
 };
-const AGENT = AGENTS[arg('--agent', process.env.CLAUDECODE ? 'claude' : '').toLowerCase()] || null;
+const AGENT_ASKED = arg('--agent', '').toLowerCase();
+if (AGENT_ASKED && !AGENTS[AGENT_ASKED]) console.error(`--agent ${AGENT_ASKED}: not one of ${Object.keys(AGENTS).join(', ')}; the copy names ${process.env.CLAUDECODE ? 'Claude' : '"your agent"'}`);
+const AGENT = AGENTS[AGENT_ASKED] || (process.env.CLAUDECODE ? AGENTS.claude : null);
 function agentCopy(text) {
   if (AGENT === AGENTS.claude) return text;
   return text.replace(/\bClaude Code\b/g, AGENT?.app || 'your agent').replace(/\bClaude\b/g, AGENT?.name || 'your agent')
@@ -143,26 +145,27 @@ const copyOf = (v) => (typeof v === 'string' ? agentCopy(v) : Array.isArray(v) ?
 const SCHEMA_COPY = AGENT === AGENTS.claude ? SCHEMA : copyOf(SCHEMA);
 
 // ---------------------------------------------------------------- --detach and --wait
-// The state file is a detached Studio's: its log from the start, its pid and address once it listens, and
-// its last line once it ends (finish).
+// The state file is a detached Studio's: its log from the start, its pid and address once it listens, its
+// heartbeat (`at`, every 5 s while it runs) and its last line once it ends (finish). --wait judges a Studio
+// by its heartbeat, not by its pid: a sandbox may hide the pid, and a pid is reused.
 const STATE = arg('--state', null);
 function writeState(patch) {
   if (!STATE) return;
   writeFileSync(`${STATE}.part`, JSON.stringify({ ...readJSON(STATE), ...patch }), { mode: 0o600 }); // its address holds the key
   renameSync(`${STATE}.part`, STATE);
 }
-const alive = (pid) => { try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; } };
 const sleep = (ms) => new Promise((ok) => setTimeout(ok, ms));
 if (argv.includes('--wait')) {
-  const file = resolve(untilde(arg('--wait', ''))), until = Date.now() + (Number(arg('--for')) || 240) * 1000;
-  for (;;) {
+  const file = resolve(untilde(arg('--wait', ''))), secs = argv.includes('--for') ? Number(arg('--for', NaN)) : 240;
+  if (!(secs >= 0)) { console.error(`--for takes seconds, a number: ${arg('--for', '(none)')}`); process.exit(2); }
+  for (const until = Date.now() + secs * 1000; ; await sleep(1000)) {
     const s = readJSON(file);
     if (!s) { console.error(`no Studio state at ${file}`); process.exit(2); }
     if (s.end) { console.log(s.end); process.exit(0); }
-    // gone without a line; or older than the Studio's own 3 h, its pid perhaps another process's by now
-    if (s.pid && (!alive(s.pid) || Date.now() - s.started > 3.25 * 3600_000)) { console.log('CLOSED'); console.error(`the Studio stopped without an ending; its log: ${s.log}`); process.exit(0); }
+    if (s.at && Date.now() - s.at > 15_000) { // no heartbeat for three beats: gone without a line (killed, the machine slept…)
+      console.log('CLOSED'); console.error(`the Studio stopped without an ending; its log: ${s.log}`); process.exit(0);
+    }
     if (Date.now() >= until) { console.log('WAITING'); process.exit(0); }
-    await sleep(1000);
   }
 }
 if (argv.includes('--detach')) {
@@ -174,12 +177,17 @@ if (argv.includes('--detach')) {
   for (const f of readdirSync(runs)) { // a week's runs are kept, to read a log back
     try { if (Date.now() - statSync(join(runs, f)).mtimeMs > 7 * 86400_000) unlinkSync(join(runs, f)); } catch { /* gone meanwhile */ }
   }
-  const state = join(runs, `${id}.json`), log = join(runs, `${id}.log`), out = openSync(log, 'a', 0o600);
-  writeFileSync(state, JSON.stringify({ log }), { mode: 0o600 });
+  const state = join(runs, `${id}.json`), log = join(runs, `${id}.log`);
+  let out;
+  try { out = openSync(log, 'a', 0o600); writeFileSync(state, JSON.stringify({ log }), { mode: 0o600 }); } catch (e) {
+    console.error(`cannot write ${runs} (${e.code}): run --detach outside the agent's sandbox, which must also let it listen on 127.0.0.1`);
+    process.exit(1);
+  }
   const child = spawn(process.execPath, [fileURLToPath(import.meta.url), ...argv.filter((a) => a !== '--detach'), '--state', state],
     { detached: true, stdio: ['ignore', out, out], windowsHide: true });
   let gone = false;
   child.on('exit', () => { gone = true; });
+  child.on('error', (e) => { gone = true; console.error(`the Studio could not be started: ${e.message}`); });
   child.unref();
   const t0 = Date.now();
   while (!gone && Date.now() - t0 < 60_000) {
@@ -187,6 +195,7 @@ if (argv.includes('--detach')) {
     if (s?.url) { console.log(`STUDIO ${s.url}`); console.log(`STATE ${state}`); process.exit(0); }
     await sleep(100);
   }
+  if (!gone) child.kill(); // too slow to start: not left to open a window nobody waits for
   console.error(`the Studio did not start (in an agent's sandbox: run --detach outside it); its log, ${log}:\n${readFileSync(log, 'utf8').split('\n').slice(-20).join('\n')}`);
   process.exit(1);
 }
@@ -965,7 +974,8 @@ ROOTS = await roots();
 server.listen(PORT, '127.0.0.1', () => {
   const url = `http://127.0.0.1:${server.address().port}/?k=${KEY}`;
   console.log(`STUDIO ${url}`);
-  writeState({ pid: process.pid, url, started: Date.now() });
+  writeState({ pid: process.pid, url, at: Date.now() });
+  if (STATE) setInterval(() => { try { writeState({ at: Date.now() }); } catch { /* the next beat */ } }, 5000).unref(); // the heartbeat --wait reads
   if (!OPEN) return;
   win = openWindow(url);
   win?.on('exit', () => { if (!done) finish('CLOSED'); }); // the window went away without a brief

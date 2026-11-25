@@ -1321,11 +1321,14 @@ if (s.code() === null) s.p.kill();
     studio('--wait', b.state, '--for', '20');
   } else check(false, `--detach without --agent: ${b.d.stderr.trim()}`);
 
-  // a Studio that stopped without an ending (killed): --wait reads CLOSED, and says where its log is
+  // a Studio that stopped without an ending (killed): its heartbeat stops, and within 15 s --wait reads
+  // CLOSED and says where its log is; and --for takes a number of seconds, or says so
   const c = detach('--agent', 'gemini');
   const pid = c.state && JSON.parse(readFileSync(c.state, 'utf8')).pid;
+  const bad = c.state && studio('--wait', c.state, '--for', '50s');
+  check(bad?.status === 2 && /--for takes seconds/.test(bad.stderr), `--wait --for 50s: refused, not taken as 240 (${bad?.status}: ${bad?.stderr.trim()})`);
   if (pid) { process.kill(pid, 'SIGKILL'); await sleep(500); }
-  const gone = c.state && studio('--wait', c.state, '--for', '5');
+  const gone = c.state && studio('--wait', c.state, '--for', '25');
   check(!!pid && gone.stdout.trim() === 'CLOSED' && /log/.test(gone.stderr), `--wait: a Studio gone without a line reads CLOSED (${gone?.stdout.trim()}; ${gone?.stderr.trim()})`);
 }
 
