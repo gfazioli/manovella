@@ -90,11 +90,11 @@
 // stops at once (its fresh start would delete the first one's chunks).
 import { chromium } from 'playwright-core';
 import { spawn, spawnSync, execFile } from 'node:child_process';
-import { cpus, homedir } from 'node:os';
-import { fileURLToPath } from 'node:url';
+import { constants as osc, cpus, homedir, setPriority } from 'node:os';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createHash } from 'node:crypto';
-import { constants as fsc, existsSync, mkdirSync, openSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { dirname, extname, join, relative, resolve } from 'node:path';
+import { constants as fsc, existsSync, mkdirSync, openSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
+import { basename, dirname, extname, join, relative, resolve } from 'node:path';
 
 const [PAGE_FILE, PAGE_HASH = ''] = (process.env.PAGE || 'promo.html').split('#');
 const PAGE = resolve(PAGE_FILE);
@@ -126,16 +126,22 @@ const jitterFor = (n) => (!JITTER ? null : n % SUB ? makeJitter(n) : Array.from(
 const [mode, ...args] = process.argv.slice(2);
 
 // ---------------------------------------------------------------- heat
-// A video render re-runs itself inside a macOS QoS class, so Chrome and ffmpeg inherit it.
+// A video render re-runs itself inside a macOS QoS class, so Chrome and ffmpeg inherit it. On Linux
+// and Windows it lowers its own priority instead (below normal), which they inherit the same way.
 const QOS = process.env.QOS || 'utility';
 if (mode === 'video' && process.platform === 'darwin' && QOS !== 'default' && !process.env.FILM_QOS) {
   const r = spawnSync('taskpolicy', ['-c', QOS, process.execPath, ...process.argv.slice(1)], { stdio: 'inherit', env: { ...process.env, FILM_QOS: QOS } });
   process.exit(r.status ?? 1);
 }
+if (mode === 'video' && process.platform !== 'darwin' && QOS !== 'default') {
+  try { setPriority(0, osc.priority.PRIORITY_BELOW_NORMAL); } catch { /* not allowed here: the render runs at normal priority */ }
+}
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 /** A reader for the chip's temperature in °C, or for macOS's thermal state (0-3) as a fallback,
- *  or null. The Swift helper is compiled once per version of its source. */
+ *  or null. The Swift helper is compiled once per version of its source. On Linux, the hottest CPU
+ *  sensor (hwmon's coretemp, k10temp…, else a CPU thermal zone); on Windows none: no governor. */
 function thermometer() {
+  if (process.platform === 'linux') return linuxThermometer();
   if (process.platform !== 'darwin') return null;
   const src = join(dirname(fileURLToPath(import.meta.url)), 'thermo.swift');
   if (existsSync(src)) {
@@ -152,9 +158,22 @@ function thermometer() {
   const js = 'ObjC.import("Foundation"); $.NSProcessInfo.processInfo.thermalState';
   return { unit: 'state', read: () => new Promise((res) => execFile('osascript', ['-l', 'JavaScript', '-e', js], (e, out) => res(e ? null : Number(out)))) };
 }
+function linuxThermometer() {
+  const ls = (d) => { try { return readdirSync(d); } catch { return []; } };
+  const text = (f) => { try { return readFileSync(f, 'utf8').trim(); } catch { return ''; } };
+  let files = ls('/sys/class/hwmon').map((h) => join('/sys/class/hwmon', h))
+    .filter((d) => /^(coretemp|k10temp|zenpower|cpu_thermal|cpu-thermal|soc_thermal)$/.test(text(join(d, 'name'))))
+    .flatMap((d) => ls(d).filter((f) => /^temp\d+_input$/.test(f)).map((f) => join(d, f)));
+  if (!files.length) {
+    files = ls('/sys/class/thermal').filter((z) => z.startsWith('thermal_zone')).map((z) => join('/sys/class/thermal', z))
+      .filter((d) => /x86_pkg_temp|cpu|soc/i.test(text(join(d, 'type')))).map((d) => join(d, 'temp'));
+  }
+  if (!files.length) return null;
+  return { unit: '°C', read: async () => { const t = files.map((f) => Number(text(f)) / 1000).filter((x) => x > 0 && x < 150); return t.length ? Math.max(...t) : null; } };
+}
 const url = (extra) => {
   const h = [PAGE_HASH, extra].filter(Boolean).join('&');
-  return 'file://' + PAGE + (h ? '#' + h : '');
+  return pathToFileURL(PAGE).href + (h ? '#' + h : ''); // 'file://' + a Windows path is no address
 };
 
 const CDP = new WeakMap();
@@ -248,15 +267,30 @@ const ffmpeg = (argv, opts = {}) => new Promise((res, rej) => {
 // process lives and gone with it however it ends, so a killed render leaves nothing to take over and
 // no two renders can both think they hold it. The file stays: unlinked at exit, a render that had
 // looked it up just before could lock the old file while another made and locked a new one.
-// Elsewhere there is no lock.
+// Elsewhere the file holds the render's pid, made only if it is not there (wx): a file whose process
+// is gone is taken over, and the render removes its own at exit.
 const O_EXLOCK = 0x20; // <sys/fcntl.h>: open(2) is given the flags as they are, Node only lacks the name
 function lockCut(file, cut) {
-  if (process.platform !== 'darwin') return;
-  // never closed: the lock lasts as long as the process
-  try { openSync(file, fsc.O_RDWR | fsc.O_CREAT | fsc.O_NONBLOCK | O_EXLOCK); } catch (e) {
-    if (e.code === 'EAGAIN') throw new Error(`another render of ${cut} is running, and this one would delete its chunks: wait for it to finish`);
-    throw e;
+  const busy = () => new Error(`another render of ${cut} is running, and this one would delete its chunks: wait for it to finish`);
+  if (process.platform === 'darwin') {
+    // never closed: the lock lasts as long as the process
+    try { openSync(file, fsc.O_RDWR | fsc.O_CREAT | fsc.O_NONBLOCK | O_EXLOCK); } catch (e) { throw e.code === 'EAGAIN' ? busy() : e; }
+    return;
   }
+  const alive = (pid) => { try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; } };
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      writeFileSync(file, String(process.pid), { flag: 'wx' });
+      process.on('exit', () => { try { if (readFileSync(file, 'utf8') === String(process.pid)) unlinkSync(file); } catch { /* gone */ } });
+      return;
+    } catch (e) {
+      if (e.code !== 'EEXIST') throw e;
+      let pid = 0; try { pid = Number(readFileSync(file, 'utf8')); } catch { /* removed meanwhile */ }
+      if (pid && alive(pid)) throw busy();
+      try { unlinkSync(file); } catch { /* another render took it over first: the next attempt says so */ }
+    }
+  }
+  throw busy();
 }
 // The frames that move fast, one '1' or '0' a frame from F0. Each frame is captured once at a quarter of its
 // size, without jitter or grain, on `pages` pages of the first browser at once, and ffmpeg gives
@@ -489,7 +523,7 @@ try {
     // of the render's own
     // A cut's name is readable and bounded: a Studio page's hash runs to hundreds of bytes, past the
     // 255 of a file name, so a hash (or a long name) is cut short and a digest of the whole added
-    const id = PAGE_FILE.split('/').pop() + (PAGE_HASH && '#' + PAGE_HASH);
+    const id = basename(PAGE_FILE) + (PAGE_HASH && '#' + PAGE_HASH);
     const cut = id.replace(/[^\w.-]+/g, '-').slice(0, 40) + (PAGE_HASH || id.length > 40 ? '-' + createHash('sha1').update(id).digest('hex').slice(0, 8) : '');
     const segRoot = join(HERE, '.segments.noindex'), segDir = join(segRoot, cut);
     mkdirSync(segRoot, { recursive: true });

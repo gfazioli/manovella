@@ -106,7 +106,7 @@ async function shoot(html, dir, out, fixed) {
   const browser = await chromium.launch({ channel: 'chrome' });
   try {
     const p = await browser.newPage({ viewport: fixed || { width: 1920, height: 400 } }); // without a size, fullPage grows it to the grid
-    await p.goto('file://' + page, { waitUntil: 'load' });
+    await p.goto(pathToFileURL(page).href, { waitUntil: 'load' });
     const type = /\.jpe?g$/i.test(out) ? { type: 'jpeg', quality: 92 } : {};
     if (fixed) {
       // every cell must lie inside the sheet (the body hides what overflows): say what does not, and what is left over

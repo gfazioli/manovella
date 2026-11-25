@@ -52,7 +52,8 @@
 //   - The other folders beside the source are listed with how many files and how much they hold,
 //     and not checked: look at that line before the folder goes.
 //   - What would be lost is listed and refused, unless --discard. DRY=1 checks and reports and
-//     moves nothing. The move is /usr/bin/trash (macOS 15+), Finder before that.
+//     moves nothing. The move is /usr/bin/trash (macOS 15+), Finder before that; on Linux `gio trash`,
+//     else trash-cli's trash-put; on Windows the Recycle Bin, through PowerShell.
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { constants, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
@@ -73,10 +74,13 @@ const REVIEW_DIR = /^(stills|sheets?|looks|posters?|drafts)/i, REVIEW_FILE = /^(
 // here rather than imported from settings.mjs, whose workRoot() it mirrors: this file is copied into a film's
 // src/ on its own (the guide's by-hand start), and an import of a sibling would stop it there.
 function workRoot() {
-  const home = homedir(), ex = (p) => resolve(p === '~' ? home : p.startsWith('~/') ? join(home, p.slice(2)) : p);
+  const home = homedir(), ex = (p) => resolve(p === '~' ? home : /^~[\\/]/.test(p) ? join(home, p.slice(2)) : p);
   if (process.env.FILM_DOWNLOADS) return ex(process.env.FILM_DOWNLOADS);
-  const prefs = process.env.STUDIO_PREFS ? ex(process.env.STUDIO_PREFS)
-    : platform() === 'darwin' ? join(home, 'Library', 'Application Support', 'manovella') : join(home, '.config', 'manovella');
+  const env = process.env; // the settings' folder, as scripts/platform.mjs has it (not imported: see above)
+  const prefs = env.STUDIO_PREFS ? ex(env.STUDIO_PREFS)
+    : platform() === 'darwin' ? join(home, 'Library', 'Application Support', 'manovella')
+      : platform() === 'win32' ? join(env.APPDATA || join(home, 'AppData', 'Roaming'), 'manovella')
+        : join(env.XDG_CONFIG_HOME || join(home, '.config'), 'manovella');
   try {
     const w = JSON.parse(readFileSync(join(prefs, 'settings.json'), 'utf8')).workRoot;
     if (typeof w === 'string' && w.trim() && statSync(ex(w.trim())).isDirectory()) return ex(w.trim());
@@ -92,13 +96,22 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const sha = (f) => createHash('sha256').update(readFileSync(f)).digest('hex');
 const inside = (a, b) => a === b || a.startsWith(b + sep); // a is b, or under it
 const mb = (n) => (n / 1048576).toFixed(1) + ' MB';
-// A path printed as a command to paste, quoted when it has a space or a quote in it.
-const q = (p) => (/^[\w@%+=:,./~-]+$/.test(p) ? p : `'${p.replace(/'/g, `'\\''`)}'`);
+// A path printed as a command to paste, quoted when it has a space or a quote in it (in double quotes
+// on Windows, whose shells take no single ones); and the line that opens a folder there.
+const WIN = platform() === 'win32';
+const q = (p) => (/^[\w@%+=:,./~-]+$/.test(p) ? p : WIN ? `"${p}"` : `'${p.replace(/'/g, `'\\''`)}'`);
+const openLine = (p) => (WIN ? `start "" "${p}"` : `${platform() === 'darwin' ? 'open' : 'xdg-open'} ${q(p)}`);
 const clock = (s) => {
   const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), r = Math.floor(s % 60);
   return (h ? `${h}:${String(m).padStart(2, '0')}` : `${m}`) + `:${String(r).padStart(2, '0')}`;
 };
-const kb = (dir) => Number(run('du', ['-sk', dir]).stdout.split('\t')[0]) * 1024;
+// a folder's size on disk: du's, or the files' sizes added up where there is no du (Windows)
+const kb = (dir) => {
+  const k = Number((run('du', ['-sk', dir]).stdout || '').split('\t')[0]);
+  if (k) return k * 1024;
+  const all = (d) => readdirSync(d, { withFileTypes: true }).reduce((n, e) => n + (e.isDirectory() ? all(join(d, e.name)) : e.isFile() ? statSync(join(d, e.name)).size : 0), 0);
+  try { return all(dir); } catch { return 0; }
+};
 function walk(dir, out = []) {
   for (const e of readdirSync(dir, { withFileTypes: true })) {
     if (e.name.startsWith('.') || e.name === 'node_modules') continue;
@@ -245,7 +258,7 @@ async function deliver(folderArg, specs) {
     const now = mine.map((it) => ({ name: it.name, from: it.from, to: it.to, sourceSha: it.sourceSha, sha: sha(it.to) }));
     writeFileSync(join(work, '.delivered.json'), JSON.stringify([...kept, ...now], null, 2) + '\n');
   }
-  console.log(`\n  open ${q(folder)}`);
+  console.log(`\n  ${openLine(folder)}`);
   for (const work of manifests.keys()) {
     console.log(`\nthe work folder stays, ${mb(kb(work))}: ${work}\n  once the film is out: node deliver.mjs trash ${q(work)} --kit <repo>/scripts/film`);
   }
@@ -280,6 +293,23 @@ function ssimOf(a, b) {
 }
 
 // ------------------------------------------------------------------ trash
+/** The folder to the Trash, never deleted outright: macOS's trash or Finder, Linux's gio or trash-cli,
+ *  Windows' Recycle Bin (the path given through the environment, so no quoting reaches PowerShell). */
+function toTrash(dir) {
+  if (platform() === 'darwin') {
+    return existsSync('/usr/bin/trash') ? run('/usr/bin/trash', [dir])
+      : run('osascript', ['-e', `tell application "Finder" to delete (POSIX file ${JSON.stringify(dir)})`]);
+  }
+  if (WIN) {
+    return run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', 'Add-Type -AssemblyName Microsoft.VisualBasic; '
+      + "[Microsoft.VisualBasic.FileIO.FileSystem]::DeleteDirectory($env:MANOVELLA_TRASH, 'OnlyErrorDialogs', 'SendToRecycleBin')"],
+    { env: { ...process.env, MANOVELLA_TRASH: dir } });
+  }
+  const gio = run('gio', ['trash', dir]);
+  if (!gio.error) return gio;
+  const cli = run('trash-put', [dir]);
+  return cli.error ? { status: 1, stderr: 'no trash here: install gio (glib) or trash-cli' } : cli;
+}
 function trash(workArg, flags) {
   if (!workArg) usage();
   const work = resolve(workArg);
@@ -380,9 +410,8 @@ function trash(workArg, flags) {
     if (!flags.discard) fail(`${lost.length} file(s) above would be lost. Commit them to the kit, deliver them, or pass --discard once the user has seen this list and said they can go`);
   }
   if (DRY) { console.log('\nDRY=1: nothing moved'); return; }
-  const r = existsSync('/usr/bin/trash') ? run('/usr/bin/trash', [work])
-    : run('osascript', ['-e', `tell application "Finder" to delete (POSIX file ${JSON.stringify(work)})`]);
-  if (r.status !== 0 || existsSync(work)) fail(`the move to the Trash failed: ${(r.stderr || '').trim() || 'the folder is still there'}`);
+  const r = toTrash(work);
+  if (r.status !== 0 || existsSync(work)) fail(`the move to the Trash failed: ${(r.stderr || r.error?.message || '').trim() || 'the folder is still there'}`);
   console.log(`\nmoved to the Trash: ${work}`);
 }
 
@@ -433,7 +462,7 @@ function selftest() {
       ['the delivered .srt is the same bytes', 'check', () => sha(join(D, 'demo', 'demo.srt')) === sha(join(W, 'demo.srt'))],
       ['the delivered video is the same bytes', 'check', () => sha(join(D, 'demo', 'demo.mp4')) === sha(join(W, 'demo.mp4'))],
       ['the chapter list is YouTube\'s', 'check', () => readFileSync(join(D, 'demo', 'demo-chapters.txt'), 'utf8') === '0:00 One\n0:10 Two\n'],
-      ['a path with a space is printed quoted, ready to paste', 0, `open '${join(T, 'My Drive', 'demo')}'`, [join(T, 'My Drive', 'demo'), join(W, 'poster.png') + '=demo-poster.png']],
+      ['a path with a space is printed quoted, ready to paste', 0, openLine(join(T, 'My Drive', 'demo')), [join(T, 'My Drive', 'demo'), join(W, 'poster.png') + '=demo-poster.png']],
       ['a second run skips what is there', 0, 'already there', [join(D, 'demo'), join(W, 'demo.mp4'), join(W, 'poster.png') + '=demo-poster.png']],
       ['deliver refuses other content under a delivered name', 1, 'other content', [join(D, 'demo'), join(W, 'v2', 'x.mp4') + '=demo.mp4']],
       ['trash refuses a folder outside the work root', 1, 'not inside', ['trash', join(T, 'elsewhere-work')]],

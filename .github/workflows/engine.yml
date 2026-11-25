@@ -1,0 +1,58 @@
+# The engine and the Studio off the maintainer's Mac: deliver.mjs's selftest, the Studio's selftest
+# (headless Chrome, every step of the wizard) and the shortest render there is (PREVIEW, half a
+# second), on Linux. GitHub's runners carry Google Chrome; ffmpeg comes from the system's packages.
+name: Engine
+
+on:
+  pull_request:
+    paths:
+      - plugins/manovella/**
+      - .github/workflows/engine.yml
+  push:
+    branches: [main]
+    paths:
+      - plugins/manovella/**
+      - .github/workflows/engine.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      SKILL: ${{ github.workspace }}/plugins/manovella/skills/site-promo-film
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: ffmpeg
+        run: sudo apt-get update -q && sudo apt-get install -y -q ffmpeg
+      - name: playwright-core, in a folder of its own (it drives the installed Chrome, nothing is downloaded)
+        run: |
+          mkdir -p "$RUNNER_TEMP/pw" && cd "$RUNNER_TEMP/pw"
+          npm init -y > /dev/null && npm i --no-audit --no-fund playwright-core
+      - name: What it runs on
+        run: node --version && google-chrome --version && ffmpeg -version | head -1
+      - name: deliver.mjs
+        run: node "$SKILL/scripts/deliver.mjs" --selftest
+      - name: The Studio
+        working-directory: ${{ runner.temp }}/pw
+        # its products: the repositories beside this checkout, this one among them
+        run: node "$SKILL/studio/selftest.mjs" --roots "$GITHUB_WORKSPACE/.." --shots "$RUNNER_TEMP/shots"
+      - name: Half a second of the demo, rendered
+        run: |
+          W="$RUNNER_TEMP/film/src" && mkdir -p "$W"
+          cp "$SKILL"/template/promo.html "$SKILL"/template/film.js "$SKILL"/template/fx.js "$SKILL"/template/parts.js "$SKILL"/template/type.js "$SKILL"/scripts/render.mjs "$W"/
+          ln -s "$RUNNER_TEMP/pw/node_modules" "$W/node_modules"
+          cd "$W" && PREVIEW=1 FROM=0 TO=0.5 node render.mjs video ../preview.mp4
+          ffprobe -v error -show_entries stream=codec_name,width,height:format=duration -of compact ../preview.mp4
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: linux-studio-shots
+          path: ${{ runner.temp }}/shots
+          if-no-files-found: ignore

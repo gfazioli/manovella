@@ -15,6 +15,7 @@
 // fast clicked under a camera moving 1255 and 1414 px/s, on cursors still 20-45 pt from their targets.
 import { chromium } from 'playwright-core';
 import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 const [file, hash = ''] = (process.argv[2] || 'release.html').split('#');
 const SCREEN_MAX = 5, TRAVEL_MAX = 2;
@@ -22,7 +23,7 @@ const browser = await chromium.launch({ channel: 'chrome' });
 let code = 0;
 try {
   const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
-  await page.goto('file://' + resolve(file) + (hash ? '#' + hash : ''));
+  await page.goto(pathToFileURL(resolve(file)).href + (hash ? '#' + hash : '')); // file:///C:/… on Windows
   await page.evaluate(() => window.ready);
   const rows = await page.evaluate(() => {
     if (typeof CLICKS === 'undefined' || typeof curX !== 'function') return null;

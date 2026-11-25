@@ -34,6 +34,7 @@
 // canvas: a second read moves that canvas to software raster.
 import { chromium } from 'playwright-core';
 import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 const [file, hash = ''] = (process.argv[2] || 'promo.html').split('#');
 const LIMITS = { safe: 0.05, overlap: 2, phone: 390, minPt: 9, ring: 6, large: 24, minLarge: 3, min: 4.5 };
@@ -41,7 +42,7 @@ const browser = await chromium.launch({ channel: 'chrome' });
 let code = 0;
 try {
   const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
-  await page.goto('file://' + resolve(file) + (hash ? '#' + hash : ''));
+  await page.goto(pathToFileURL(resolve(file)).href + (hash ? '#' + hash : '')); // file:///C:/… on Windows
   await page.evaluate(() => window.ready);
   const meta = await page.evaluate(() => {
     if (window.TYPE?.extent) {
