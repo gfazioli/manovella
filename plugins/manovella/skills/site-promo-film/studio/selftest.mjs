@@ -786,7 +786,8 @@ const promo = await wizard('promo', async ({ page, idle, shot }) => {
   const devRow = await page.textContent('.summary .r:has(.k:text-is("Device")) .v').catch(() => '');
   await page.click('#steps li[data-step=format] button'); await idle(); await openFold(page, 'formats');
   await page.click('#steps li[data-step=review] button'); await page.waitForSelector('.summary .r');
-  await page.click('.summary .r:has(.k:text-is("Device")) .e', { timeout: 3000 }).catch(() => {}); await idle(); await page.waitForTimeout(600); // the step has arrived: its tiles are made already, and nothing else waits for its way in
+  // (15 s: under software rendering, as on a CI runner, the row can come late; still caught, so a broken Edit fails the check below)
+  await page.click('.summary .r:has(.k:text-is("Device")) .e', { timeout: 15000 }).catch(() => {}); await idle(); await page.waitForTimeout(600); // the step has arrived: its tiles are made already, and nothing else waits for its way in
   const devEdit = `${await page.textContent('#title')}, ${await inSight(page, 'device') ? 'in sight' : 'out of sight'}, ${await page.locator('.dpanel .grid .card').count()} tiles, ${await page.textContent('.dpanel .grid .card[aria-pressed="true"] .lbl', { timeout: 2000 }).catch(() => 'none')} marked`;
   await page.click('#steps li[data-step=review] button'); await page.waitForSelector('.summary .r');
   await page.click('.summary .r:has(.k:text-is("Formats")) .e'); await idle(); await page.waitForTimeout(600);
