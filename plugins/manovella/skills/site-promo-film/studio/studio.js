@@ -1797,7 +1797,8 @@
       // the agent the Studio was opened from (--agent, or Claude Code's environment), else none known: then every
       // agent's line, one of which starts a session on the brief
       // (CTX.app: the agent's name from the server, which the served copy's rewrite never touches)
-      const A = CTX.agent, cmd = (a) => h('p', null, h('code', null, a.run.replace('{path}', () => tilde(r.path))));
+      // (the brief's full path on Windows: no shell there expands ~)
+      const A = CTX.agent, cmd = (a) => h('p', null, h('code', null, a.run.replace('{path}', () => (CTX.platform === 'win32' ? r.path : tilde(r.path)))));
       sent = h('div', { class: 'sent' }, h('h2', null, 'Brief saved'),
         h('p', null, h('code', null, tilde(r.path))),
         h('p', null, `Back to ${CTX.app}: it is reading the brief now, and this window closes on its own.`),

@@ -86,7 +86,10 @@ function workRoot() {
     if (typeof w === 'string' && w.trim() && statSync(ex(w.trim())).isDirectory()) return ex(w.trim());
   } catch { /* no file, or no such folder: the default */ }
   // the Downloads folder: on Linux the desktop's own, which a localised one names otherwise (~/Scaricati)
-  if (platform() === 'linux') { const x = spawnSync('xdg-user-dir', ['DOWNLOAD'], { encoding: 'utf8' }); if (x.status === 0 && x.stdout.trim() && x.stdout.trim() !== home) return x.stdout.trim(); }
+  if (platform() === 'linux') { // (resolved: a folder switched off is said as the home with a slash)
+    const x = spawnSync('xdg-user-dir', ['DOWNLOAD'], { encoding: 'utf8' }), dir = x.status === 0 && x.stdout.trim() ? resolve(x.stdout.trim()) : home;
+    if (dir !== home) return dir;
+  }
   return join(home, 'Downloads');
 }
 const WORK_ROOT = workRoot();
@@ -308,6 +311,10 @@ function toTrash(dir) {
   const outside = dirname(dir);
   try { if (inside(process.cwd(), dir)) process.chdir(outside); } catch { /* the move says what went wrong */ }
   if (WIN) {
+    // first a rename there and back, which fails at once on a folder in use, where the move would raise a dialog
+    try { renameSync(dir, `${dir}.moving`); renameSync(`${dir}.moving`, dir); } catch (e) {
+      return { status: 1, stderr: `${e.code}: a shell or a program whose current folder is inside it keeps it: step out of it, then run this again` };
+    }
     const r = run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', 'Add-Type -AssemblyName Microsoft.VisualBasic; '
       + "[Microsoft.VisualBasic.FileIO.FileSystem]::DeleteDirectory($env:MANOVELLA_TRASH, 'OnlyErrorDialogs', 'SendToRecycleBin')"],
     { cwd: outside, env: { ...process.env, MANOVELLA_TRASH: dir } });
@@ -376,10 +383,12 @@ function trash(workArg, flags) {
   for (const f of sources) {
     const rel = relTo(root, f);
     if (!kit) { lost.push(`${rel}  (source, no --kit given)`); continue; }
-    // hashed as git would store it at that path: with core.autocrlf (Windows' Git), a CRLF copy is the LF blob
-    const blob = git(['hash-object', rel.startsWith('..') ? '--no-filters' : `--path=${rel}`, '--', f]).stdout.trim();
+    // hashed as it is, and as git would store it at that path: under core.autocrlf (Windows' Git) a CRLF copy is
+    // the LF blob, and a file committed with its CRLF is itself; either one pushed is safe
+    const hashes = [...new Set([git(['hash-object', '--no-filters', '--', f]).stdout.trim(), ...(rel.startsWith('..') ? [] : [git(['hash-object', `--path=${rel}`, '--', f]).stdout.trim()])])];
+    const has = (set) => hashes.some((h) => set.has(h));
     const same = rel.startsWith('..') ? null : join(kit, rel);
-    if (pushed.has(blob)) {
+    if (has(pushed)) {
       if (same && existsSync(same) && sha(same) === sha(f)) current++; else history++;
       continue;
     }
@@ -387,7 +396,7 @@ function trash(workArg, flags) {
     // lost: say why, since the fix differs
     anywhere ??= objects('--all');
     if (!bySha) { bySha = new Map(); for (const k of walk(kit)) bySha.set(sha(k), k); }
-    const why = anywhere.has(blob) ? `committed in ${basename(repo)}, not on any remote branch: push it (or fetch)`
+    const why = has(anywhere) ? `committed in ${basename(repo)}, not on any remote branch: push it (or fetch)`
       : bySha.has(sha(f)) ? `in the kit as ${relTo(kit, bySha.get(sha(f)))}, not committed`
       : same && existsSync(same) ? `differs from the kit's ${rel}`
       : 'not in the kit';
@@ -473,7 +482,7 @@ function selftest() {
       ['the delivered .srt is the same bytes', 'check', () => sha(join(D, 'demo', 'demo.srt')) === sha(join(W, 'demo.srt'))],
       ['the delivered video is the same bytes', 'check', () => sha(join(D, 'demo', 'demo.mp4')) === sha(join(W, 'demo.mp4'))],
       ['the chapter list is YouTube\'s', 'check', () => readFileSync(join(D, 'demo', 'demo-chapters.txt'), 'utf8') === '0:00 One\n0:10 Two\n'],
-      ['a path with a space is printed quoted, ready to paste', 0, openLine(join(T, 'My Drive', 'demo')), [join(T, 'My Drive', 'demo'), join(W, 'poster.png') + '=demo-poster.png']],
+      ['a path with a space is printed quoted, ready to paste', 0, WIN ? `explorer "${join(T, 'My Drive', 'demo')}"` : `${platform() === 'darwin' ? 'open' : 'xdg-open'} '${join(T, 'My Drive', 'demo')}'`, [join(T, 'My Drive', 'demo'), join(W, 'poster.png') + '=demo-poster.png']],
       ['a second run skips what is there', 0, 'already there', [join(D, 'demo'), join(W, 'demo.mp4'), join(W, 'poster.png') + '=demo-poster.png']],
       ['deliver refuses other content under a delivered name', 1, 'other content', [join(D, 'demo'), join(W, 'v2', 'x.mp4') + '=demo.mp4']],
       ['trash refuses a folder outside the work root', 1, 'not inside', ['trash', join(T, 'elsewhere-work')]],

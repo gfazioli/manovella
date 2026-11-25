@@ -5,7 +5,7 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, statSync } from 'node:fs';
 import { homedir, platform } from 'node:os';
-import { delimiter, join } from 'node:path';
+import { delimiter, join, resolve } from 'node:path';
 
 export const MAC = platform() === 'darwin', WIN = platform() === 'win32';
 const HOME = homedir(), env = process.env;
@@ -24,10 +24,13 @@ export const cacheDir = () => (MAC ? join(HOME, 'Library', 'Caches', 'manovella'
 export function userDir(kind) {
   if (!MAC && !WIN) {
     const x = spawnSync('xdg-user-dir', [kind === 'pictures' ? 'PICTURES' : 'DOWNLOAD'], { encoding: 'utf8' });
-    const dir = x.status === 0 ? x.stdout.trim() : '';
-    if (dir && dir !== HOME) return dir;
+    const dir = x.status === 0 && x.stdout.trim() ? resolve(x.stdout.trim()) : HOME; // a folder switched off: the home, with a slash
+    if (dir !== HOME) return dir;
   }
-  return join(HOME, kind === 'pictures' ? 'Pictures' : 'Downloads');
+  const own = join(HOME, kind === 'pictures' ? 'Pictures' : 'Downloads');
+  // Windows with OneDrive's folder backup keeps Pictures there
+  if (WIN && kind === 'pictures' && !existsSync(own) && env.OneDrive && existsSync(join(env.OneDrive, 'Pictures'))) return join(env.OneDrive, 'Pictures');
+  return own;
 }
 
 /** A program on the PATH, as its full path (with Windows' extensions), or null. */
@@ -50,7 +53,8 @@ export function findChrome() {
     return [env.PROGRAMFILES, env['PROGRAMFILES(X86)'], env.LOCALAPPDATA].filter(Boolean)
       .map((d) => join(d, 'Google', 'Chrome', 'Application', 'chrome.exe')).find((p) => existsSync(p)) || null;
   }
-  for (const n of ['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser']) { const p = which(n); if (p) return p; }
+  // a snap's Chromium cannot keep a profile under ~/.cache: the default browser opens the Studio instead
+  for (const n of ['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser']) { const p = which(n); if (p && !p.startsWith('/snap/')) return p; }
   return null;
 }
 

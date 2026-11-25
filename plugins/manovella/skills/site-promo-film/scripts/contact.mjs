@@ -30,12 +30,13 @@ import { readdirSync, writeFileSync, existsSync, readFileSync, rmSync, openSync,
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-// Google Chrome; else, on Linux (Chrome has no arm64 build there), Chromium; MANOVELLA_CHROME names either.
+// Google Chrome; else Edge on Windows, Chromium on Linux (Chrome has no arm64 build there); MANOVELLA_CHROME names any.
 // Off macOS WebGL is drawn in software where there is no GPU (render.mjs says why). Copied here: this file imports no sibling.
 async function launchChrome(opts = {}) {
   opts = { ...opts, args: [...(opts.args || []), ...(process.platform === 'darwin' ? [] : ['--enable-unsafe-swiftshader'])] };
   if (process.env.MANOVELLA_CHROME) return chromium.launch({ ...opts, executablePath: process.env.MANOVELLA_CHROME });
   try { return await chromium.launch({ ...opts, channel: 'chrome' }); } catch (e) {
+    if (process.platform === 'win32') return chromium.launch({ ...opts, channel: 'msedge' }); // Edge: every Windows has it
     const alt = process.platform === 'linux' && ['/usr/bin/chromium', '/usr/bin/chromium-browser', '/snap/bin/chromium'].find((p) => existsSync(p));
     if (!alt) throw e;
     return chromium.launch({ ...opts, executablePath: alt });
