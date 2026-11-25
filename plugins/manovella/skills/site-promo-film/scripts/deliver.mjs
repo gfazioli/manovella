@@ -95,6 +95,8 @@ const run = (cmd, argv, opts = {}) => spawnSync(cmd, argv, { encoding: 'utf8', .
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const sha = (f) => createHash('sha256').update(readFileSync(f)).digest('hex');
 const inside = (a, b) => a === b || a.startsWith(b + sep); // a is b, or under it
+// a path under another, as git writes it (with /) on every system: what is said and what git is asked
+const relTo = (from, to) => relative(from, to).split(sep).join('/');
 const mb = (n) => (n / 1048576).toFixed(1) + ' MB';
 // A path printed as a command to paste, quoted when it has a space or a quote in it (in double quotes
 // on Windows, whose shells take no single ones); and the line that opens a folder there.
@@ -364,7 +366,7 @@ function trash(workArg, flags) {
     && (SOURCE.includes(extname(f).toLowerCase()) || (withPage(f) && !review(f) && !delivered.has(sha(f)))));
   let current = 0, history = 0, generated = 0;
   for (const f of sources) {
-    const rel = relative(root, f);
+    const rel = relTo(root, f);
     if (!kit) { lost.push(`${rel}  (source, no --kit given)`); continue; }
     const blob = git(['hash-object', '--no-filters', '--', f]).stdout.trim();
     const same = rel.startsWith('..') ? null : join(kit, rel);
@@ -377,7 +379,7 @@ function trash(workArg, flags) {
     anywhere ??= objects('--all');
     if (!bySha) { bySha = new Map(); for (const k of walk(kit)) bySha.set(sha(k), k); }
     const why = anywhere.has(blob) ? `committed in ${basename(repo)}, not on any remote branch: push it (or fetch)`
-      : bySha.has(sha(f)) ? `in the kit as ${relative(kit, bySha.get(sha(f)))}, not committed`
+      : bySha.has(sha(f)) ? `in the kit as ${relTo(kit, bySha.get(sha(f)))}, not committed`
       : same && existsSync(same) ? `differs from the kit's ${rel}`
       : 'not in the kit';
     lost.push(`${rel}  (source, ${why})`);
@@ -385,14 +387,14 @@ function trash(workArg, flags) {
   for (const f of files.filter((x) => isVideo(x) && !DRAFT.test(relative(work, x)))) {
     const s = sha(f);
     if (delivered.has(s)) continue;
-    lost.push(`${relative(work, f)}  (render, ${gone.has(s) ? `its delivered copy is gone or changed: ${gone.get(s)}` : 'never delivered'})`);
+    lost.push(`${relTo(work, f)}  (render, ${gone.has(s) ? `its delivered copy is gone or changed: ${gone.get(s)}` : 'never delivered'})`);
   }
   // What is left is neither source nor a render. A loose file at the top (a poster, notes, a track)
   // must have been delivered; the folders beside the source are counted and shown, not judged: a
   // folder of stills is in every work folder, and refusing them all would make --discard a habit.
   const isSource = new Set(sources), beside = new Map();
   for (const f of files.filter((x) => !isSource.has(x) && !isVideo(x) && !TOOLS_OWN.includes(basename(x)) && !SOURCE.includes(extname(x).toLowerCase()) && !withPage(x))) {
-    const rel = relative(work, f), top = rel.split(sep)[0];
+    const rel = relTo(work, f), top = rel.split('/')[0];
     if (top !== rel) { const b = beside.get(top) || { n: 0, bytes: 0 }; b.n++; b.bytes += statSync(f).size; beside.set(top, b); continue; }
     if (review(f)) continue;
     const s = sha(f);
