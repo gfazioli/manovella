@@ -1,0 +1,68 @@
+# Manovella as a Gemini CLI extension (scripts/gemini-pack.mjs), attached to every GitHub Release:
+# `gemini extensions install https://github.com/gfazioli/manovella` downloads it. Gemini takes a
+# release's asset only when it is the release's one asset, so a release carries this one alone.
+# Until the asset is there (a release without it, or the minute before this run uploads it), the
+# install fails: Gemini falls back to the source tarball, which is no extension. A release made with
+# `gh release create` can carry the asset from the start (AGENTS.md); this run then replaces it.
+# A pull request that touches what it packs builds and checks it; "Run workflow" attaches it to a
+# release whose run failed (any release from the one that ships scripts/gemini-pack.mjs on).
+name: Gemini extension
+
+on:
+  release:
+    types: [published]
+  pull_request:
+    paths:
+      - gemini/**
+      - plugins/manovella/**
+      - scripts/gemini-pack.mjs
+      - .github/workflows/gemini-extension.yml
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The release to attach it to, e.g. v1.20.0
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Build the archive and look at its root
+        run: |
+          node scripts/gemini-pack.mjs "$RUNNER_TEMP/manovella-gemini.tar.gz"
+          tar -tzf "$RUNNER_TEMP/manovella-gemini.tar.gz" | grep -qx 'gemini-extension.json'
+          tar -tzf "$RUNNER_TEMP/manovella-gemini.tar.gz" | grep -q '^skills/site-promo-film/SKILL.md$'
+          tar -tzf "$RUNNER_TEMP/manovella-gemini.tar.gz" | grep -q '^commands/manovella/studio.toml$'
+
+  attach:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: node scripts/gemini-pack.mjs manovella-gemini.tar.gz
+      - name: Attach it, as the release's only asset
+        run: |
+          others=$(gh release view "$TAG" --json assets --jq '[.assets[].name | select(. != "manovella-gemini.tar.gz")] | join(", ")')
+          if [ -n "$others" ]; then
+            echo "::error::$TAG has other assets ($others): Gemini would ignore this one and fall back to the source tarball"
+            exit 1
+          fi
+          gh release upload "$TAG" manovella-gemini.tar.gz --clobber

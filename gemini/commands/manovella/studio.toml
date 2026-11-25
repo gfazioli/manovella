@@ -1,0 +1,8 @@
+# /manovella:studio in Gemini CLI: the Claude Code command plugins/manovella/commands/studio.md, for
+# Gemini. scripts/gemini-pack.mjs packs it into the extension as commands/manovella/studio.toml.
+description = "Open Manovella's Studio: a film's brief chosen on live previews, for the storyboards"
+prompt = """
+Open Manovella's Studio: activate the `site-promo-film` skill with the argument `studio {{args}}`, and follow its **Studio** section as an agent that no background command's exit wakes: start `studio.mjs` with `--detach --agent gemini`, then wait with `--wait`. Pass any `--product` or `--roots` given here on to `studio.mjs`.
+
+Opening the Studio is the user asking for a film's brief, nothing more: nothing is rendered until the storyboards are picked and the stills seen.
+"""
