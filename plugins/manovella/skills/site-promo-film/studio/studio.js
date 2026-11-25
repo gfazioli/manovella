@@ -44,7 +44,8 @@
   const slug = (s) => String(s || '').toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/[^a-z0-9.]+/g, '-').replace(/^[-.]+|[-.]+$/g, '').slice(0, 50);
   const SLUG = /^[a-z0-9][a-z0-9.-]{0,62}$/;
   const toHex = (c) => '#' + c.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('').toUpperCase();
-  const tilde = (p) => String(p || '').replace(/^\/Users\/[^/]+/, '~');
+  // the home folder as ~, on any system: the server says which it is (CTX.home, CTX.sep)
+  const tilde = (p) => { const s = String(p || ''), h = CTX?.home; return h && (s === h || s.startsWith(h + CTX.sep)) ? '~' + s.slice(h.length) : s; };
   const clock = (s) => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, '0')}`;
   const store = { get: (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } }, set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
 
