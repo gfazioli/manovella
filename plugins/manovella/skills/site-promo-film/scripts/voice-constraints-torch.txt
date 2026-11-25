@@ -1,4 +1,4 @@
-# voice-constraints-torch.txt: the Python that says Kokoro where there is no MLX (Linux, Windows, an Intel
+# voice-constraints-torch.txt: the Python that says Kokoro where there is no MLX (Linux, Windows; not an Intel
 # Mac), at the versions it was heard with (a test venv of 2026-11-25, Python 3.12: `pip freeze`, less the
 # English text model, which `voice.mjs --setup kokoro` installs from its release URL). kokoro 0.9.4 takes
 # Python 3.10 to 3.12. torch comes first, by itself, from PyTorch's CPU index on Linux and Windows (PyPI's

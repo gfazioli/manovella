@@ -905,7 +905,7 @@ const server = createServer(async (req, res) => {
         const offered = (k, v) => SCHEMA.fields[k].options.some((x) => x.value === v);
         if (!offered('voiceModel', model) || (o.speaker && !speakers.includes(o.speaker)) || !offered('voiceTone', o.tone) || !offered('voiceTempo', o.tempo) || !offered('voiceHuman', o.human) || !o.text) return json(res, 400, { error: 'not a sample the schema offers' });
         if (!toned(model)) o.tone = 'warm'; // no tone to read at: one sample serves every tone asked for
-        if (platform() === 'darwin' && process.arch !== 'arm64') return json(res, 409, { error: 'silicon', message: 'The voice models run on an Apple Silicon Mac (PyTorch builds no more for an Intel one).' });
+        if (platform() === 'darwin' && process.arch !== 'arm64') return json(res, 409, { error: 'silicon', message: 'The voice models run on an Apple Silicon Mac.' });
         // off MLX, the setup of this model alone: Kokoro's is light, Chatterbox's and Orpheus's are not
         const setup = VOICE.MLX ? kit.setup : `node ${join(SKILL, 'scripts', 'voice.mjs')} --setup ${model}`;
         if (!existsSync(VOICE.python(VOICE.MODELS[model]))) return json(res, 409, { error: 'setup', message: agentCopy(VOICE.MLX ? 'Not set up on this Mac: Claude does it at the first film that speaks (a 600 MB Python, then 330 MB to 3.5 GB a model), or now: '

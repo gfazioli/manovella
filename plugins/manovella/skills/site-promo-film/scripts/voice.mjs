@@ -199,11 +199,11 @@ function say(model, voice, lines, scratch, temperature = null, lang = null) {
   const spec = join(scratch, 'lines.json');
   writeFileSync(spec, JSON.stringify({ model: MLX ? model : TORCH_REPO[model] || model, voice: voice ?? null, max_tokens: CEILING, temperature, lang, lines }));
   // PYTHONUTF8: Windows' Python would read and print in its ANSI code page (a profile path with an accent)
-  const r = spawnSync(py, [join(HERE, MLX ? 'voice-mlx.py' : 'voice-torch.py'), spec], { stdio: ['ignore', 'ignore', 'pipe'], encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1' } });
+  const r = spawnSync(py, [join(HERE, MLX ? 'voice-mlx.py' : 'voice-torch.py'), spec], { stdio: ['ignore', 'ignore', 'pipe'], encoding: 'utf8', maxBuffer: 64 << 20, env: { ...process.env, PYTHONUTF8: '1', TQDM_DISABLE: '1' } }); // (tqdm: Chatterbox's progress bar, a long story's stderr)
   rmSync(spec, { force: true });
   // what voice-torch.py says of itself (the GPU left for the CPU…), heard on success too
   if (r.status === 0) for (const l of String(r.stderr || '').split('\n')) if (l.startsWith('voice-torch.py:')) console.log(l);
-  if (r.status !== 0) stop(3, `the voice model did not run (${model})${r.signal ? `: ended by ${r.signal}, which on a CPU is often memory (Orpheus wants about 13 GB of it there, 7 GB of a GPU's)` : ''}.\n${String(r.stderr || r.error?.message || '').trim().split('\n').slice(-4).join('\n')}`);
+  if (r.status !== 0) stop(3, `the voice model did not run (${model})${r.signal && !MLX ? `: ended by ${r.signal}, which on a CPU is often memory (Orpheus wants about 13 GB of it there, 7 GB of a GPU's)` : ''}.\n${String(r.stderr || r.error?.message || '').trim().split('\n').slice(-4).join('\n')}`);
 }
 
 /** Once on each Mac: the Python that runs the models, then each model named, downloaded and tried. */
@@ -304,7 +304,7 @@ function setupLarge(models) {
   const pip = (...a) => spawnSync(py, ['-m', 'pip', 'install', '--quiet', '--disable-pip-version-check', ...a], { stdio: 'inherit' }).status === 0;
   const pinned = ['-c', pinsFile('voice-constraints-large.txt')];
   console.log(`PyTorch for ${cuda ? 'CUDA' : 'the CPU'}, then chatterbox-tts ${CHATTERBOX_TTS} and SNAC, into ${VENV_LARGE} (2 to 4 GB the first time)…`);
-  // torch first, at chatterbox-tts's own version, from PyTorch's index for this machine (an Intel Mac's from PyPI)
+  // torch first, at chatterbox-tts's own version, from PyTorch's index for this machine (VOICE_ENGINE=torch on a Mac: PyPI's)
   // PyTorch's index beside PyPI's, which serves torch's own dependencies at the pinned versions: of the two
   // torch 2.6.0 builds, pip takes the index's (+cu124, +cpu), whose local label sorts after the plain one
   const index = process.platform === 'darwin' ? [] : ['--extra-index-url', cuda ? TORCH_CUDA_INDEX : TORCH_INDEX];
@@ -317,7 +317,7 @@ function setupLarge(models) {
   }
   // the GPU as voice-torch.py will judge it: CUDA usable, and kernels of its major version in this build (not an RTX 50's)
   const GPU_OK = 'import sys, torch\nok = torch.cuda.is_available() and any(int(a.split("_")[1]) // 10 == torch.cuda.get_device_capability()[0] for a in torch.cuda.get_arch_list() if a.startswith("sm_"))\nsys.exit(0 if ok else 1)';
-  const onGpu = cuda && !['cpu'].includes(process.env.VOICE_DEVICE) && spawnSync(py, ['-c', GPU_OK]).status === 0;
+  const onGpu = cuda && process.env.VOICE_DEVICE !== 'cpu' && spawnSync(py, ['-c', process.env.VOICE_DEVICE === 'cuda' ? 'import sys, torch; sys.exit(0 if torch.cuda.is_available() else 1)' : GPU_OK]).status === 0;
   if (cuda && !onGpu) console.log('nvidia-smi answers, but these models will run on the CPU: PyTorch cannot use this GPU (a driver older than CUDA 12.4 needs, or a GPU newer than its kernels), or VOICE_DEVICE=cpu.');
   if (!pip(...pinned, `chatterbox-tts==${CHATTERBOX_TTS}`, 'snac')) stop(3, `pip could not install chatterbox-tts and SNAC into ${VENV_LARGE}.`);
   console.log(`the Python that says ${models.map((m) => Object.keys(MODELS).find((k) => MODELS[k] === m)).join(' and ')}: ${py}${onGpu ? '' : ' (on the CPU)'}`);
@@ -336,7 +336,7 @@ function setupKokoro() {
   const pip = (...a) => spawnSync(py, ['-m', 'pip', 'install', '--quiet', '--disable-pip-version-check', ...a], { stdio: 'inherit' }).status === 0;
   const pins = pinsFile('voice-constraints-torch.txt');
   console.log(`PyTorch for the CPU, then Kokoro and its text packages, into ${VENV_TORCH} (about 1.3 GB the first time)…`);
-  // torch by itself first, from PyTorch's CPU index (PyPI's Linux wheel brings CUDA's 2 GB); an Intel Mac's comes from PyPI
+  // torch by itself first, from PyTorch's CPU index (PyPI's Linux wheel brings CUDA's 2 GB); VOICE_ENGINE=torch on a Mac: PyPI's
   if (!pip('-c', pins, ...(process.platform === 'darwin' ? [] : ['--extra-index-url', TORCH_INDEX]), 'torch')) stop(3, `pip could not install PyTorch into ${VENV_TORCH}.`);
   if (!pip('-c', pins, 'kokoro', 'soundfile', 'misaki', 'spacy', 'num2words', 'phonemizer-fork', 'espeakng-loader')) stop(3, `pip could not install Kokoro into ${VENV_TORCH}.`);
   if (!pip('--no-deps', SPACY_MODEL)) stop(3, `pip could not install the English text model (${SPACY_MODEL}) into ${VENV_TORCH}.`);
