@@ -1,6 +1,8 @@
 # The engine and the Studio off the maintainer's Mac: deliver.mjs's selftest, the Studio's selftest
 # (headless Chrome, every step of the wizard) and the shortest render there is (PREVIEW, half a
-# second), on Linux. GitHub's runners carry Google Chrome; ffmpeg comes from the system's packages.
+# second), on Linux and on Windows. GitHub's runners carry Google Chrome; ffmpeg comes from the system's
+# packages (apt, Chocolatey). The film folder sits under the one playwright-core is installed in, so
+# render.mjs finds it by Node's own lookup, with no link (Windows makes none without privileges).
 name: Engine
 
 on:
@@ -47,14 +49,54 @@ jobs:
         run: node "$SKILL/studio/selftest.mjs" --roots "$GITHUB_WORKSPACE/.." --shots "$RUNNER_TEMP/shots"
       - name: Half a second of the demo, rendered
         run: |
-          W="$RUNNER_TEMP/film/src" && mkdir -p "$W"
+          W="$RUNNER_TEMP/pw/film/src" && mkdir -p "$W"
           cp "$SKILL"/template/promo.html "$SKILL"/template/film.js "$SKILL"/template/fx.js "$SKILL"/template/parts.js "$SKILL"/template/type.js "$SKILL"/scripts/render.mjs "$W"/
-          ln -s "$RUNNER_TEMP/pw/node_modules" "$W/node_modules"
           cd "$W" && PREVIEW=1 FROM=0 TO=0.5 node render.mjs video ../preview.mp4
           ffprobe -v error -show_entries stream=codec_name,width,height:format=duration -of compact ../preview.mp4
       - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: linux-studio-shots
+          path: ${{ runner.temp }}/shots
+          if-no-files-found: ignore
+
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash   # Git Bash: the same steps as Linux's
+    env:
+      SKILL: ${{ github.workspace }}/plugins/manovella/skills/site-promo-film
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: ffmpeg
+        run: choco install ffmpeg -y --no-progress > /dev/null && ffmpeg -version | head -1
+      - name: playwright-core, in a folder of its own
+        run: |
+          mkdir -p "$RUNNER_TEMP/pw" && cd "$RUNNER_TEMP/pw"
+          npm init -y > /dev/null && npm i --no-audit --no-fund playwright-core
+      - name: What it runs on
+        run: node --version && ls "/c/Program Files/Google/Chrome/Application/chrome.exe"
+      - name: deliver.mjs
+        run: node "$SKILL/scripts/deliver.mjs" --selftest
+      - name: The Studio
+        working-directory: ${{ runner.temp }}/pw
+        env:
+          STUDIO_TEST_IDLE: 240000
+        run: node "$SKILL/studio/selftest.mjs" --roots "$GITHUB_WORKSPACE/.." --shots "$RUNNER_TEMP/shots"
+      - name: Half a second of the demo, rendered
+        run: |
+          W="$RUNNER_TEMP/pw/film/src" && mkdir -p "$W"
+          cp "$SKILL"/template/promo.html "$SKILL"/template/film.js "$SKILL"/template/fx.js "$SKILL"/template/parts.js "$SKILL"/template/type.js "$SKILL"/scripts/render.mjs "$W"/
+          cd "$W" && PREVIEW=1 FROM=0 TO=0.5 node render.mjs video ../preview.mp4
+          ffprobe -v error -show_entries stream=codec_name,width,height:format=duration -of compact ../preview.mp4
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: windows-studio-shots
           path: ${{ runner.temp }}/shots
           if-no-files-found: ignore

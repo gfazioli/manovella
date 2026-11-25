@@ -994,7 +994,8 @@ check(web.accent === '#E8833A' && JSON.stringify(web.formats) === '["bento"]', '
 check(web.frame === null, `website: no device chosen, the brief leaves the frame to each format (${web.frame})`);
 
 // ---------------------------------------------------------------- a tutorial: a lesson, a voice model or a voice to hear, subtitles
-const tut = await wizard('tutorial', async ({ page, idle, shot }) => {
+// macOS only: this tutorial is told by a macOS voice, which no other system has (the model's tutorials below run everywhere)
+const tut = process.platform !== 'darwin' ? null : await wizard('tutorial', async ({ page, idle, shot }) => {
   await page.click('.card:has(.lbl:text-is("Tutorial"))'); await idle();
   await page.click('#next'); await pickProduct(page);
   await page.click('#next'); await idle(); await page.waitForTimeout(600);
@@ -1104,10 +1105,12 @@ const tut = await wizard('tutorial', async ({ page, idle, shot }) => {
   await page.click('#steps li[data-step=review] button'); await page.waitForSelector('.summary .r');
   await page.click('#next');
 });
+if (tut) {
 check(tut.frame === 'iphone', `tutorial: the device it is told on is the brief's frame (${tut.frame})`);
 check(tut.kind === 'tutorial' && tut.duration === 0 && JSON.stringify(tut.formats) === '["tutorial"]' && tut.fps === 30 && /-tutorial$/.test(tut.name || ''), `tutorial: kind, one format, length from the story, 30 fps, named <product>-tutorial (${tut.name})`);
 const TV = tut.voice || {};
 check(TV.kind === 'mac' && TV.model === null && TV.tempo === null && !!TV.name && /^[a-z]{2,3}-[A-Z0-9]{2,4}$/.test(TV.lang || '') && TV.rate === 130 && ['Premium', 'Enhanced', 'compact'].includes(TV.quality) && TV.captions === 'file' && /first commit/.test(tut.tutorial?.task || ''), `tutorial: the lesson, the voice with its language and pace, the subtitles in the brief (${JSON.stringify(TV)})`);
+}
 
 // a tutorial sent without its voice step ever opened: the brief names the model, its pace and its language
 const model = await wizard('tutorial-model', async ({ page, idle }) => {
@@ -1126,6 +1129,8 @@ const kokoro = await wizard('tutorial-kokoro', async ({ page, idle }) => {
   await page.click('#steps li[data-step=voice] button'); await idle();
   await openFold(page, 'who');
   await page.click('.models .vcard:has(.vn:text("Sara")) .pick'); await idle();
+  // off macOS no voice of macOS is offered, only the models'
+  check(process.platform === 'darwin' || await page.locator('.seg button:has-text("spoken by macOS")').count() === 0, 'kokoro: off macOS, no macOS voice is offered');
   await page.click('#steps li[data-step=review] button'); await idle(); await page.waitForTimeout(600);
   await page.click('#next');
 });
@@ -1178,7 +1183,11 @@ check(KV.kind === 'model' && KV.model === 'kokoro' && KV.speaker === 'if_sara' &
 }
 
 // ---------------------------------------------------------------- the ways it ends
-const chromes = () => Number(execSync(`pgrep -f '${join(TMP, 'prefs', 'chrome')}' | wc -l`).toString().trim());
+// the Chrome processes started on the Studio's own profile: pgrep, or Windows' process list through PowerShell
+const chromes = () => (process.platform === 'win32'
+  ? Number(spawnSync('powershell.exe', ['-NoProfile', '-Command', '(Get-CimInstance Win32_Process -Filter "Name=\'chrome.exe\'" | Where-Object { $_.CommandLine -like "*$env:PROFILE_DIR*" } | Measure-Object).Count'],
+    { encoding: 'utf8', env: { ...process.env, PROFILE_DIR: join(TMP, 'prefs', 'chrome') } }).stdout.trim() || 0)
+  : Number(execSync(`pgrep -f '${join(TMP, 'prefs', 'chrome')}' | wc -l`).toString().trim()));
 const before = chromes();
 let s = start([], { STUDIO_CHROME_ARGS: '--headless=new' });
 const url = new URL(await s.url), k = url.searchParams.get('k');
