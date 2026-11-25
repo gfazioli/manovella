@@ -21,7 +21,7 @@ permissions:
 jobs:
   linux:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 75
     env:
       SKILL: ${{ github.workspace }}/plugins/manovella/skills/site-promo-film
     steps:
@@ -41,6 +41,8 @@ jobs:
         run: node "$SKILL/scripts/deliver.mjs" --selftest
       - name: The Studio
         working-directory: ${{ runner.temp }}/pw
+        env:
+          STUDIO_TEST_IDLE: 240000   # the previews' shaders drawn in software: no GPU here
         # its products: the repositories beside this checkout, this one among them
         run: node "$SKILL/studio/selftest.mjs" --roots "$GITHUB_WORKSPACE/.." --shots "$RUNNER_TEMP/shots"
       - name: Half a second of the demo, rendered

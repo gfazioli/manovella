@@ -149,9 +149,11 @@ check(ICON.toString('ascii', 1, 4) === 'PNG' && ICON.readUInt32BE(16) === 1024 &
   check(F.voiceModel.options.every((o) => (o.tone === false) === !Object.values(V.TONES).some((t) => t && V.MODELS[o.value] in t)) && SCHEMA.voices.every((v) => !v.sample || /\{product\}/.test(v.sample)), 'the schema: a model has no tone exactly when voice.mjs has no temperature for it, and a voice\'s own sample line names the product');
 }
 
-const browser = await chromium.launch({ channel: 'chrome', headless: true });
+// off macOS, WebGL in software where there is no GPU (render.mjs says why)
+const browser = await chromium.launch({ channel: 'chrome', headless: true, args: process.platform === 'darwin' ? [] : ['--enable-unsafe-swiftshader'] });
 // a page at rest: no thumbnail still loading, the viewer not busy
-const idleOn = (page) => page.waitForFunction(() => !document.querySelector('.thumb.wait') && !document.querySelector('#viewer.busy'), null, { timeout: 60000 });
+// (STUDIO_TEST_IDLE: longer, in ms, where the previews are drawn in software, as on a CI runner without a GPU)
+const idleOn = (page) => page.waitForFunction(() => !document.querySelector('.thumb.wait') && !document.querySelector('#viewer.busy'), null, { timeout: Number(process.env.STUDIO_TEST_IDLE) || 60000 });
 async function wizard(name, steps) {
   const s = start(['--no-open']);
   const page = await browser.newPage({ viewport: { width: 1480, height: 940 } });

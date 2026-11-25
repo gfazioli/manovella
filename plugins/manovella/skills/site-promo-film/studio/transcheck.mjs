@@ -61,7 +61,7 @@ for (const d of [SHOTS, TEXT, TYPES]) if (d) mkdirSync(d, { recursive: true });
 const TMP = mkdtempSync(join(tmpdir(), 'film-transcheck-'));
 const srv = spawn('node', [join(HERE, 'studio.mjs'), '--no-open', '--out', join(TMP, 'out'), '--roots', TMP], { stdio: ['ignore', 'pipe', 'inherit'], env: { ...process.env, STUDIO_PREFS: join(TMP, 'prefs') } });
 const origin = await new Promise((ok) => srv.stdout.on('data', (d) => { const m = String(d).match(/STUDIO (\S+)/); if (m) ok(new URL(m[1]).origin); }));
-const browser = await chromium.launch({ channel: 'chrome', headless: true });
+const browser = await chromium.launch({ channel: 'chrome', headless: true, args: process.platform === 'darwin' ? [] : ['--enable-unsafe-swiftshader'] });
 const page = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: 1 });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
