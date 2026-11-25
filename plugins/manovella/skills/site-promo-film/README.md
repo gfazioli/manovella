@@ -59,7 +59,13 @@ the window works down to 900 x 600, its sidebar reduced to the steps' numbers.
 - **By hand**: `node studio/studio.mjs` from a workspace. It prints `STUDIO <url>`, then one of
   `BRIEF <path>`, `CANCELLED`, `CLOSED` or `TIMEOUT`, and exits. Options: `--no-open` (just the URL),
   `--roots <dir>,…` (where the repositories are), `--product <path>` (preselected), `--out <dir>`
-  (default: the work folder, `~/Downloads` unless Settings › Work folder says otherwise). The window is the Studio's own app, `~/Applications/Manovella.app`,
+  (default: the work folder, `~/Downloads` unless Settings › Work folder says otherwise),
+  `--agent claude|codex|copilot|gemini` (who the brief goes back to: the Studio names it, and its end
+  screen gives that agent's command; without it, Claude inside Claude Code, else "your agent" and
+  every agent's command). `--detach` is for an agent that no background command's exit wakes: the
+  Studio goes on by itself, and the command prints `STUDIO <url>` and `STATE <file>` and returns;
+  `node studio/studio.mjs --wait <file> [--for <seconds>]` then prints the ending line, or `WAITING`
+  after 240 s, to be run again. The window is the Studio's own app, `~/Applications/Manovella.app`,
   where it has been built from the window kit
   (`studio/window/build.sh studio`): its name, version and
   icon in the Dock instead of one more Google Chrome.

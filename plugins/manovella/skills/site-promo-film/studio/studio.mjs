@@ -2,6 +2,8 @@
 // Manovella's Studio: a wizard for a film's brief, in a window of its own, on the real engine.
 //
 //   node studio.mjs [--out ~/Downloads] [--roots <dir>[,<dir>…]] [--product <path>] [--port N] [--no-open]
+//                   [--agent claude|codex|copilot|gemini] [--detach]
+//   node studio.mjs --wait <state> [--for <seconds>]
 //
 // It serves the wizard (index.html), the engine pages it previews (../template, ../../release-film/
 // template) and a small API on 127.0.0.1, opens the wizard in a window it owns and closes when it is
@@ -17,6 +19,17 @@
 //
 // So a caller runs it in the background and is woken by its exit (site-promo-film SKILL.md, Studio).
 // The first line it prints is `STUDIO <url>`: the address, for a browser of your choice with --no-open.
+//
+// An agent that is not woken by a background command's exit (Codex, Copilot CLI, Gemini CLI) starts it
+// with --detach: the Studio goes on in a process of its own, and this one prints `STUDIO <url>` and
+// `STATE <file>`, then exits at once. `--wait <file>` then blocks until the Studio ends and prints its
+// line, as above; after --for seconds (default 240, under a shell tool's timeout) it prints `WAITING`
+// instead, and the agent waits again. A Studio that stopped without an ending reads as CLOSED.
+//
+// --agent names who the brief goes back to: the copy names that agent (Claude's and Claude Code's names
+// replaced) and the end screen gives the line that starts it on the brief. Without it, Claude Code's own
+// environment (CLAUDECODE) names Claude; otherwise the copy says "your agent" and the end screen gives
+// every agent's line.
 //
 // Products are the git repositories two levels deep under the project folders: --roots (or
 // MANOVELLA_ROOTS, comma-separated), else projectFolders in settings.json (../scripts/settings.mjs, which
@@ -69,7 +82,7 @@ import { promisify } from 'node:util';
 import { randomBytes, createHash } from 'node:crypto';
 import { platform } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync, readdirSync, copyFileSync, createReadStream, openSync, readSync, closeSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync, readdirSync, copyFileSync, createReadStream, openSync, readSync, closeSync, unlinkSync } from 'node:fs';
 import { basename, dirname, extname, join, resolve, sep } from 'node:path';
 import { HOME, untilde, tl, MANY, prefsDir, readSettings, writeSettings, folder, folders, workRoot } from '../scripts/settings.mjs';
 
@@ -106,6 +119,77 @@ if (!process.env.STUDIO_PREFS) {
   if (existsSync(old) && !existsSync(PREFS)) try { mkdirSync(PREFS_DIR, { recursive: true }); renameSync(old, PREFS); } catch { /* the briefs stay where they were: Like last time starts empty */ }
 }
 const CACHE = process.env.STUDIO_PREFS ? join(PREFS_DIR, 'cache') : platform() === 'darwin' ? join(HOME, 'Library', 'Caches', 'manovella') : join(HOME, '.cache', 'manovella');
+
+// ---------------------------------------------------------------- the agent the brief goes back to
+// The copy (studio.js, index.html, the schema's labels) is written naming Claude and Claude Code; served to
+// another agent's user it names that agent instead, or "your agent" (capitalised where a sentence begins).
+// `run` starts the agent on a brief, for a Studio opened outside a session: the end screen shows it.
+const ask = (cli) => `${cli} "Use the site-promo-film skill on the brief {path}"`;
+const AGENTS = {
+  claude: { name: 'Claude', app: 'Claude Code', run: 'claude "/manovella:site-promo-film brief {path}"' },
+  codex: { name: 'Codex', app: 'Codex', run: ask('codex') },
+  copilot: { name: 'Copilot', app: 'Copilot CLI', run: ask('copilot -i') },
+  gemini: { name: 'Gemini CLI', app: 'Gemini CLI', run: ask('gemini -i') }, // not just Gemini: the copy names the Gemini app, for music
+};
+const AGENT = AGENTS[arg('--agent', process.env.CLAUDECODE ? 'claude' : '').toLowerCase()] || null;
+function agentCopy(text) {
+  if (AGENT === AGENTS.claude) return text;
+  return text.replace(/\bClaude Code\b/g, AGENT?.app || 'your agent').replace(/\bClaude\b/g, AGENT?.name || 'your agent')
+    .replace(/(^|[.!?]\s+|['"`>]\s*)your agent/g, '$1Your agent');
+}
+// the schema's strings one by one, so each starts a sentence where it starts
+const copyOf = (v) => (typeof v === 'string' ? agentCopy(v) : Array.isArray(v) ? v.map(copyOf)
+  : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, copyOf(x)])) : v);
+const SCHEMA_COPY = AGENT === AGENTS.claude ? SCHEMA : copyOf(SCHEMA);
+
+// ---------------------------------------------------------------- --detach and --wait
+// The state file is a detached Studio's: its log from the start, its pid and address once it listens, and
+// its last line once it ends (finish).
+const STATE = arg('--state', null);
+function writeState(patch) {
+  if (!STATE) return;
+  writeFileSync(`${STATE}.part`, JSON.stringify({ ...readJSON(STATE), ...patch }), { mode: 0o600 }); // its address holds the key
+  renameSync(`${STATE}.part`, STATE);
+}
+const alive = (pid) => { try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; } };
+const sleep = (ms) => new Promise((ok) => setTimeout(ok, ms));
+if (argv.includes('--wait')) {
+  const file = resolve(untilde(arg('--wait', ''))), until = Date.now() + (Number(arg('--for')) || 240) * 1000;
+  for (;;) {
+    const s = readJSON(file);
+    if (!s) { console.error(`no Studio state at ${file}`); process.exit(2); }
+    if (s.end) { console.log(s.end); process.exit(0); }
+    // gone without a line; or older than the Studio's own 3 h, its pid perhaps another process's by now
+    if (s.pid && (!alive(s.pid) || Date.now() - s.started > 3.25 * 3600_000)) { console.log('CLOSED'); console.error(`the Studio stopped without an ending; its log: ${s.log}`); process.exit(0); }
+    if (Date.now() >= until) { console.log('WAITING'); process.exit(0); }
+    await sleep(1000);
+  }
+}
+if (argv.includes('--detach')) {
+  const runs = join(CACHE, 'runs'), id = `${Date.now()}-${randomBytes(3).toString('hex')}`;
+  try { mkdirSync(runs, { recursive: true }); } catch (e) {
+    console.error(`cannot write ${runs} (${e.code}): run --detach outside the agent's sandbox, which must also let it listen on 127.0.0.1`);
+    process.exit(1);
+  }
+  for (const f of readdirSync(runs)) { // a week's runs are kept, to read a log back
+    try { if (Date.now() - statSync(join(runs, f)).mtimeMs > 7 * 86400_000) unlinkSync(join(runs, f)); } catch { /* gone meanwhile */ }
+  }
+  const state = join(runs, `${id}.json`), log = join(runs, `${id}.log`), out = openSync(log, 'a', 0o600);
+  writeFileSync(state, JSON.stringify({ log }), { mode: 0o600 });
+  const child = spawn(process.execPath, [fileURLToPath(import.meta.url), ...argv.filter((a) => a !== '--detach'), '--state', state],
+    { detached: true, stdio: ['ignore', out, out], windowsHide: true });
+  let gone = false;
+  child.on('exit', () => { gone = true; });
+  child.unref();
+  const t0 = Date.now();
+  while (!gone && Date.now() - t0 < 60_000) {
+    const s = readJSON(state);
+    if (s?.url) { console.log(`STUDIO ${s.url}`); console.log(`STATE ${state}`); process.exit(0); }
+    await sleep(100);
+  }
+  console.error(`the Studio did not start (in an agent's sandbox: run --detach outside it); its log, ${log}:\n${readFileSync(log, 'utf8').split('\n').slice(-20).join('\n')}`);
+  process.exit(1);
+}
 
 async function gitTop(dir) {
   try { return (await run('git', ['-C', dir, 'rev-parse', '--show-toplevel'])).stdout.trim(); } catch { return null; }
@@ -663,7 +747,7 @@ function serveFile(res, route, rel) {
     if (p !== dir && !p.startsWith(dir + sep)) break; // nothing outside the route's own folder
     if (existsSync(p) && statSync(p).isFile()) {
       res.writeHead(200, { 'content-type': MIME[extname(p)] || 'application/octet-stream', 'cache-control': 'no-store' });
-      res.end(readFileSync(p));
+      res.end(route === 'studio' && AGENT !== AGENTS.claude && /\.(js|html)$/.test(p) ? agentCopy(readFileSync(p, 'utf8')) : readFileSync(p));
       return;
     }
   }
@@ -684,6 +768,7 @@ let win = null, done = false, lastPing = 0, byeTimer = null; // win: the window'
 function finish(line) { // every ending comes through here, so the window goes on every one of them
   if (done) return; done = true;
   console.log(line);
+  try { writeState({ end: line }); } catch (e) { console.error(`the state file: ${e.message}`); } // --wait then reads CLOSED
   if (win && win.exitCode === null) win.kill('SIGTERM');
   server.close();
   setTimeout(() => process.exit(0), 400).unref();
@@ -764,7 +849,7 @@ const server = createServer(async (req, res) => {
         clearTimeout(byeTimer); byeTimer = setTimeout(() => finish('CLOSED'), 5000); return json(res, 200, { ok: true });
       case 'context': {
         const P = prefs();
-        return json(res, 200, { studio: { name: STUDIO.name, version: STUDIO.version }, schema: SCHEMA, roots: ROOTS, out: OUT, library: deliveryLibrary(), products: products(P), preselect: PRODUCT ? resolve(untilde(PRODUCT)) : await gitTop(process.cwd()), last: P.last || null });
+        return json(res, 200, { studio: { name: STUDIO.name, version: STUDIO.version }, agent: AGENT, app: AGENT?.app || 'your agent', agents: Object.values(AGENTS), schema: SCHEMA_COPY, roots: ROOTS, out: OUT, library: deliveryLibrary(), products: products(P), preselect: PRODUCT ? resolve(untilde(PRODUCT)) : await gitTop(process.cwd()), last: P.last || null });
       }
       case 'product': {
         const p = resolve(untilde(url.searchParams.get('path') || ''));
@@ -794,7 +879,7 @@ const server = createServer(async (req, res) => {
         if (!offered('voiceModel', model) || (o.speaker && !speakers.includes(o.speaker)) || !offered('voiceTone', o.tone) || !offered('voiceTempo', o.tempo) || !offered('voiceHuman', o.human) || !o.text) return json(res, 400, { error: 'not a sample the schema offers' });
         if (!toned(model)) o.tone = 'warm'; // no tone to read at: one sample serves every tone asked for
         if (!kit.silicon) return json(res, 409, { error: 'silicon', message: 'The voice models run on an Apple Silicon Mac.' });
-        if (!kit.python) return json(res, 409, { error: 'setup', message: `Not set up on this Mac: Claude does it at the first film that speaks (a 600 MB Python, then 330 MB to 3.5 GB a model), or now: ${kit.setup}` });
+        if (!kit.python) return json(res, 409, { error: 'setup', message: agentCopy(`Not set up on this Mac: Claude does it at the first film that speaks (a 600 MB Python, then 330 MB to 3.5 GB a model), or now: `) + kit.setup });
         if (!kit.models[model]) return json(res, 409, { error: 'download', message: `${model} is not on this Mac yet: ${SCHEMA.fields.voiceModel.options.find((x) => x.value === model).size}, downloaded once, at the first film that uses it (or now: ${kit.setup}).` });
         try { return json(res, 200, { id: await sample(o) }); } catch (e) { return json(res, 500, { error: 'said', message: String(e.stderr || e.message || e).trim().split('\n').slice(-3).join(' ') }); }
       }
@@ -880,6 +965,7 @@ ROOTS = await roots();
 server.listen(PORT, '127.0.0.1', () => {
   const url = `http://127.0.0.1:${server.address().port}/?k=${KEY}`;
   console.log(`STUDIO ${url}`);
+  writeState({ pid: process.pid, url, started: Date.now() });
   if (!OPEN) return;
   win = openWindow(url);
   win?.on('exit', () => { if (!done) finish('CLOSED'); }); // the window went away without a brief

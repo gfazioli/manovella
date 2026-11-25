@@ -1792,11 +1792,15 @@
     $('#next').disabled = true;
     try {
       const r = await api('brief', { method: 'POST', body: JSON.stringify(brief()) });
-      const cmd = `claude "/manovella:site-promo-film brief ${tilde(r.path)}"`;
+      // the agent the Studio was opened from (--agent, or Claude Code's environment), else none known: then every
+      // agent's line, one of which starts a session on the brief
+      // (CTX.app: the agent's name from the server, which the served copy's rewrite never touches)
+      const A = CTX.agent, cmd = (a) => h('p', null, h('code', null, a.run.replace('{path}', () => tilde(r.path))));
       sent = h('div', { class: 'sent' }, h('h2', null, 'Brief saved'),
         h('p', null, h('code', null, tilde(r.path))),
-        h('p', null, 'Back to Claude Code: it is reading the brief now, and this window closes on its own.'),
-        h('p', null, 'Opened the Studio outside a Claude session? Start one with:'), h('p', null, h('code', null, cmd)));
+        h('p', null, `Back to ${CTX.app}: it is reading the brief now, and this window closes on its own.`),
+        h('p', null, A ? `Opened the Studio outside a ${A.name} session? Start one with:` : 'Opened the Studio outside a session? Start one with any of these:'),
+        ...(A ? [A] : CTX.agents).map(cmd));
       live.playing = false; clearInterval(beat);
       render();
     } catch (e) {

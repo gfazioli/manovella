@@ -53,12 +53,22 @@ chosen), and every choice written to one `brief.json`. Nothing is installed and 
 
 - **When**: invoked with `studio`, or with nothing at all while nothing in the conversation says
   which film to make. A user who has said what they want in words goes straight to §0.
-- **Run** `node <this skill's dir>/studio/studio.mjs` from the workspace, in the background (its
-  repositories' siblings are the products offered), and say in one line that the window is open.
-  It exits on its own, printing one line, and the exit wakes you: `BRIEF <path>`, or `CANCELLED`,
-  `CLOSED`, `TIMEOUT` (say so and stop). The window is the Studio's own app where this Mac
-  has built it (`~/Applications/Manovella.app`, its name, version and icon in the Dock), else a
-  Chrome app window; `MANOVELLA_WINDOW=chrome` keeps Chrome. Without either it opens the default
+- **Run** `node <this skill's dir>/studio/studio.mjs` from the workspace (its repositories'
+  siblings are the products offered), and say in one line that the window is open. It ends on its
+  own with one line: `BRIEF <path>`, or `CANCELLED`, `CLOSED`, `TIMEOUT` (say so and stop).
+  - Where a background command's exit wakes you (Claude Code): run it in the background, and its
+    exit brings you that line.
+  - Elsewhere (Codex, Copilot CLI, Gemini CLI): add `--detach --agent codex` (or `copilot`,
+    `gemini`: the Studio then names you and shows your command). Run that command outside your
+    sandbox (in Codex, with escalated permissions): the Studio writes its cache and listens on
+    127.0.0.1. It returns at once with `STUDIO <url>` and `STATE <file>`. Then run
+    `node <this skill's dir>/studio/studio.mjs --wait <file> --for <seconds>`, a `--for` below
+    your shell tool's command timeout (`--for 50` under a 60 s limit; 240 when not given), or
+    the command's timeout set above it: it prints the ending line, or `WAITING`; run it again
+    until it prints the ending. `--wait` needs no escalation. To close the Studio before that,
+    end the `pid` the state file names (outside the sandbox too).
+- **The window** is the Studio's own app where this Mac has built it
+  (`~/Applications/Manovella.app`, its name, version and icon in the Dock), else a Chrome app window; `MANOVELLA_WINDOW=chrome` keeps Chrome. Without either it opens the default
   browser; `--no-open` prints the URL instead, for a session whose screen is elsewhere.
 - **The music library** is optional: a folder with the music of the user's films, kept wherever
   they like (a synced drive, a project folder). It is where `MANOVELLA_MUSIC` points for one run,
@@ -89,7 +99,8 @@ chosen), and every choice written to one `brief.json`. Nothing is installed and 
     exists; otherwise it just goes in the film's `src/audio/`. A folder in a file provider (Google
     Drive, iCloud Drive, Dropbox) may hold its files "dataless" until they are opened, so open or
     copy a file before measuring it. Files a library keeps are copied, never moved out of it.
-- **`brief <path>`**, as the argument or from a `BRIEF` line: read the brief; it answers §0.
+- **`brief <path>`**, as the argument, from a `BRIEF` line or a request that names a `brief.json`:
+  read the brief; it answers §0.
   - `formats: []` is my pick of three. For a promo or a film in chapters, one, two or three named are
     the storyboards' formats, in that order, and I pick the rest, each a different one; a release's
     and a tutorial's one format is theirs (`whatsnew`, `tutorial`), never filled. `look: null` is the
@@ -207,7 +218,8 @@ chosen), and every choice written to one `brief.json`. Nothing is installed and 
 
 ## Guided mode: `?`
 
-Invoked with `?` or `help` (the `ARGUMENTS:` line Claude Code appends after this file), or with
+Invoked with `?` or `help` (in Claude Code, the `ARGUMENTS:` line appended after this file;
+elsewhere, the words the skill was asked for with), or with
 nothing at all where the Studio cannot open (no screen, or the user asks for the terminal): read
 `guide.md` beside this file and follow it. It shows what the skill makes and what a request looks like, asks the brief in two
 rounds of questions, and says back the one-line request that would have started it. `? <topic>`
