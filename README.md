@@ -144,6 +144,35 @@ S=$(ls -d ~/.claude/plugins/cache/manovella/manovella/*/skills/site-promo-film |
 "$S/studio/window/build.sh" "$S/studio"     # installs ~/Applications/Manovella.app
 ```
 
+In another agent the skill is elsewhere: `~/.codex/plugins/cache/manovella/manovella/<version>/skills/site-promo-film`
+(Codex), `~/.copilot/installed-plugins/manovella/manovella/skills/site-promo-film` (Copilot CLI),
+`~/.gemini/extensions/manovella/skills/site-promo-film` (Gemini CLI).
+
+### Other coding agents
+
+The engine is Node, Chrome and ffmpeg, and the instructions are two Agent Skills, so three other
+agents install Manovella too. The installs below are tested; a film made end to end in each of them
+is not yet ([#1](https://github.com/gfazioli/manovella/issues/1)).
+
+| Agent | Install | The Studio |
+| --- | --- | --- |
+| Codex CLI | `codex plugin marketplace add gfazioli/manovella`, then `codex plugin add manovella@manovella` | ask for Manovella's Studio |
+| GitHub Copilot CLI | `copilot plugin marketplace add gfazioli/manovella`, then `copilot plugin install manovella@manovella` | ask for Manovella's Studio |
+| Gemini CLI | `gemini extensions install https://github.com/gfazioli/manovella`, from the first release that carries the extension (`manovella-gemini.tar.gz` among its assets); before it, each skill by itself: `gemini skills install https://github.com/gfazioli/manovella --path plugins/manovella/skills/site-promo-film`, and the same with `release-film` | `/manovella:studio` with the extension, else ask for Manovella's Studio |
+
+A film installs packages and voice models from the network, writes its work folder outside the
+project (`~/Downloads/<name>-work`), starts Chrome and the Studio's window, and renders for minutes.
+Give the agent room for that:
+
+- **Codex**: its default sandbox (`workspace-write`, no network) asks at every such command; approve
+  them, or start it with `--sandbox danger-full-access` for a film.
+- **Copilot CLI**: `--add-dir ~/Downloads` (or `--allow-all-paths`) and `--allow-all-urls` for the
+  downloads, or `--allow-all` for both.
+- **Gemini CLI**: it asks before each tool; `--approval-mode auto_edit` approves its file edits,
+  `yolo` every tool.
+- **Every agent**: a render at 1080p60 takes about 29 times the film's length, so the shell's
+  command timeout must allow it, or the render goes on detached and resumes with `RESUME=1`.
+
 ## Settings
 
 Nothing needs configuring. One optional thing does: a **music library**, a folder with the music

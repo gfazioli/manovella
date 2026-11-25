@@ -9,6 +9,14 @@ Manovella is a film engine and a Studio for Claude Code: the skills `site-promo-
   `plugin update` has nothing to fetch; `studio/selftest.mjs` fails when they disagree. Then
   `claude plugin validate plugins/manovella` and `claude plugin validate .`. A change to the
   promo site alone (`site/`, `scripts/site.mjs`) ships nothing and bumps nothing.
+- **Other agents**: Codex and Copilot CLI install the plugin from the same marketplace. Gemini CLI
+  installs an extension, `manovella-gemini.tar.gz`, that `scripts/gemini-pack.mjs` builds from the
+  skills and `gemini/commands/` (the manifest's version is `plugin.json`'s, written at build time)
+  and `.github/workflows/gemini-extension.yml` attaches to every GitHub Release. Gemini takes a
+  release's asset only when it is the only one: attach nothing else to a release. Without it a
+  Gemini install fails, so a release made by hand carries it from the start:
+  `node scripts/gemini-pack.mjs` then `gh release create <tag> manovella-gemini.tar.gz …`. A command added
+  to `plugins/manovella/commands/` gets its Gemini twin in `gemini/commands/manovella/`.
 - **The promo site**: `node scripts/site.mjs serve` builds `site/` into `_site/` with the engine's
   own files and serves it at `http://localhost:4173/`. Vercel publishes it at
   `https://manovella.mov/` from `main` (`vercel.json`: the same build, `/guide` → `/guide/`), and
