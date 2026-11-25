@@ -152,8 +152,11 @@ the skill installed by itself).
 ### Other coding agents
 
 The engine is Node, Chrome and ffmpeg, and the instructions are two Agent Skills, so three other
-agents install Manovella too. The installs below are tested; a film made end to end in each of them
-is not yet ([#1](https://github.com/gfazioli/manovella/issues/1)).
+agents install Manovella too. The installs below are tested. In Copilot CLI so is a film's way from
+the Studio to its stills (the Studio detached and waited on, the brief read, three storyboards, a page
+built, stills and a contact sheet); Codex and Gemini CLI are next
+([#1](https://github.com/gfazioli/manovella/issues/1)). How good the film is follows the agent's
+model.
 
 | Agent | Install | The Studio |
 | --- | --- | --- |
