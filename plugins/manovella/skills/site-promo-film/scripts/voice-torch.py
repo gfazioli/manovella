@@ -20,6 +20,7 @@ A take said here and one said on MLX are the same voice and words through anothe
 alike, not equal to the byte.
 """
 import json
+import os
 import re
 import sys
 
@@ -126,9 +127,24 @@ def orpheus(spec, device):
         write(line['out'], audio.squeeze().float().cpu().numpy(), 24000)
 
 
+def pick_device():
+    """CUDA when torch has kernels for this GPU, else the CPU, saying why; VOICE_DEVICE=cpu|cuda decides instead.
+    A GPU newer than the build (an RTX 50, sm_120, on torch 2.6.0's cu124) is "available" and then fails on its first kernel."""
+    if os.environ.get('VOICE_DEVICE'):
+        return os.environ['VOICE_DEVICE']
+    if not torch.cuda.is_available():
+        return 'cpu'
+    major, minor = torch.cuda.get_device_capability()
+    if f'sm_{major}{minor}' not in torch.cuda.get_arch_list():
+        print(f"voice-torch.py: {torch.cuda.get_device_name()} (sm_{major}{minor}) is newer than this PyTorch's CUDA kernels "
+              f"({' '.join(torch.cuda.get_arch_list())}): saying it on the CPU (VOICE_DEVICE=cuda tries the GPU anyway)", file=sys.stderr, flush=True)
+        return 'cpu'
+    return 'cuda'
+
+
 def main():
     spec = json.load(open(sys.argv[1], encoding='utf-8'))   # voice.mjs writes UTF-8; Windows would read cp1252
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    device = pick_device()
     name = spec['model'].lower()
     if 'chatterbox' in name:
         return chatterbox(spec, device)

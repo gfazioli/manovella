@@ -481,8 +481,8 @@ in words: for an English film, never propose one and never name one to download.
      (`voice-torch.py`), from a Python 3.12 (`uv python install 3.12` where the system's is
      newer). Kokoro ("af_heart" in English, "if_sara" in Italian) runs on the CPU: `node voice.mjs
      --setup kokoro` (about 1.3 GB). Chatterbox and Orpheus want an NVIDIA GPU: `--setup chatterbox
-     orpheus` (about 4 and 6.6 GB of weights; on a CPU a line takes tens of seconds to minutes: say
-     so before choosing them there). A take said through PyTorch is the same voice and words as on
+     orpheus` (about 4 and 6.6 GB of weights; Orpheus wants 7 GB of a GPU's memory or 13 GB of RAM; on
+     a CPU a line takes tens of seconds to minutes: say so before choosing them there). A take said through PyTorch is the same voice and words as on
      MLX, not the same file. Copy `voice.mjs` with `voice-mlx.py`, `voice-torch.py` and the
      `voice-constraints*.txt` beside it, or run `--setup` from the skill's own `scripts/`.
    - **The Python and the models are per Mac.** When `voice.mjs` stops for lack of them (exit 3),

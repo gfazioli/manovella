@@ -1245,7 +1245,7 @@ check((await fetch(url.origin + '/api/voice-sample?model=chatterbox&tone=shouty&
 {
   const q = new URLSearchParams({ model: 'chatterbox', tone: 'warm', tempo: '1', human: 'clean', text: 'The same words, the same take.' });
   const r = await fetch(`${url.origin}/api/voice-sample?${q}`, { headers: { 'x-studio-key': k } }), j = await r.json();
-  if (kit.silicon && kit.python && kit.models.chatterbox) {
+  if (kit.python && kit.models.chatterbox) {
     const wav = r.ok ? await (await fetch(`${url.origin}/api/sample/${j.id}.wav?k=${k}`)).arrayBuffer() : new ArrayBuffer(0);
     check(r.status === 200 && wav.byteLength > 48000 && new TextDecoder().decode(wav.slice(0, 4)) === 'RIFF' && new DataView(wav).getUint32(24, true) === 48000, `voice sample: a line said by Chatterbox through voice.mjs, 48 kHz (${wav.byteLength} bytes)`);
   } else check(r.status === 409 && /Claude|setup|Apple Silicon/.test(j.message || ''), `voice sample: on a Mac without the model, a 409 that says what is missing (${j.message})`);
@@ -1255,7 +1255,7 @@ check((await fetch(url.origin + '/api/voice-sample?model=kokoro&speaker=leah&tex
   const has = kit.python && kit.models.kokoro && spawnSync((await import(pathToFileURL(join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'voice.mjs')).href)).python(), ['-c', 'import misaki, espeakng_loader'], { stdio: 'ignore' }).status === 0;
   const q = new URLSearchParams({ model: 'kokoro', speaker: 'if_sara', tone: 'bright', tempo: '1', human: 'clean', text: 'Ecco Manovella. Tutto quello che ti serve.' });
   const r = await fetch(`${url.origin}/api/voice-sample?${q}`, { headers: { 'x-studio-key': k } }), j = await r.json();
-  if (kit.silicon && has) {
+  if (has) {
     const wav = r.ok ? await (await fetch(`${url.origin}/api/sample/${j.id}.wav?k=${k}`)).arrayBuffer() : new ArrayBuffer(0);
     check(r.status === 200 && wav.byteLength > 48000 && new TextDecoder().decode(wav.slice(0, 4)) === 'RIFF' && new DataView(wav).getUint32(24, true) === 48000, `voice sample: Sara's Italian line said by Kokoro through voice.mjs, 48 kHz (${wav.byteLength} bytes)`);
   } else check(r.status === 409 || r.status === 500, `voice sample: on a Mac without Kokoro (or its packages), it says so instead of a WAV (${r.status} ${j.message || ''})`);
