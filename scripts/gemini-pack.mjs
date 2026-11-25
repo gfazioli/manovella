@@ -49,8 +49,10 @@ try {
 
   if (CHECK) console.log(`ok   the Gemini extension ${version}: ${files.length + 1} files`);
   else {
-    // the files at the archive's root, as Gemini reads them; on macOS, no AppleDouble ._ files beside them
-    execFileSync('tar', ['-czf', OUT, '-C', dir, ...readdirSync(dir)], { env: { ...process.env, COPYFILE_DISABLE: '1' } });
+    // the files at the archive's root, as Gemini reads them, owned by no one in particular (no user name
+    // of the machine it was built on); on macOS (bsdtar), no AppleDouble ._ files beside them
+    const owner = process.platform === 'darwin' ? ['--uid', '0', '--gid', '0', '--uname', 'root', '--gname', 'root'] : ['--owner=0', '--group=0', '--numeric-owner'];
+    execFileSync('tar', ['-czf', OUT, ...owner, '-C', dir, ...readdirSync(dir)], { env: { ...process.env, COPYFILE_DISABLE: '1' } });
     console.log(`${OUT}: the Gemini extension ${version}, ${files.length + 1} files`);
   }
 } finally { rmSync(dir, { recursive: true, force: true }); }
