@@ -654,7 +654,7 @@ const promo = await wizard('promo', async ({ page, idle, shot }) => {
   // the voice, a step of its own. Beside the line to hear, the ▶ of the voice chosen; under them five cards, the same
   // five whoever speaks: a preset, who speaks, how it reads, the lines and subtitles, the music under them
   const FIVE = 'preset who reading lines mix', cards8 = async () => (await deckIds(page)).replace('*', '');
-  check(await page.textContent('#title') === 'Which voice?' && /^Made on this Mac/.test(await page.textContent('#lede')) && await deckIds(page) === 'preset* who reading lines mix' && await page.locator('.presets .vcard').count() === 6,
+  check(await page.textContent('#title') === 'Which voice?' && /^Made on this (Mac|computer)/.test(await page.textContent('#lede')) && await deckIds(page) === 'preset* who reading lines mix' && await page.locator('.presets .vcard').count() === 6,
     `promo: the voice has a step of its own: five cards, the presets' open on arrival, in reach before any voice (${await deckIds(page)})`);
   const quiet = [await foldSum(page, 'who'), await foldSum(page, 'reading'), await foldSum(page, 'lines'), await foldSum(page, 'mix')];
   check(quiet.every((x) => /^No voice · /.test(x)) && await page.locator('.dcard.na').count() === 5, `promo: without a voice the cards keep their place and say there is nothing to set (${quiet.join(' | ')})`);
@@ -1155,7 +1155,7 @@ check(KV.kind === 'model' && KV.model === 'kokoro' && KV.speaker === 'if_sara' &
   await pg.click('.option'); await pg.waitForTimeout(600);
   const line = await pg.textContent('#request');
   check(errs.length === 0 && /^A 15 s promo loop of Acme \(acme\.example\/pricing\), 16:9, bento,/.test(line) && !/retired/.test(line) && !(await pg.$eval('#next', (x) => x.disabled)), `a brief remembered from an older schema still opens, what it names that is gone left open (${errs.join('; ') || line})`);
-  check(/told by (Samantha|this Mac’s voice), subtitles as a file, music: old-song\.mp3\.$/.test(line), `and its voice (schema 2's, under the tutorial) and its track come back (${line.slice(-80)})`);
+  check(/told by (Samantha|this (Mac|computer)’s voice), subtitles as a file, music: old-song\.mp3\.$/.test(line), `and its voice (schema 2's, under the tutorial) and its track come back (${line.slice(-80)})`);
   await pg.click('#next'); await pg.waitForTimeout(500);
   check(await pg.inputValue('input[type=url]') === 'https://acme.example/pricing', `and its website is in the website field (${await pg.inputValue('input[type=url]')})`);
   await fetch(at.origin + '/api/cancel', { method: 'POST', headers: { 'x-studio-key': at.searchParams.get('k') } });
