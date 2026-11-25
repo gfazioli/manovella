@@ -277,16 +277,20 @@ function lockCut(file, cut) {
     try { openSync(file, fsc.O_RDWR | fsc.O_CREAT | fsc.O_NONBLOCK | O_EXLOCK); } catch (e) { throw e.code === 'EAGAIN' ? busy() : e; }
     return;
   }
-  const alive = (pid) => { try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; } };
+  // a pid is the holder only while it lives and is not this process's own: a container starts every
+  // render with the same pid, and a lock left by a render stopped with Ctrl-C would otherwise hold forever
+  const alive = (pid) => { if (pid === process.pid) return false; try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; } };
+  const mine = () => { try { if (readFileSync(file, 'utf8') === String(process.pid)) unlinkSync(file); } catch { /* gone */ } };
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       writeFileSync(file, String(process.pid), { flag: 'wx' });
-      process.on('exit', () => { try { if (readFileSync(file, 'utf8') === String(process.pid)) unlinkSync(file); } catch { /* gone */ } });
+      process.on('exit', mine);
+      for (const sig of ['SIGINT', 'SIGTERM']) process.once(sig, () => { mine(); process.exit(130); });
       return;
     } catch (e) {
       if (e.code !== 'EEXIST') throw e;
       let pid = 0; try { pid = Number(readFileSync(file, 'utf8')); } catch { /* removed meanwhile */ }
-      if (pid && alive(pid)) throw busy();
+      if (pid && alive(pid)) throw new Error(`${busy().message} (process ${pid} holds ${file}; if no render is running, delete that file)`);
       try { unlinkSync(file); } catch { /* another render took it over first: the next attempt says so */ }
     }
   }
@@ -425,7 +429,16 @@ const clock = (s) => { const m = Math.floor(s / 60), r = Math.floor(s % 60); ret
 // Off macOS a machine may have no GPU (a server, a CI runner): Chrome then draws WebGL in software only
 // when allowed to, and the looks and cuts drawn by shaders need it. With a GPU the flag changes nothing.
 const GL = process.platform === 'darwin' ? [] : ['--enable-unsafe-swiftshader'];
-const browser = await chromium.launch({ channel: 'chrome', args: GL });
+// Google Chrome; else, on Linux (Chrome has no arm64 build there), Chromium; MANOVELLA_CHROME names either
+async function launchChrome(opts = {}) {
+  if (process.env.MANOVELLA_CHROME) return chromium.launch({ ...opts, executablePath: process.env.MANOVELLA_CHROME });
+  try { return await chromium.launch({ ...opts, channel: 'chrome' }); } catch (e) {
+    const alt = process.platform === 'linux' && ['/usr/bin/chromium', '/usr/bin/chromium-browser', '/snap/bin/chromium'].find((p) => existsSync(p));
+    if (!alt) throw e;
+    return chromium.launch({ ...opts, executablePath: alt });
+  }
+}
+const browser = await launchChrome({ args: GL });
 try {
   const probe = await openPage(browser);
   const META = await probe.evaluate(() => window.PROMO_META);
@@ -682,7 +695,7 @@ try {
       // one browser took turns — 223 ms a frame with grain, 22 ms with a browser each (measured)
       let own, page;
       for (let attempt = 1; ; attempt++) {
-        own = await chromium.launch({ channel: 'chrome', args: GL });
+        own = await launchChrome({ args: GL });
         page = await openPage(own, META);
         if (digest(await shot(page, refT, refO)) === REF) break;
         if (attempt === 3) { console.log('a worker\'s browser still draws the reference frame differently after 3 launches: rendering on, but this render may not repeat to the byte'); break; }

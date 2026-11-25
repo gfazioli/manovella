@@ -199,8 +199,8 @@ function main() {
     process.exit(3);
   }
   if (!from && process.platform !== 'darwin') { // `say` is the Mac's: elsewhere a voice model, or recordings
-    console.error('narrate.mjs: a story told by `say` needs macOS. Here, tell it with a voice model ("mlx" in story.json, then\n'
-      + `  node ${join(dirname(fileURLToPath(import.meta.url)), 'voice.mjs')} ${file}), or bring recordings with --from.`);
+    console.error('narrate.mjs: a story told by `say` needs macOS. Here, bring recordings with --from <folder>, or tell it with a voice\n'
+      + `  model where voice.mjs runs one ("mlx" in story.json, then node ${join(dirname(fileURLToPath(import.meta.url)), 'voice.mjs')} ${file}).`);
     process.exit(3);
   }
   if (voice && !from) {

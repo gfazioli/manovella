@@ -35,10 +35,22 @@
 import { chromium } from 'playwright-core';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { existsSync } from 'node:fs';
+// Google Chrome; else, on Linux (Chrome has no arm64 build there), Chromium; MANOVELLA_CHROME names either.
+// Off macOS WebGL is drawn in software where there is no GPU (render.mjs says why). Copied here: this file imports no sibling.
+async function launchChrome(opts = {}) {
+  opts = { ...opts, args: [...(opts.args || []), ...(process.platform === 'darwin' ? [] : ['--enable-unsafe-swiftshader'])] };
+  if (process.env.MANOVELLA_CHROME) return chromium.launch({ ...opts, executablePath: process.env.MANOVELLA_CHROME });
+  try { return await chromium.launch({ ...opts, channel: 'chrome' }); } catch (e) {
+    const alt = process.platform === 'linux' && ['/usr/bin/chromium', '/usr/bin/chromium-browser', '/snap/bin/chromium'].find((p) => existsSync(p));
+    if (!alt) throw e;
+    return chromium.launch({ ...opts, executablePath: alt });
+  }
+}
 
 const [file, hash = ''] = (process.argv[2] || 'promo.html').split('#');
 const LIMITS = { safe: 0.05, overlap: 2, phone: 390, minPt: 9, ring: 6, large: 24, minLarge: 3, min: 4.5 };
-const browser = await chromium.launch({ channel: 'chrome' });
+const browser = await launchChrome();
 let code = 0;
 try {
   const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });

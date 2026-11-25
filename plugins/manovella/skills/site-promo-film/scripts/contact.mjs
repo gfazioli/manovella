@@ -30,6 +30,17 @@ import { readdirSync, writeFileSync, existsSync, readFileSync, rmSync, openSync,
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+// Google Chrome; else, on Linux (Chrome has no arm64 build there), Chromium; MANOVELLA_CHROME names either.
+// Off macOS WebGL is drawn in software where there is no GPU (render.mjs says why). Copied here: this file imports no sibling.
+async function launchChrome(opts = {}) {
+  opts = { ...opts, args: [...(opts.args || []), ...(process.platform === 'darwin' ? [] : ['--enable-unsafe-swiftshader'])] };
+  if (process.env.MANOVELLA_CHROME) return chromium.launch({ ...opts, executablePath: process.env.MANOVELLA_CHROME });
+  try { return await chromium.launch({ ...opts, channel: 'chrome' }); } catch (e) {
+    const alt = process.platform === 'linux' && ['/usr/bin/chromium', '/usr/bin/chromium-browser', '/snap/bin/chromium'].find((p) => existsSync(p));
+    if (!alt) throw e;
+    return chromium.launch({ ...opts, executablePath: alt });
+  }
+}
 
 const raw = process.argv.slice(2), args = [], opts = {};
 for (let i = 0; i < raw.length; i++) {
@@ -103,7 +114,7 @@ function size(file) {
 async function shoot(html, dir, out, fixed) {
   const page = join(dir, '.contact.html');
   writeFileSync(page, html);
-  const browser = await chromium.launch({ channel: 'chrome' });
+  const browser = await launchChrome();
   try {
     const p = await browser.newPage({ viewport: fixed || { width: 1920, height: 400 } }); // without a size, fullPage grows it to the grid
     await p.goto(pathToFileURL(page).href, { waitUntil: 'load' });

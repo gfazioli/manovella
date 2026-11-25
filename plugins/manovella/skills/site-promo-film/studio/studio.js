@@ -1155,7 +1155,7 @@
         if (!items.length) list.append(h('div', { class: 'note', style: { padding: '10px 12px' } }, fontSource === 'mac' && !FONTS.mac.length ? 'Reading this Mac’s fonts…' : 'No family matches.'));
       };
       const search = h('input', { type: 'text', placeholder: 'Search families', value: fontQuery, oninput: (e) => { fontQuery = e.target.value; fill(); } });
-      b.append(h('div', { class: 'row' }, h('div', { class: 'fixed' }, seg([{ value: 'kit', label: `The kit (${FONTS.kit.length})` }, { value: 'mac', label: `This Mac (${FONTS.mac.length})` }], fontSource, (v) => { fontSource = v; render(); }, true)), search), list);
+      b.append(h('div', { class: 'row' }, h('div', { class: 'fixed' }, seg([{ value: 'kit', label: `The kit (${FONTS.kit.length})` }, ...(CTX.platform === 'darwin' ? [{ value: 'mac', label: `This Mac (${FONTS.mac.length})` }] : [])], fontSource, (v) => { fontSource = v; render(); }, true)), search), list);
       fill();
       if (custom) b.append(h('div', { class: 'field', style: { margin: '14px 0 0' } }, h('span', { class: 'flabel' }, `Headline weight, for ${custom.display.family}`),
         seg([300, 400, 500, 600, 700, 800, 900].map((w) => ({ value: w, label: String(w) })), custom.display.weight, (w) => { S.type = { ...S.type, display: { ...S.type.display, weight: w } }; showLive(stageSpec({ mode: 'text' })); render(); }, true)));

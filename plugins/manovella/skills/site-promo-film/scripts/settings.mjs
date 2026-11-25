@@ -19,7 +19,7 @@
 import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
-import { configDir } from './platform.mjs';
+import { configDir, userDir } from './platform.mjs';
 
 export const HOME = homedir();
 /** A path as typed, ~ expanded; and one for showing, the home folder as ~. */
@@ -67,4 +67,4 @@ export const folders = (v) => (Array.isArray(v) ? [...new Set(v.map(folder).filt
 
 /** Where the work folders and deliveries go: FILM_DOWNLOADS (a test's), else workRoot, else ~/Downloads.
  *  deliver.mjs has its own copy of this (it is copied into a film's src/ alone): change both together. */
-export const workRoot = () => (process.env.FILM_DOWNLOADS ? resolve(untilde(process.env.FILM_DOWNLOADS)) : folder(readSettings().workRoot) || join(HOME, 'Downloads'));
+export const workRoot = () => (process.env.FILM_DOWNLOADS ? resolve(untilde(process.env.FILM_DOWNLOADS)) : folder(readSettings().workRoot) || userDir('downloads'));
