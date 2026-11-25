@@ -38,9 +38,10 @@ jobs:
       - name: Build the archive and look at its root
         run: |
           node scripts/gemini-pack.mjs "$RUNNER_TEMP/manovella-gemini.tar.gz"
-          tar -tzf "$RUNNER_TEMP/manovella-gemini.tar.gz" | grep -qx 'gemini-extension.json'
-          tar -tzf "$RUNNER_TEMP/manovella-gemini.tar.gz" | grep -q '^skills/site-promo-film/SKILL.md$'
-          tar -tzf "$RUNNER_TEMP/manovella-gemini.tar.gz" | grep -q '^commands/manovella/studio.toml$'
+          tar -tzf "$RUNNER_TEMP/manovella-gemini.tar.gz" > "$RUNNER_TEMP/listing"
+          grep -qx 'gemini-extension.json' "$RUNNER_TEMP/listing"
+          grep -qx 'skills/site-promo-film/SKILL.md' "$RUNNER_TEMP/listing"
+          grep -qx 'commands/manovella/studio.toml' "$RUNNER_TEMP/listing"
 
   attach:
     if: github.event_name != 'pull_request'
@@ -60,9 +61,12 @@ jobs:
       - run: node scripts/gemini-pack.mjs manovella-gemini.tar.gz
       - name: Attach it, as the release's only asset
         run: |
-          others=$(gh release view "$TAG" --json assets --jq '[.assets[].name | select(. != "manovella-gemini.tar.gz")] | join(", ")')
+          names=$(gh release view "$TAG" --json assets --jq '[.assets[].name] | join(",")')
+          others=$(echo "$names" | tr ',' '\n' | grep -vx 'manovella-gemini.tar.gz' | paste -sd, - || true)
           if [ -n "$others" ]; then
             echo "::error::$TAG has other assets ($others): Gemini would ignore this one and fall back to the source tarball"
             exit 1
           fi
-          gh release upload "$TAG" manovella-gemini.tar.gz --clobber
+          # one attached by hand with the release stays: replacing it would leave a moment with none
+          if echo "$names" | tr ',' '\n' | grep -qx 'manovella-gemini.tar.gz'; then echo "$TAG carries it already"; exit 0; fi
+          gh release upload "$TAG" manovella-gemini.tar.gz

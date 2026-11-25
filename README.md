@@ -146,7 +146,8 @@ S=$(ls -d ~/.claude/plugins/cache/manovella/manovella/*/skills/site-promo-film |
 
 In another agent the skill is elsewhere: `~/.codex/plugins/cache/manovella/manovella/<version>/skills/site-promo-film`
 (Codex), `~/.copilot/installed-plugins/manovella/manovella/skills/site-promo-film` (Copilot CLI),
-`~/.gemini/extensions/manovella/skills/site-promo-film` (Gemini CLI).
+`~/.gemini/extensions/manovella/skills/site-promo-film` (Gemini CLI's extension; `~/.gemini/skills/site-promo-film` for
+the skill installed by itself).
 
 ### Other coding agents
 
@@ -158,7 +159,7 @@ is not yet ([#1](https://github.com/gfazioli/manovella/issues/1)).
 | --- | --- | --- |
 | Codex CLI | `codex plugin marketplace add gfazioli/manovella`, then `codex plugin add manovella@manovella` | ask for Manovella's Studio |
 | GitHub Copilot CLI | `copilot plugin marketplace add gfazioli/manovella`, then `copilot plugin install manovella@manovella` | ask for Manovella's Studio |
-| Gemini CLI | `gemini extensions install https://github.com/gfazioli/manovella`, from the first release that carries the extension (`manovella-gemini.tar.gz` among its assets); before it, each skill by itself: `gemini skills install https://github.com/gfazioli/manovella --path plugins/manovella/skills/site-promo-film`, and the same with `release-film` | `/manovella:studio` with the extension, else ask for Manovella's Studio |
+| Gemini CLI | `gemini extensions install https://github.com/gfazioli/manovella`, from the first release that carries the extension (`manovella-gemini.tar.gz` as its only asset); before it, each skill by itself: `gemini skills install https://github.com/gfazioli/manovella --path plugins/manovella/skills/site-promo-film`, and the same with `release-film` (uninstall those two with `gemini skills uninstall` before installing the extension: a skill installed by itself overrides the extension's) | `/manovella:studio` with the extension, else ask for Manovella's Studio |
 
 A film installs packages and voice models from the network, writes its work folder outside the
 project (`~/Downloads/<name>-work`), starts Chrome and the Studio's window, and renders for minutes.
