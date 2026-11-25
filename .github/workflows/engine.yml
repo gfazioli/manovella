@@ -20,6 +20,11 @@ on:
 permissions:
   contents: read
 
+# one run a branch: a new push cancels the one it replaces (a run is up to an hour of runners)
+concurrency:
+  group: engine-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   linux:
     runs-on: ubuntu-latest
