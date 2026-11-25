@@ -78,7 +78,7 @@ import { spawn, spawnSync, execSync } from 'node:child_process';
 import { request as httpRequest } from 'node:http';
 import { mkdtempSync, readFileSync, mkdirSync, existsSync, rmSync, writeFileSync, chmodSync, statSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const { chromium } = createRequire(join(process.cwd(), 'noop.js'))('playwright-core');
@@ -106,6 +106,8 @@ writeFileSync(join(BRAND, 'loose-groove.wav'), readFileSync(TRACK));
 writeFileSync(join(BRAND, 'Acme', 'audio', 'acme-music-notes.txt'), 'Acme video music, made for the test.\n\nacme-music-groove.wav\n  A synthetic groove, 123 BPM.\n');
 writeFileSync(join(BRAND, 'Songs', 'audio', 'song.wav'), readFileSync(TRACK));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// a folder under the home as the Studio shows it: ~/Pictures, or ~\Pictures on Windows
+const tilded = (name) => `~${sep}${name}`;
 let failed = 0;
 const check = (ok, what) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${what}`); if (!ok) failed++; };
 
@@ -571,7 +573,7 @@ const promo = await wizard('promo', async ({ page, idle, shot }) => {
   // a picture of yours: a tab of its own, the picker first, then the folders' most recent
   await openFold(page, 'mine'); await page.waitForSelector('.pane .srcline code');
   const picFrom = await page.textContent('.pane .srcline');
-  check(/^Or one of the most recent in ~\/Pictures, three levels deep\.Change folders…$/.test(picFrom) && await page.$eval('.pane .drop', (d) => !!(d.compareDocumentPosition(document.querySelector('.pane .srcline')) & 4)), `promo: Your pictures: the picker first, then where the pictures come from (${picFrom})`);
+  check(picFrom === `Or one of the most recent in ${tilded('Pictures')}, three levels deep.Change folders…` && await page.$eval('.pane .drop', (d) => !!(d.compareDocumentPosition(document.querySelector('.pane .srcline')) & 4)), `promo: Your pictures: the picker first, then where the pictures come from (${picFrom})`);
   await page.setInputFiles('#file', PICTURE); await page.waitForSelector('.picopts', { timeout: 20000 }); await idle();
   await page.click('.picopts .seg button:has-text("Duotone")'); await idle(); await paneTop(page); await shot('4b');
   check(/^looks\.jpg · sharp, duotone, Ken Burns$/.test(await foldSum(page, 'mine')) && /^Not used · /.test(await foldSum(page, 'kit')), `promo: a picture chosen, its card says how it is treated, and the looks' card that it is not used (${await foldSum(page, 'mine')} | ${await foldSum(page, 'kit')})`);
@@ -1318,7 +1320,7 @@ if (s.code() === null) s.p.kill();
     const r = await toSent(a.at);
     const named = r.texts.filter((t) => /Claude/.test(t));
     check(r.errs.length === 0 && named.length === 0 && r.texts.some((t) => /Codex picks three/.test(t)), `--agent codex: no step names Claude, and they name Codex (${named.length} naming Claude; ${r.errs.join('; ')})`);
-    check(/Back to Codex: it is reading the brief/.test(r.sent) && /codex "Use the site-promo-film skill on the brief ~?\/.+brief\.json"/.test(r.sent), `--agent codex: the end screen sends the user back to Codex, with its command (${r.sent.replace(/\s+/g, ' ').slice(-220)})`);
+    check(/Back to Codex: it is reading the brief/.test(r.sent) && /codex "Use the site-promo-film skill on the brief [^"]+brief\.json"/.test(r.sent), `--agent codex: the end screen sends the user back to Codex, with its command (${r.sent.replace(/\s+/g, ' ').slice(-220)})`);
     const end = studio('--wait', a.state, '--for', '20');
     check(/^BRIEF .+brief\.json$/.test(end.stdout.trim()) && existsSync(end.stdout.trim().slice(6)), `--wait: the brief's line once it is created (${end.stdout.trim()})`);
   }
@@ -1458,7 +1460,7 @@ await until(() => s.code() !== null);
   await page.click('#settings'); await page.waitForSelector('#settings-dlg[open] .set-pane:not(.ab-pane)');
   const rows = (k) => page.$$eval(`#set-${k} .set-row`, (r) => r.map((x) => x.textContent.replace('×', ' x').trim()));
   const r0 = JSON.stringify([await rows('projectFolders'), await rows('pictureFolders'), await rows('musicLibrary'), await rows('workRoot')]);
-  check(r0 === JSON.stringify([[`${here} x`, `${projects} x`], ['~/Picturesdefault'], ['None: the music step takes a file of yours, or a new track.'], ['~/Downloadsdefault']]), `settings: each setting with its folders, the defaults marked (${r0})`);
+  check(r0 === JSON.stringify([[`${here} x`, `${projects} x`], [`${tilded('Pictures')}default`], ['None: the music step takes a file of yours, or a new track.'], [`${tilded('Downloads')}default`]]), `settings: each setting with its folders, the defaults marked (${r0})`);
   await page.click('[data-pane="pictureFolders"]');
   await page.click('#set-pictureFolders .set-acts button'); await page.waitForFunction((p) => document.querySelector('#set-pictureFolders code')?.textContent === p, projects);
   // a picture folder on a drive not mounted now: shown, marked, and kept when another is added
@@ -1488,7 +1490,7 @@ await until(() => s.code() !== null);
   check(await until(() => !('deliverToLibrary' in saved())), 'settings: unticked, the key goes from the file');
   await page.click('[data-pane="workRoot"]');
   await page.click('#set-workRoot .x'); await page.waitForFunction(() => document.querySelector('#set-workRoot .chip')?.textContent === 'default');
-  check(!('workRoot' in saved()) && JSON.stringify(await rows('workRoot')) === JSON.stringify(['~/Downloadsdefault']), 'settings: × puts the work folder back to its default, and takes the key out of the file');
+  check(!('workRoot' in saved()) && JSON.stringify(await rows('workRoot')) === JSON.stringify([`${tilded('Downloads')}default`]), 'settings: × puts the work folder back to its default, and takes the key out of the file');
   await page.keyboard.press('Escape');
   // the look step, Your pictures: the added folder's
   await page.click('#steps li[data-step=look] button'); await openFold(page, 'mine');
