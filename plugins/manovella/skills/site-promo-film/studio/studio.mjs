@@ -136,7 +136,10 @@ const AGENTS = {
 const AGENT_ASKED = arg('--agent', '').toLowerCase();
 if (AGENT_ASKED && !AGENTS[AGENT_ASKED]) console.error(`--agent ${AGENT_ASKED}: not one of ${Object.keys(AGENTS).join(', ')}; the copy names ${process.env.CLAUDECODE ? 'Claude' : '"your agent"'}`);
 const AGENT = AGENTS[AGENT_ASKED] || (process.env.CLAUDECODE ? AGENTS.claude : null);
+// Off macOS the copy's "this Mac" is this computer, where it speaks of the machine (its voices, fonts, models).
+const ON_MAC = platform() === 'darwin';
 function agentCopy(text) {
+  if (!ON_MAC) text = text.replace(/\bthis Mac\b/g, 'this computer').replace(/\beach Mac\b/g, 'each computer');
   if (AGENT === AGENTS.claude) return text;
   return text.replace(/\bClaude Code\b/g, AGENT?.app || 'your agent').replace(/\bClaude\b/g, AGENT?.name || 'your agent')
     .replace(/(^|[.!?]\s+|['"`>]\s*)your agent/g, '$1Your agent');
@@ -144,7 +147,7 @@ function agentCopy(text) {
 // the schema's strings one by one, so each starts a sentence where it starts
 const copyOf = (v) => (typeof v === 'string' ? agentCopy(v) : Array.isArray(v) ? v.map(copyOf)
   : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, copyOf(x)])) : v);
-const SCHEMA_COPY = AGENT === AGENTS.claude ? SCHEMA : copyOf(SCHEMA);
+const SCHEMA_COPY = AGENT === AGENTS.claude && ON_MAC ? SCHEMA : copyOf(SCHEMA);
 
 // ---------------------------------------------------------------- --detach and --wait
 // The state file is a detached Studio's: its log from the start, its pid and address once it listens, its
@@ -763,7 +766,7 @@ function serveFile(res, route, rel) {
     if (p !== dir && !p.startsWith(dir + sep)) break; // nothing outside the route's own folder
     if (existsSync(p) && statSync(p).isFile()) {
       res.writeHead(200, { 'content-type': MIME[extname(p)] || 'application/octet-stream', 'cache-control': 'no-store' });
-      res.end(route === 'studio' && AGENT !== AGENTS.claude && /\.(js|html)$/.test(p) ? agentCopy(readFileSync(p, 'utf8')) : readFileSync(p));
+      res.end(route === 'studio' && (AGENT !== AGENTS.claude || !ON_MAC) && /\.(js|html)$/.test(p) ? agentCopy(readFileSync(p, 'utf8')) : readFileSync(p));
       return;
     }
   }
@@ -896,7 +899,7 @@ const server = createServer(async (req, res) => {
         if (!toned(model)) o.tone = 'warm'; // no tone to read at: one sample serves every tone asked for
         if (!kit.silicon) return json(res, 409, { error: 'silicon', message: 'The voice models run on an Apple Silicon Mac.' });
         if (!kit.python) return json(res, 409, { error: 'setup', message: agentCopy(`Not set up on this Mac: Claude does it at the first film that speaks (a 600 MB Python, then 330 MB to 3.5 GB a model), or now: `) + kit.setup });
-        if (!kit.models[model]) return json(res, 409, { error: 'download', message: `${model} is not on this Mac yet: ${SCHEMA.fields.voiceModel.options.find((x) => x.value === model).size}, downloaded once, at the first film that uses it (or now: ${kit.setup}).` });
+        if (!kit.models[model]) return json(res, 409, { error: 'download', message: agentCopy(`${model} is not on this Mac yet: ${SCHEMA.fields.voiceModel.options.find((x) => x.value === model).size}, downloaded once, at the first film that uses it (or now: ${kit.setup}).`) });
         try { return json(res, 200, { id: await sample(o) }); } catch (e) { return json(res, 500, { error: 'said', message: String(e.stderr || e.message || e).trim().split('\n').slice(-3).join(' ') }); }
       }
       case 'voice-mix': { // a sample over the music chosen, as the film will mix them: ?sample=<id> (a model's line) or ?voice=&rate= (a macOS voice's greeting), ?track=<id> or ?path=, ?under=&lift=
