@@ -107,10 +107,10 @@ import { shown, stepName, TAGS, ALIAS, TAG_RE, unit } from './narrate.mjs';
 const HERE = dirname(fileURLToPath(import.meta.url)), RATE = 48000;
 const MLX_AUDIO = '0.6.5';   // the version the takes below, and every seed in a story, were said with
 const VENV = join(homedir(), '.local', 'share', 'film-voice', 'venv');
-// The engine the models run on: MLX on an Apple Silicon Mac; elsewhere PyTorch, where Kokoro is the model
-// (voice-torch.py), on the CPU, or a CUDA GPU when torch finds one. A machine has one, in the same venv.
+// The engine the models run on: MLX on an Apple Silicon Mac (venv); elsewhere PyTorch (voice-torch.py), on the
+// CPU or a CUDA GPU when torch finds one: Kokoro in venv-torch, Chatterbox and Orpheus in venv-large.
 export const MLX = process.env.VOICE_ENGINE ? process.env.VOICE_ENGINE === 'mlx' : process.platform === 'darwin' && process.arch === 'arm64'; // VOICE_ENGINE=torch: a Mac tries the other path (a test)
-const TORCH_PYTHON = ['3.12', '3.11', '3.10'];   // kokoro 0.9.4 takes these; 3.12 is the one it was heard with
+const TORCH_PYTHON = ['3.12'];   // kokoro 0.9.4 takes 3.10 to 3.12, and the pins (numpy 2.5, networkx 3.7) 3.12 alone
 const TORCH_INDEX = 'https://download.pytorch.org/whl/cpu';
 // Kokoro's weights as PyTorch reads them (voice-torch.py), beside MLX's bf16 conversion in MODELS
 export const KOKORO_TORCH = 'hexgrad/Kokoro-82M';
@@ -189,7 +189,8 @@ const stop = (code, message) => { console.error(`voice.mjs: ${message}`); proces
 /** Says `lines` [{ out, text, seed }] with `model` (and its `voice`, at `temperature` when not null, in `lang` when named), one WAV each. */
 function say(model, voice, lines, scratch, temperature = null, lang = null) {
   const py = python(model), short = Object.keys(MODELS).find((k) => MODELS[k] === model) || model;
-  if (!existsSync(py)) stop(3, `no Python for ${short} at ${py}.\n  Make it, once on each machine: node ${join(HERE, 'voice.mjs')} --setup ${short}\n  (or point VOICE_PYTHON at one). Not using another voice.`);
+  if (!existsSync(py)) stop(3, MLX ? `no Python with mlx-audio at ${py}.\n  Make it, once on each Mac: node ${join(HERE, 'voice.mjs')} --setup\n  (or point VOICE_PYTHON at one). Not using another voice.`
+    : `no Python for ${short} at ${py}.\n  Make it, once on each machine: node ${join(HERE, 'voice.mjs')} --setup ${short}\n  (or point VOICE_PYTHON at one). Not using another voice.`);
   const spec = join(scratch, 'lines.json');
   writeFileSync(spec, JSON.stringify({ model: MLX ? model : TORCH_REPO[model] || model, voice: voice ?? null, max_tokens: CEILING, temperature, lang, lines }));
   const r = spawnSync(py, [join(HERE, MLX ? 'voice-mlx.py' : 'voice-torch.py'), spec], { stdio: ['ignore', 'ignore', 'pipe'], encoding: 'utf8' });
@@ -240,10 +241,10 @@ function setup(names) {
   if (!names.length) console.log('no model named: each is downloaded at the first story that uses it (or now: --setup chatterbox orpheus).');
 }
 
-/** Once on each machine without MLX: a Python 3.10-3.12 venv with PyTorch (CPU) and Kokoro, then one line said. */
+/** Once on each machine without MLX: a Python 3.12 venv with PyTorch (CPU) and Kokoro, then one line said. */
 function setupTorch(names) {
   if (process.platform === 'darwin' && process.arch !== 'arm64') stop(3, 'PyTorch has no build for an Intel Mac since 2.3: there a story is told by `say`, or by recordings (narrate.mjs --from).');
-  if (process.env.VOICE_PYTHON) stop(2, `VOICE_PYTHON is set (${process.env.VOICE_PYTHON}): --setup makes ${VENV}, which it would not be used from. Unset it, or keep your own Python.`);
+  if (process.env.VOICE_PYTHON) stop(2, `VOICE_PYTHON is set (${process.env.VOICE_PYTHON}): --setup makes ${VENV_TORCH} and ${VENV_LARGE}, which it would not be used from. Unset it, or keep your own Python.`);
   const unknown = names.filter((n) => !TORCH_REPO[modelOf(n)]);
   if (unknown.length) stop(2, `${unknown.join(', ')}: not a model voice.mjs knows (kokoro, chatterbox, orpheus).`);
   const large = names.filter((n) => modelOf(n) !== KOKORO).map(modelOf);
@@ -264,22 +265,47 @@ function makeVenv(venv) {
   if (!found) stop(3, `no Python ${TORCH_PYTHON.join(', ')} here (${tries.map((t) => `${t.name}: ${t.ver || 'none'}`).join(', ')}). Install 3.12 beside it: the simplest on any system is uv (https://docs.astral.sh/uv/):\n  uv python install 3.12, then VOICE_SETUP_PYTHON="$(uv python find 3.12)" node voice.mjs --setup …\n  (or apt install python3.12-venv where the distribution has it; on Windows, python.org's installer).`);
   mkdirSync(dirname(venv), { recursive: true });
   console.log(`making ${venv} with ${found}`);
-  if (spawnSync(found, ['-m', 'venv', venv], { stdio: 'inherit' }).status !== 0) stop(3, `could not make the venv at ${venv}.`);
+  if (spawnSync(found, ['-m', 'venv', venv], { stdio: 'inherit' }).status !== 0) {
+    rmSync(venv, { recursive: true, force: true }); // a half-made venv (no pip) would be taken for one next time
+    stop(3, `could not make the venv at ${venv} (on Debian and Ubuntu: apt install python3.12-venv).`);
+  }
+}
+/** `venv`'s Python, the venv made, or made again when the one there is not whole (no pip) or of another Python. */
+function ensureVenv(venv) {
+  const py = venvPython(venv);
+  if (existsSync(py)) {
+    const r = spawnSync(py, ['-c', 'import sys, pip; print("%d.%d" % sys.version_info[:2])'], { encoding: 'utf8' });
+    if (r.status === 0 && TORCH_PYTHON.includes(r.stdout.trim())) return py;
+    console.log(`${venv} is not whole, or not of Python ${TORCH_PYTHON.join(', ')}: making it again`);
+    rmSync(venv, { recursive: true, force: true });
+  }
+  makeVenv(venv);
+  return py;
+}
+/** A constraints file beside voice.mjs, or a stop: a copy in a work folder may lack it, and unpinned is not heard. */
+function pinsFile(name) {
+  const f = join(HERE, name);
+  if (!existsSync(f)) stop(3, `${name} is not beside ${join(HERE, 'voice.mjs')}: run --setup from the skill's own scripts/, or copy voice-constraints*.txt beside it.`);
+  return f;
 }
 /** Chatterbox Turbo and Orpheus, in venv-large: PyTorch for CUDA where nvidia-smi answers, else for the CPU (slow), then one line said by each. */
 function setupLarge(models) {
-  const py = venvPython(VENV_LARGE);
-  if (!existsSync(py)) makeVenv(VENV_LARGE);
+  const py = ensureVenv(VENV_LARGE);
   const cuda = spawnSync('nvidia-smi', ['-L'], { encoding: 'utf8' }).status === 0;
   if (!cuda) console.log('no NVIDIA GPU here (nvidia-smi): these models will run on the CPU, a line in tens of seconds (Chatterbox) to minutes (Orpheus).');
   const pip = (...a) => spawnSync(py, ['-m', 'pip', 'install', '--quiet', '--disable-pip-version-check', ...a], { stdio: 'inherit' }).status === 0;
-  const pins = join(HERE, 'voice-constraints-large.txt'), pinned = existsSync(pins) ? ['-c', pins] : [];
+  const pinned = ['-c', pinsFile('voice-constraints-large.txt')];
   console.log(`PyTorch for ${cuda ? 'CUDA' : 'the CPU'}, then chatterbox-tts ${CHATTERBOX_TTS} and SNAC, into ${VENV_LARGE} (2 to 4 GB the first time)…`);
   // torch first, at chatterbox-tts's own version, from PyTorch's index for this machine (an Intel Mac's from PyPI)
   // PyTorch's index beside PyPI's, which serves torch's own dependencies at the pinned versions: of the two
   // torch 2.6.0 builds, pip takes the index's (+cu124, +cpu), whose local label sorts after the plain one
   const index = process.platform === 'darwin' ? [] : ['--extra-index-url', cuda ? TORCH_CUDA_INDEX : TORCH_INDEX];
   if (!pip(...pinned, ...index, 'torch==2.6.0', 'torchaudio==2.6.0')) stop(3, `pip could not install PyTorch into ${VENV_LARGE}.`);
+  // a venv made on the CPU before a GPU came keeps its +cpu torch, which satisfies the pin: the CUDA build, over it
+  if (cuda && spawnSync(py, ['-c', 'import sys, torch; sys.exit(0 if torch.cuda.is_available() else 1)']).status !== 0) {
+    console.log('this venv\'s PyTorch is the CPU\'s: putting the CUDA build in its place…');
+    if (!pip('--force-reinstall', '--no-deps', '--index-url', TORCH_CUDA_INDEX, 'torch==2.6.0+cu124', 'torchaudio==2.6.0+cu124')) stop(3, `pip could not install PyTorch for CUDA into ${VENV_LARGE}.`);
+  }
   if (!pip(...pinned, `chatterbox-tts==${CHATTERBOX_TTS}`, 'snac')) stop(3, `pip could not install chatterbox-tts and SNAC into ${VENV_LARGE}.`);
   console.log(`the Python that says ${models.map((m) => Object.keys(MODELS).find((k) => MODELS[k] === m)).join(' and ')}: ${py}${cuda ? '' : ' (on the CPU)'}`);
   const scratch = mkdtempSync(join(tmpdir(), 'film-voice-'));
@@ -293,12 +319,9 @@ function setupLarge(models) {
   } finally { rmSync(scratch, { recursive: true, force: true }); }
 }
 function setupKokoro() {
-  const py = python();
-  if (!existsSync(py)) {
-    makeVenv(VENV_TORCH);
-  }
+  const py = ensureVenv(VENV_TORCH);
   const pip = (...a) => spawnSync(py, ['-m', 'pip', 'install', '--quiet', '--disable-pip-version-check', ...a], { stdio: 'inherit' }).status === 0;
-  const pins = join(HERE, 'voice-constraints-torch.txt');
+  const pins = pinsFile('voice-constraints-torch.txt');
   console.log(`PyTorch for the CPU, then Kokoro and its text packages, into ${VENV_TORCH} (about 1 GB the first time)…`);
   // torch by itself first, from PyTorch's CPU index (PyPI's Linux wheel brings CUDA's 2 GB); an Intel Mac's comes from PyPI
   if (!pip('-c', pins, ...(process.platform === 'darwin' ? [] : ['--extra-index-url', TORCH_INDEX]), 'torch')) stop(3, `pip could not install PyTorch into ${VENV_TORCH}.`);

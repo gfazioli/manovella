@@ -445,7 +445,8 @@ function voiceKit() {
   const hub = process.env.HF_HUB_CACHE || join(process.env.HF_HOME || join(HOME, '.cache', 'huggingface'), 'hub');
   return {
     // silicon: MLX runs here; else PyTorch, each model from its own weights (voice.mjs TORCH_REPO) and Python
-    silicon: VOICE.MLX, python: existsSync(VOICE.python()),
+    // python: some model's Python is there (Kokoro's venv-torch or venv-large off MLX: either, alone, is a setup)
+    silicon: VOICE.MLX, python: Object.values(VOICE.MODELS).some((r) => existsSync(VOICE.python(r))),
     // a model is there when its weights are, and Kokoro's text packages too (a Python from before `--setup kokoro` has none)
     models: Object.fromEntries(Object.entries(VOICE.MODELS).map(([k, r]) => {
       const repo = VOICE.MLX ? r : VOICE.TORCH_REPO[r];
@@ -478,7 +479,7 @@ async function sample(o) {
     mkdirSync(dirname(wav), { recursive: true });
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, 'story.json'), JSON.stringify({ title: 'sample', human: o.human, mlx: { model: o.model, ...(o.speaker ? { voice: o.speaker } : {}), tone: o.tone, tempo: o.tempo, seed: 1000 }, steps: [{ id: 'sample', say: o.text }] }));
-    await run(process.execPath, [join(SKILL, 'scripts', 'voice.mjs'), join(dir, 'story.json'), '--recordings', '--out', dir], { timeout: 300_000, maxBuffer: 16 << 20 });
+    await run(process.execPath, [join(SKILL, 'scripts', 'voice.mjs'), join(dir, 'story.json'), '--recordings', '--out', dir], { timeout: VOICE.MLX ? 300_000 : 900_000, maxBuffer: 16 << 20 }); // on a CPU a line can take minutes
     copyFileSync(join(dir, 'voice-mlx', '01-sample.wav'), wav);
   });
   SAMPLES.set(id, wav);

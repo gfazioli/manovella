@@ -26,7 +26,7 @@ the engine.**
 | `template/fonts/` | Twenty open-licensed families (latin + latin-ext woff2, each with its OFL.txt) and `fonts.json`, their faces. A film copies only what it uses into `src/fonts/`; `scripts/fonts.mjs add` fetches another. |
 | `scripts/render.mjs` | `stills <dir> t…`, `sheet <dir>` (the timeline's checkpoints), `looks <dir> <t>`, `loopcheck`, `video <out> [workers]`. Reads size, fps, duration and chapters from the page; jitters every subframe; renders in resumable chunks; `FROM`/`TO`, `PREVIEW=1`, `RESUME=1`, `KEEP=1`, `AUDIO=`, `SHUTTER=`; the extension picks the format (.mp4, .mov ProRes, .webm, .gif; `HEVC=1`; `ALPHA=1` for a transparent .mov or .webm); checks the track before the render and the file after it; fails a capture whose page lost a WebGL context, and a second render of a cut while one runs. Documented at the top. |
 | `scripts/narrate.mjs` | A film's story (`story.json`: a sentence a step, a tutorial's or a promo's that speaks) into a voice, a clock and subtitles: `voice/*.aiff`, `narration.wav` (the film's `AUDIO`), `narration.js` (each step's time, for the page) and `captions.srt` / `.vtt`. The Mac's `say`, or `--from` a folder of your own recordings. `"human": "natural"` varies the pauses as a person's; a model's sounds (`[chuckle]`) are kept out of the subtitles. Documented at the top. |
-| `scripts/voice.mjs` | (with `voice-mlx.py` and `voice-torch.py` beside it: copy all three) The same story told by a voice model that runs on the Mac (`"mlx"` in `story.json`: Chatterbox for a lesson, Orpheus for a promo, Kokoro for a quick draft or a film in Italian), closer to a person than `say`: it says each step (`voice-mlx.py`, through mlx-audio), paces and levels it, then calls `narrate.mjs`. A take is a seed; `"tone"` (calm, warm, bright) is how freely the model reads, `"human"` varies each line's pace within 3 % and lets a line make a sound (`[chuckle]`, `[sigh]`: each model's own spelling, or left out). `--audition` compares takes, `--recordings` stops at the recordings, `--setup` makes the Python and fetches the models once on each Mac (`voice-constraints.txt` pins what it installs) and says whether that Mac repeats the takes recorded here. Documented at the top. |
+| `scripts/voice.mjs` | (with `voice-mlx.py`, `voice-torch.py` and `voice-constraints*.txt` beside it: copy them all) The same story told by a voice model that runs on the Mac (`"mlx"` in `story.json`: Chatterbox for a lesson, Orpheus for a promo, Kokoro for a quick draft or a film in Italian), closer to a person than `say`: it says each step (`voice-mlx.py`, through mlx-audio), paces and levels it, then calls `narrate.mjs`. A take is a seed; `"tone"` (calm, warm, bright) is how freely the model reads, `"human"` varies each line's pace within 3 % and lets a line make a sound (`[chuckle]`, `[sigh]`: each model's own spelling, or left out). `--audition` compares takes, `--recordings` stops at the recordings, `--setup` makes the Python and fetches the models once on each Mac (`voice-constraints.txt` pins what it installs) and says whether that Mac repeats the takes recorded here. Documented at the top. |
 | `scripts/mix.mjs` | A voice and a music track into one soundtrack, for `AUDIO=`: both measured (EBU R128), the music `--under` LU under the voice while it speaks, `--lift` dB up between lines, down before each line begins; prints what came out, measured on the result. Documented at the top. |
 | `scripts/contact.mjs` | A captioned contact sheet of a stills or looks folder (captions from `labels.json` in it); `--size WxH` makes it exactly that size (`--font`, `--gap`, `--pad`; stills never cropped; a `.jpg` is written as JPEG); `--dark` for a dark sheet. `--compare A=<dir> B=<dir> [C=<dir>] <out.png>`: two or three folders side by side, a labelled column each and a row per still they share, for an A/B choice on one image. |
 | `scripts/beats.mjs` | A soundtrack's beat, from its samples: the tempo, whether it holds, every beat, the bars, the sections, and the bpm and `AUDIO_AT` to give the page; `--out beats.js` for a page that follows a track that drifts (`FILM.beats`). `render.mjs` imports it to measure the page's beats against the track's. `--selftest`. |
@@ -48,7 +48,7 @@ is `xdg-open` on Linux and `start "" <file>` on Windows (deliver.mjs prints the 
 system); `trash` is `deliver.mjs trash`, which moves to the trash through `gio` or trash-cli, or
 to the Recycle Bin; pictures are converted with ffmpeg where this says `sips`; the settings file is
 `~/.config/manovella/settings.json` (Windows: `%APPDATA%\manovella\settings.json`); the voice models
-run on PyTorch (§2b, "Off an Apple Silicon Mac"), and the macOS voices are not there. A film of a Mac app that
+run on PyTorch from a Python 3.12 (§2b, "Off an Apple Silicon Mac"), and the macOS voices are not there. A film of a Mac app that
 needs SF Pro or SF Symbols is made on a Mac: their licence is Apple platforms'.
 
 ## Studio: the brief in a window
@@ -478,11 +478,13 @@ in words: for an English film, never propose one and never name one to download.
      listened to (names above all); the user who wants to choose by ear listens to that folder. A take the
      user has heard is never said again at another seed without their ear.
    - **Off an Apple Silicon Mac** (Linux, Windows; an Intel Mac has no PyTorch build: `say` or recordings there) the models run on PyTorch
-     (`voice-torch.py`), and Kokoro is the one there: a promo or a lesson that speaks takes
-     `"kokoro"` ("af_heart" in English, "if_sara" in Italian), set up once with `node voice.mjs
-     --setup kokoro` (a Python 3.10 to 3.12, PyTorch for the CPU and the model: about 1.3 GB).
-     Chatterbox and Orpheus stop there with exit 3: say so, and offer Kokoro or recordings.
-     A take said through PyTorch is the same voice and words as on MLX, not the same file.
+     (`voice-torch.py`), from a Python 3.12 (`uv python install 3.12` where the system's is
+     newer). Kokoro ("af_heart" in English, "if_sara" in Italian) runs on the CPU: `node voice.mjs
+     --setup kokoro` (about 1.3 GB). Chatterbox and Orpheus want an NVIDIA GPU: `--setup chatterbox
+     orpheus` (about 4 and 6.6 GB of weights; on a CPU a line takes tens of seconds to minutes: say
+     so before choosing them there). A take said through PyTorch is the same voice and words as on
+     MLX, not the same file. Copy `voice.mjs` with `voice-mlx.py`, `voice-torch.py` and the
+     `voice-constraints*.txt` beside it, or run `--setup` from the skill's own `scripts/`.
    - **The Python and the models are per Mac.** When `voice.mjs` stops for lack of them (exit 3),
      say in one line what is about to be downloaded (a 600 MB Python environment in
      `~/.local/share/film-voice`, and 3 to 3.5 GB a model from Hugging Face, once) and run `node

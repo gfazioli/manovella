@@ -113,23 +113,29 @@ def orpheus(spec, device):
             sys.exit(f"voice-torch.py: the model gave no audio for: {line['text']}")
         layers = ([], [], [])   # SNAC's three: a frame's 7 codes are 1 + 2 + 4 of them, each offset by its slot
         for i in range(0, len(codes), 7):
-            c = codes[i:i + 7]
-            layers[0].append(c[0])
-            layers[1].extend([c[1] - 4096, c[4] - 4 * 4096])
-            layers[2].extend([c[2] - 2 * 4096, c[3] - 3 * 4096, c[5] - 5 * 4096, c[6] - 6 * 4096])
+            f = [code - slot * 4096 for slot, code in enumerate(codes[i:i + 7])]
+            if not all(0 <= x < 4096 for x in f):
+                continue   # a frame with a stray token in it: SNAC has no such code
+            layers[0].append(f[0])
+            layers[1].extend([f[1], f[4]])
+            layers[2].extend([f[2], f[3], f[5], f[6]])
+        if not layers[0]:
+            sys.exit(f"voice-torch.py: the model gave no speech for: {line['text']}")
         with torch.inference_mode():
             audio = snac.decode([torch.tensor(layer).unsqueeze(0).to(device) for layer in layers])
         write(line['out'], audio.squeeze().float().cpu().numpy(), 24000)
 
 
 def main():
-    spec = json.load(open(sys.argv[1]))
+    spec = json.load(open(sys.argv[1], encoding='utf-8'))   # voice.mjs writes UTF-8; Windows would read cp1252
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     name = spec['model'].lower()
     if 'chatterbox' in name:
         return chatterbox(spec, device)
     if 'orpheus' in name:
         return orpheus(spec, device)
+    if 'kokoro' not in name:
+        sys.exit(f"voice-torch.py: {spec['model']} is not a model this says: Kokoro, Chatterbox Turbo or Orpheus")
     try:
         from kokoro import KPipeline
     except ImportError:

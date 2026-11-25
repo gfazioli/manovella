@@ -129,8 +129,8 @@ macOS on Apple Silicon is Manovella's home, and the engine, the Studio and the r
   temperature for the heat governor; Windows has no sensor to read, so no governor there.
 - **The Trash**: on Linux `gio` (GLib) or trash-cli; on Windows the Recycle Bin.
 - **Voices**: the macOS voices (`say`) are the Mac's. The voice models run on PyTorch instead of
-  MLX, from a Python 3.10 to 3.12 (a recent distribution's own is newer: `uv python install 3.12`,
-  then `VOICE_SETUP_PYTHON="$(uv python find 3.12)"`): `--setup kokoro` (on the CPU, about 1.3 GB), and
+  MLX, from a Python 3.12 (a recent distribution's own is newer: `uv python install 3.12`, then
+  `VOICE_SETUP_PYTHON="$(uv python find 3.12)"`): `--setup kokoro` (on the CPU, about 1.3 GB), and
   `--setup chatterbox orpheus` (best on an NVIDIA GPU with CUDA; their weights are about 4 and
   6.6 GB). A take said there is the same voice and words as on a Mac, not the same file.
 - **Type**: SF Pro and SF Symbols are licensed for Apple platforms only, so a film of a Mac app is
