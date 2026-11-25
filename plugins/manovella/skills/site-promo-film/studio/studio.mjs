@@ -108,7 +108,8 @@ const arg = (name, dflt) => { const i = argv.indexOf(name); return i >= 0 && arg
 const outRoot = () => { const o = arg('--out', null); return o ? resolve(untilde(o)) : workRoot(); };
 let OUT = outRoot();
 // a Linux session with no display (a server, a container) has no window to open: the address alone, as --no-open
-const HEADLESS = platform() === 'linux' && !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY;
+// (unless a Chrome is asked for by its arguments, as a test's headless one is)
+const HEADLESS = platform() === 'linux' && !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY && !process.env.STUDIO_CHROME_ARGS;
 const OPEN = !argv.includes('--no-open') && !HEADLESS;
 const PORT = Number(arg('--port', 0));
 const PRODUCT = arg('--product', null);
