@@ -85,6 +85,8 @@ function workRoot() {
     const w = JSON.parse(readFileSync(join(prefs, 'settings.json'), 'utf8')).workRoot;
     if (typeof w === 'string' && w.trim() && statSync(ex(w.trim())).isDirectory()) return ex(w.trim());
   } catch { /* no file, or no such folder: the default */ }
+  // the Downloads folder: on Linux the desktop's own, which a localised one names otherwise (~/Scaricati)
+  if (platform() === 'linux') { const x = spawnSync('xdg-user-dir', ['DOWNLOAD'], { encoding: 'utf8' }); if (x.status === 0 && x.stdout.trim() && x.stdout.trim() !== home) return x.stdout.trim(); }
   return join(home, 'Downloads');
 }
 const WORK_ROOT = workRoot();
@@ -102,7 +104,7 @@ const mb = (n) => (n / 1048576).toFixed(1) + ' MB';
 // on Windows, whose shells take no single ones); and the line that opens a folder there.
 const WIN = platform() === 'win32';
 const q = (p) => (/^[\w@%+=:,./~-]+$/.test(p) ? p : WIN ? `"${p}"` : `'${p.replace(/'/g, `'\\''`)}'`);
-const openLine = (p) => (WIN ? `start "" "${p}"` : `${platform() === 'darwin' ? 'open' : 'xdg-open'} ${q(p)}`);
+const openLine = (p) => (WIN ? `explorer "${p}"` : `${platform() === 'darwin' ? 'open' : 'xdg-open'} ${q(p)}`); // explorer: the same in cmd, PowerShell and Git Bash
 const clock = (s) => {
   const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), r = Math.floor(s % 60);
   return (h ? `${h}:${String(m).padStart(2, '0')}` : `${m}`) + `:${String(r).padStart(2, '0')}`;
@@ -302,15 +304,21 @@ function toTrash(dir) {
     return existsSync('/usr/bin/trash') ? run('/usr/bin/trash', [dir])
       : run('osascript', ['-e', `tell application "Finder" to delete (POSIX file ${JSON.stringify(dir)})`]);
   }
+  // started from outside the folder (Windows will not move a folder a process stands in), and this process stepped out of it too
+  const outside = dirname(dir);
+  try { if (inside(process.cwd(), dir)) process.chdir(outside); } catch { /* the move says what went wrong */ }
   if (WIN) {
-    return run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', 'Add-Type -AssemblyName Microsoft.VisualBasic; '
+    const r = run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', 'Add-Type -AssemblyName Microsoft.VisualBasic; '
       + "[Microsoft.VisualBasic.FileIO.FileSystem]::DeleteDirectory($env:MANOVELLA_TRASH, 'OnlyErrorDialogs', 'SendToRecycleBin')"],
-    { env: { ...process.env, MANOVELLA_TRASH: dir } });
+    { cwd: outside, env: { ...process.env, MANOVELLA_TRASH: dir } });
+    if (r.status !== 0) r.stderr = `${(r.stderr || '').trim()}\n  (a shell or a program whose current folder is inside it keeps it: step out of it, then run this again)`;
+    return r;
   }
-  const gio = run('gio', ['trash', dir]);
-  if (!gio.error) return gio;
-  const cli = run('trash-put', [dir]);
-  return cli.error ? { status: 1, stderr: 'no trash here: install gio (glib) or trash-cli' } : cli;
+  const gio = run('gio', ['trash', dir], { cwd: outside });
+  if (!gio.error && gio.status === 0) return gio;
+  const cli = run('trash-put', [dir], { cwd: outside });
+  if (!cli.error) return cli;
+  return gio.error ? { status: 1, stderr: 'no trash here: install gio (glib) or trash-cli' } : gio;
 }
 function trash(workArg, flags) {
   if (!workArg) usage();
@@ -368,7 +376,8 @@ function trash(workArg, flags) {
   for (const f of sources) {
     const rel = relTo(root, f);
     if (!kit) { lost.push(`${rel}  (source, no --kit given)`); continue; }
-    const blob = git(['hash-object', '--no-filters', '--', f]).stdout.trim();
+    // hashed as git would store it at that path: with core.autocrlf (Windows' Git), a CRLF copy is the LF blob
+    const blob = git(['hash-object', rel.startsWith('..') ? '--no-filters' : `--path=${rel}`, '--', f]).stdout.trim();
     const same = rel.startsWith('..') ? null : join(kit, rel);
     if (pushed.has(blob)) {
       if (same && existsSync(same) && sha(same) === sha(f)) current++; else history++;
@@ -520,6 +529,8 @@ function selftest() {
       ['deliver it', 0, 'flat-cover.png', [join(D, 'flat'), join(D, 'flat-work', 'cover.png') + '=flat-cover.png']],
       ['a delivered cover beside a page at the top is safe', 0, '0 kept nowhere', ['trash', join(D, 'flat-work'), '--kit', KF], { DRY: '1' }],
       ['trash refuses a loose file whose delivered copy is gone', 1, 'poster.png  (loose file, its delivered copy is gone or changed', ['trash', W, '--kit', KF], { DRY: '1' }],
+      // a real move, where only a CI runner's trash takes it (never a person's): gio or trash-cli, the Recycle Bin
+      ...(process.env.CI && process.platform !== 'darwin' ? [['trash moves a folder for real (CI, off macOS)', 0, 'moved to the Trash', ['trash', join(D, 'flat-work'), '--kit', KF]]] : []),
     ];
     let bad = 0;
     for (const [name, want, needle, argv, extra] of cases) {

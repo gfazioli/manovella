@@ -86,7 +86,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync, readdirSync, copyFileSync, createReadStream, openSync, readSync, closeSync, unlinkSync } from 'node:fs';
 import { basename, dirname, extname, join, resolve, sep } from 'node:path';
 import { HOME, untilde, tl, MANY, prefsDir, readSettings, writeSettings, folder, folders, workRoot } from '../scripts/settings.mjs';
-import { cacheDir, findChrome, openInBrowser } from '../scripts/platform.mjs';
+import { cacheDir, findChrome, openInBrowser, userDir } from '../scripts/platform.mjs';
 
 const run = promisify(execFile);
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -505,7 +505,7 @@ async function mixed(voice, music, under, lift) {
 // ---------------------------------------------------------------- pictures from the Mac
 /** The picture folders: the settings', else ~/Pictures. Desktop and Downloads only when added there: they hold
  *  screenshots of the user's own conversations as often as backdrops. */
-const imgDirs = () => { const set = folders(readSettings().pictureFolders); return set.length ? set : [join(HOME, 'Pictures')]; };
+const imgDirs = () => { const set = folders(readSettings().pictureFolders); return set.length ? set : [userDir('pictures')]; };
 const IMG_EXT = /\.(jpe?g|png|heic|heif|webp|tiff?)$/i;
 // packages are not folders of pictures, and a film's work folder holds its own renders, not backdrops
 const SKIP_DIR = /\.(photoslibrary|app|bundle|framework|key|pages|numbers|xcassets|imageset|appiconset|iconset|lproj|noindex)$|^node_modules$|-work$/;
@@ -899,7 +899,7 @@ const server = createServer(async (req, res) => {
         if (!toned(model)) o.tone = 'warm'; // no tone to read at: one sample serves every tone asked for
         if (!kit.silicon) return json(res, 409, { error: 'silicon', message: 'The voice models run on an Apple Silicon Mac.' });
         if (!kit.python) return json(res, 409, { error: 'setup', message: agentCopy(`Not set up on this Mac: Claude does it at the first film that speaks (a 600 MB Python, then 330 MB to 3.5 GB a model), or now: `) + kit.setup });
-        if (!kit.models[model]) return json(res, 409, { error: 'download', message: agentCopy(`${model} is not on this Mac yet: ${SCHEMA.fields.voiceModel.options.find((x) => x.value === model).size}, downloaded once, at the first film that uses it (or now: ${kit.setup}).`) });
+        if (!kit.models[model]) return json(res, 409, { error: 'download', message: agentCopy(`${model} is not on this Mac yet: ${SCHEMA.fields.voiceModel.options.find((x) => x.value === model).size}, downloaded once, at the first film that uses it (or now: `) + `${kit.setup}).` });
         try { return json(res, 200, { id: await sample(o) }); } catch (e) { return json(res, 500, { error: 'said', message: String(e.stderr || e.message || e).trim().split('\n').slice(-3).join(' ') }); }
       }
       case 'voice-mix': { // a sample over the music chosen, as the film will mix them: ?sample=<id> (a model's line) or ?voice=&rate= (a macOS voice's greeting), ?track=<id> or ?path=, ?under=&lift=

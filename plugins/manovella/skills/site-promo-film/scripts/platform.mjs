@@ -2,7 +2,7 @@
 // (the Studio, settings.mjs): where settings and caches go, where Chrome is, and how an address is
 // opened. macOS keeps what it did before this file. The scripts a film copies into its src/
 // (render.mjs, deliver.mjs…) import nothing, so they carry their own few lines of the same.
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, statSync } from 'node:fs';
 import { homedir, platform } from 'node:os';
 import { delimiter, join } from 'node:path';
@@ -18,6 +18,17 @@ export const configDir = () => (MAC ? join(HOME, 'Library', 'Application Support
 export const cacheDir = () => (MAC ? join(HOME, 'Library', 'Caches', 'manovella')
   : WIN ? join(env.LOCALAPPDATA || join(HOME, 'AppData', 'Local'), 'manovella', 'cache')
     : join(env.XDG_CACHE_HOME || join(HOME, '.cache'), 'manovella'));
+
+/** The user's Downloads or Pictures folder: on Linux the desktop's own (xdg-user-dir), which a localised
+ *  desktop names otherwise (~/Scaricati, ~/Immagini); elsewhere, and where it says nothing, ~/Downloads, ~/Pictures. */
+export function userDir(kind) {
+  if (!MAC && !WIN) {
+    const x = spawnSync('xdg-user-dir', [kind === 'pictures' ? 'PICTURES' : 'DOWNLOAD'], { encoding: 'utf8' });
+    const dir = x.status === 0 ? x.stdout.trim() : '';
+    if (dir && dir !== HOME) return dir;
+  }
+  return join(HOME, kind === 'pictures' ? 'Pictures' : 'Downloads');
+}
 
 /** A program on the PATH, as its full path (with Windows' extensions), or null. */
 export function which(name) {
