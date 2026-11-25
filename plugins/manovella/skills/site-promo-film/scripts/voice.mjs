@@ -119,6 +119,8 @@ export const KOKORO_TORCH = 'hexgrad/Kokoro-82M';
 // venv-large, at chatterbox-tts's versions (its torch, its transformers), apart from Kokoro's light one.
 export const TORCH_REPO = { 'mlx-community/Kokoro-82M-bf16': KOKORO_TORCH, 'mlx-community/chatterbox-turbo-fp16': 'ResembleAI/chatterbox-turbo', 'mlx-community/orpheus-3b-0.1-ft-8bit': 'unsloth/orpheus-3b-0.1-ft' };
 const VENV_LARGE = join(homedir(), '.local', 'share', 'film-voice', 'venv-large');
+// Kokoro's light PyTorch venv, apart from MLX's (venv): a Mac trying VOICE_ENGINE=torch leaves MLX's alone
+const VENV_TORCH = join(homedir(), '.local', 'share', 'film-voice', 'venv-torch');
 const CHATTERBOX_TTS = '0.1.7';
 const TORCH_SIZE = { 'mlx-community/chatterbox-turbo-fp16': '4 GB', 'mlx-community/orpheus-3b-0.1-ft-8bit': '6.6 GB' }; // their PyTorch weights, measured
 const TORCH_CUDA_INDEX = 'https://download.pytorch.org/whl/cu124';   // torch 2.6.0 (chatterbox-tts's) for CUDA 12.4 and later drivers
@@ -170,7 +172,7 @@ const humanTempo = (tempo, human, name) => (!human || human === 'clean' ? tempo 
 /** The Python that runs the models: $VOICE_PYTHON, or the one --setup makes. */
 const venvPython = (venv) => join(venv, ...(process.platform === 'win32' ? ['Scripts', 'python.exe'] : ['bin', 'python']));
 /** The Python that says `model` (an MLX name; none: Kokoro's, the light one): $VOICE_PYTHON, or the one --setup makes. */
-export const python = (model) => process.env.VOICE_PYTHON || venvPython(!MLX && model && model !== KOKORO ? VENV_LARGE : VENV);
+export const python = (model) => process.env.VOICE_PYTHON || venvPython(MLX ? VENV : model && model !== KOKORO ? VENV_LARGE : VENV_TORCH);
 /** Whether that Python has what Kokoro's text needs (`--setup kokoro` installs it): misaki and the espeak-ng loader, looked for in its site-packages. */
 export const hasKokoroPackages = () => {
   const root = dirname(dirname(python())), lib = join(root, 'lib');
@@ -249,11 +251,16 @@ function setupTorch(names) {
 }
 /** A venv at `venv` from a Python kokoro and chatterbox-tts both take: VOICE_SETUP_PYTHON, python3.12…, or Windows' launcher (py -3.12). */
 function makeVenv(venv) {
-  const runs = (cmd, pre = []) => spawnSync(cmd, [...pre, '-c', 'import sys; print(sys.executable)'], { encoding: 'utf8' });
-  const tries = [process.env.VOICE_SETUP_PYTHON && [process.env.VOICE_SETUP_PYTHON], ...TORCH_PYTHON.map((v) => [`python${v}`]),
-    ...(process.platform === 'win32' ? TORCH_PYTHON.map((v) => ['py', [`-${v}`]]) : [])].filter(Boolean);
-  const found = tries.map(([cmd, pre]) => runs(cmd, pre)).find((r) => r.status === 0)?.stdout.trim();
-  if (!found) stop(3, `no Python ${TORCH_PYTHON.join(', ')} here. Install 3.12 (apt install python3.12-venv; on Windows, python.org's installer),\n  or name one with VOICE_SETUP_PYTHON=<python>.`);
+  // each candidate asked for its path and version: a python3 of the right version will do too (Debian's 3.11…)
+  const probe = (cmd, pre = []) => {
+    const r = spawnSync(cmd, [...pre, '-c', 'import sys; print(sys.executable); print("%d.%d" % sys.version_info[:2])'], { encoding: 'utf8' });
+    const [exe, ver] = r.status === 0 ? r.stdout.trim().split(/\r?\n/) : [];
+    return { name: [cmd, ...pre].join(' '), exe, ver };
+  };
+  const tries = [process.env.VOICE_SETUP_PYTHON && [process.env.VOICE_SETUP_PYTHON], ...TORCH_PYTHON.map((v) => [`python${v}`]), ['python3'], ['python'],
+    ...(process.platform === 'win32' ? TORCH_PYTHON.map((v) => ['py', [`-${v}`]]) : [])].filter(Boolean).map(([cmd, pre]) => probe(cmd, pre));
+  const found = tries.find((t) => t.exe && TORCH_PYTHON.includes(t.ver))?.exe;
+  if (!found) stop(3, `no Python ${TORCH_PYTHON.join(', ')} here (${tries.map((t) => `${t.name}: ${t.ver || 'none'}`).join(', ')}). Install 3.12 (apt install python3.12-venv; on Windows, python.org's installer),\n  or name one with VOICE_SETUP_PYTHON=<python>.`);
   mkdirSync(dirname(venv), { recursive: true });
   console.log(`making ${venv} with ${found}`);
   if (spawnSync(found, ['-m', 'venv', venv], { stdio: 'inherit' }).status !== 0) stop(3, `could not make the venv at ${venv}.`);
@@ -285,16 +292,16 @@ function setupLarge(models) {
 function setupKokoro() {
   const py = python();
   if (!existsSync(py)) {
-    makeVenv(VENV);
+    makeVenv(VENV_TORCH);
   }
   const pip = (...a) => spawnSync(py, ['-m', 'pip', 'install', '--quiet', '--disable-pip-version-check', ...a], { stdio: 'inherit' }).status === 0;
   const pins = join(HERE, 'voice-constraints-torch.txt');
-  console.log(`PyTorch for the CPU, then Kokoro and its text packages, into ${VENV} (about 1 GB the first time)…`);
+  console.log(`PyTorch for the CPU, then Kokoro and its text packages, into ${VENV_TORCH} (about 1 GB the first time)…`);
   // torch by itself first, from PyTorch's CPU index (PyPI's Linux wheel brings CUDA's 2 GB); an Intel Mac's comes from PyPI
-  if (!pip('-c', pins, ...(process.platform === 'darwin' ? [] : ['--index-url', TORCH_INDEX]), 'torch')) stop(3, `pip could not install PyTorch into ${VENV}.`);
-  if (!pip('-c', pins, 'kokoro', 'soundfile', 'misaki', 'spacy', 'num2words', 'phonemizer-fork', 'espeakng-loader')) stop(3, `pip could not install Kokoro into ${VENV}.`);
-  if (!pip('--no-deps', SPACY_MODEL)) stop(3, `pip could not install the English text model (${SPACY_MODEL}) into ${VENV}.`);
-  if (spawnSync(py, ['-c', 'import kokoro, soundfile'], { stdio: ['ignore', 'ignore', 'inherit'] }).status !== 0) stop(3, `Kokoro is installed in ${VENV} and does not import.`);
+  if (!pip('-c', pins, ...(process.platform === 'darwin' ? [] : ['--index-url', TORCH_INDEX]), 'torch')) stop(3, `pip could not install PyTorch into ${VENV_TORCH}.`);
+  if (!pip('-c', pins, 'kokoro', 'soundfile', 'misaki', 'spacy', 'num2words', 'phonemizer-fork', 'espeakng-loader')) stop(3, `pip could not install Kokoro into ${VENV_TORCH}.`);
+  if (!pip('--no-deps', SPACY_MODEL)) stop(3, `pip could not install the English text model (${SPACY_MODEL}) into ${VENV_TORCH}.`);
+  if (spawnSync(py, ['-c', 'import kokoro, soundfile'], { stdio: ['ignore', 'ignore', 'inherit'] }).status !== 0) stop(3, `Kokoro is installed in ${VENV_TORCH} and does not import.`);
   console.log(`the Python that says Kokoro: ${py}`);
   const scratch = mkdtempSync(join(tmpdir(), 'film-voice-'));
   try {
