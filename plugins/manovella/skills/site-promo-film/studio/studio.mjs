@@ -107,7 +107,9 @@ const arg = (name, dflt) => { const i = argv.indexOf(name); return i >= 0 && arg
 // the work root, where <name>-work and the delivery go: --out for this run, else the settings' (a Settings change moves it)
 const outRoot = () => { const o = arg('--out', null); return o ? resolve(untilde(o)) : workRoot(); };
 let OUT = outRoot();
-const OPEN = !argv.includes('--no-open');
+// a Linux session with no display (a server, a container) has no window to open: the address alone, as --no-open
+const HEADLESS = platform() === 'linux' && !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY;
+const OPEN = !argv.includes('--no-open') && !HEADLESS;
 const PORT = Number(arg('--port', 0));
 const PRODUCT = arg('--product', null);
 const KEY = randomBytes(12).toString('hex');

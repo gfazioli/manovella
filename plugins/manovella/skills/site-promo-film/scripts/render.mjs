@@ -285,11 +285,12 @@ function lockCut(file, cut) {
     try {
       writeFileSync(file, String(process.pid), { flag: 'wx' });
       process.on('exit', mine);
-      for (const sig of ['SIGINT', 'SIGTERM']) process.once(sig, () => { mine(); process.exit(130); });
+      for (const sig of ['SIGINT', 'SIGTERM']) process.once(sig, () => { mine(); process.exit(sig === 'SIGINT' ? 130 : 143); });
       return;
     } catch (e) {
       if (e.code !== 'EEXIST') throw e;
       let pid = 0; try { pid = Number(readFileSync(file, 'utf8')); } catch { /* removed meanwhile */ }
+      if (!pid) { const t = Date.now() + 300; while (Date.now() < t); try { pid = Number(readFileSync(file, 'utf8')); } catch { /* gone */ } } // made, not yet written
       if (pid && alive(pid)) throw new Error(`${busy().message} (process ${pid} holds ${file}; if no render is running, delete that file)`);
       try { unlinkSync(file); } catch { /* another render took it over first: the next attempt says so */ }
     }
@@ -429,10 +430,11 @@ const clock = (s) => { const m = Math.floor(s / 60), r = Math.floor(s % 60); ret
 // Off macOS a machine may have no GPU (a server, a CI runner): Chrome then draws WebGL in software only
 // when allowed to, and the looks and cuts drawn by shaders need it. With a GPU the flag changes nothing.
 const GL = process.platform === 'darwin' ? [] : ['--enable-unsafe-swiftshader'];
-// Google Chrome; else, on Linux (Chrome has no arm64 build there), Chromium; MANOVELLA_CHROME names either
+// Google Chrome; else Edge on Windows, Chromium on Linux (Chrome has no arm64 build there); MANOVELLA_CHROME names any
 async function launchChrome(opts = {}) {
   if (process.env.MANOVELLA_CHROME) return chromium.launch({ ...opts, executablePath: process.env.MANOVELLA_CHROME });
   try { return await chromium.launch({ ...opts, channel: 'chrome' }); } catch (e) {
+    if (process.platform === 'win32') return chromium.launch({ ...opts, channel: 'msedge' }); // Edge: every Windows has it
     const alt = process.platform === 'linux' && ['/usr/bin/chromium', '/usr/bin/chromium-browser', '/snap/bin/chromium'].find((p) => existsSync(p));
     if (!alt) throw e;
     return chromium.launch({ ...opts, executablePath: alt });
