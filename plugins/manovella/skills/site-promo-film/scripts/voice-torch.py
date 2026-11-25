@@ -1,5 +1,5 @@
 """Says the narrator's lines with a local voice model on PyTorch, one WAV per line: voice-mlx.py's
-work where there is no MLX (Linux, Windows, an Intel Mac), on the CPU or a CUDA GPU.
+work where there is no MLX (Linux, Windows), on the CPU or a CUDA GPU.
 
     <python> voice-torch.py <spec.json>
 

@@ -477,7 +477,7 @@ in words: for an English film, never propose one and never name one to download.
      its `seed` on the step, say that this is how it was picked, and hand over the draft to be
      listened to (names above all); the user who wants to choose by ear listens to that folder. A take the
      user has heard is never said again at another seed without their ear.
-   - **Off an Apple Silicon Mac** (Linux, Windows, an Intel Mac) the models run on PyTorch
+   - **Off an Apple Silicon Mac** (Linux, Windows; an Intel Mac has no PyTorch build: `say` or recordings there) the models run on PyTorch
      (`voice-torch.py`), and Kokoro is the one there: a promo or a lesson that speaks takes
      `"kokoro"` ("af_heart" in English, "if_sara" in Italian), set up once with `node voice.mjs
      --setup kokoro` (a Python 3.10 to 3.12, PyTorch for the CPU and the model: about 1.3 GB).

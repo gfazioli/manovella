@@ -242,6 +242,7 @@ function setup(names) {
 
 /** Once on each machine without MLX: a Python 3.10-3.12 venv with PyTorch (CPU) and Kokoro, then one line said. */
 function setupTorch(names) {
+  if (process.platform === 'darwin' && process.arch !== 'arm64') stop(3, 'PyTorch has no build for an Intel Mac since 2.3: there a story is told by `say`, or by recordings (narrate.mjs --from).');
   if (process.env.VOICE_PYTHON) stop(2, `VOICE_PYTHON is set (${process.env.VOICE_PYTHON}): --setup makes ${VENV}, which it would not be used from. Unset it, or keep your own Python.`);
   const unknown = names.filter((n) => !TORCH_REPO[modelOf(n)]);
   if (unknown.length) stop(2, `${unknown.join(', ')}: not a model voice.mjs knows (kokoro, chatterbox, orpheus).`);
@@ -275,7 +276,9 @@ function setupLarge(models) {
   const pins = join(HERE, 'voice-constraints-large.txt'), pinned = existsSync(pins) ? ['-c', pins] : [];
   console.log(`PyTorch for ${cuda ? 'CUDA' : 'the CPU'}, then chatterbox-tts ${CHATTERBOX_TTS} and SNAC, into ${VENV_LARGE} (2 to 4 GB the first time)…`);
   // torch first, at chatterbox-tts's own version, from PyTorch's index for this machine (an Intel Mac's from PyPI)
-  const index = process.platform === 'darwin' ? [] : ['--index-url', cuda ? TORCH_CUDA_INDEX : TORCH_INDEX];
+  // PyTorch's index beside PyPI's, which serves torch's own dependencies at the pinned versions: of the two
+  // torch 2.6.0 builds, pip takes the index's (+cu124, +cpu), whose local label sorts after the plain one
+  const index = process.platform === 'darwin' ? [] : ['--extra-index-url', cuda ? TORCH_CUDA_INDEX : TORCH_INDEX];
   if (!pip(...pinned, ...index, 'torch==2.6.0', 'torchaudio==2.6.0')) stop(3, `pip could not install PyTorch into ${VENV_LARGE}.`);
   if (!pip(...pinned, `chatterbox-tts==${CHATTERBOX_TTS}`, 'snac')) stop(3, `pip could not install chatterbox-tts and SNAC into ${VENV_LARGE}.`);
   console.log(`the Python that says ${models.map((m) => Object.keys(MODELS).find((k) => MODELS[k] === m)).join(' and ')}: ${py}${cuda ? '' : ' (on the CPU)'}`);
@@ -298,7 +301,7 @@ function setupKokoro() {
   const pins = join(HERE, 'voice-constraints-torch.txt');
   console.log(`PyTorch for the CPU, then Kokoro and its text packages, into ${VENV_TORCH} (about 1 GB the first time)…`);
   // torch by itself first, from PyTorch's CPU index (PyPI's Linux wheel brings CUDA's 2 GB); an Intel Mac's comes from PyPI
-  if (!pip('-c', pins, ...(process.platform === 'darwin' ? [] : ['--index-url', TORCH_INDEX]), 'torch')) stop(3, `pip could not install PyTorch into ${VENV_TORCH}.`);
+  if (!pip('-c', pins, ...(process.platform === 'darwin' ? [] : ['--extra-index-url', TORCH_INDEX]), 'torch')) stop(3, `pip could not install PyTorch into ${VENV_TORCH}.`);
   if (!pip('-c', pins, 'kokoro', 'soundfile', 'misaki', 'spacy', 'num2words', 'phonemizer-fork', 'espeakng-loader')) stop(3, `pip could not install Kokoro into ${VENV_TORCH}.`);
   if (!pip('--no-deps', SPACY_MODEL)) stop(3, `pip could not install the English text model (${SPACY_MODEL}) into ${VENV_TORCH}.`);
   if (spawnSync(py, ['-c', 'import kokoro, soundfile'], { stdio: ['ignore', 'ignore', 'inherit'] }).status !== 0) stop(3, `Kokoro is installed in ${VENV_TORCH} and does not import.`);
