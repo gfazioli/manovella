@@ -1330,6 +1330,7 @@ if (s.code() === null) s.p.kill();
     const ctx = await context(b.at);
     const r = await toSent(b.at);
     check(ctx.agent === null && ctx.agents.length === 4 && r.texts.every((t) => !/Claude/.test(t)) && r.texts.some((t) => /Your agent picks three/.test(t)), `no agent known: the copy says "your agent" (${ctx.agent})`);
+    check(process.platform === 'darwin' || r.texts.every((t) => !/this Mac|each Mac/.test(t)), 'off macOS no step says "this Mac": it says this computer');
     check(/Back to your agent: it is reading the brief/.test(r.sent) && ['claude "/manovella:site-promo-film brief', 'codex "', 'copilot -i "', 'gemini -i "'].every((c) => r.sent.includes(c)), `no agent known: the end screen sends the user back to "your agent" and gives every agent's command (${r.sent.replace(/\s+/g, ' ').slice(-300)})`);
     studio('--wait', b.state, '--for', '20');
   } else check(false, `--detach without --agent: ${b.d.stderr.trim()}`);
