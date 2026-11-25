@@ -101,7 +101,7 @@ The full catalogue, with every look, format, part and transition in pictures, is
 
 ## Requirements
 
-- **macOS on Apple Silicon**, with Claude Code.
+- **macOS on Apple Silicon**, with Claude Code (Linux and Windows: below).
 - **Node** (tested with 24.3), **ffmpeg** (tested with 9.0.2) and **Google Chrome**, which the
   renderer drives through `playwright-core` installed in each film's work folder: nothing else is
   downloaded. With Homebrew: `brew install node ffmpeg`, and Chrome from google.com/chrome.
@@ -113,6 +113,27 @@ The full catalogue, with every look, format, part and transition in pictures, is
   each model is downloaded at its first use: Chatterbox 3 GB, Orpheus 3.5 GB, Kokoro 330 MB, which
   also installs about 160 MB of text packages with `--setup kokoro`). Without them a film
   speaks with a macOS voice, or not at all.
+
+### On Linux and Windows
+
+macOS on Apple Silicon is Manovella's home, and the engine, the Studio and the renders run on Linux
+(Windows through WSL2 too) and on Windows as well; CI runs them on both. What changes there:
+
+- **Node, ffmpeg and Chrome** as above: on Linux `apt install ffmpeg` (or your distribution's) and
+  Google Chrome from google.com/chrome (Chromium where Chrome has no build, as on linux-arm64); on
+  Windows `winget install OpenJS.NodeJS.LTS`, `winget install Gyan.FFmpeg` and
+  `winget install Google.Chrome`. A machine without a GPU draws
+  the shader looks and cuts in software: slower previews and renders, the same frames.
+- **The Studio** opens in a Chrome app window (the window app is macOS's), or the default browser.
+- **Renders** run at below-normal priority, which Chrome and ffmpeg inherit. Linux reads the CPU's
+  temperature for the heat governor; Windows has no sensor to read, so no governor there.
+- **The Trash**: on Linux `gio` (GLib) or trash-cli; on Windows the Recycle Bin.
+- **Voices**: the macOS voices (`say`) are the Mac's. The voice models run on PyTorch instead of
+  MLX, from a Python 3.10 to 3.12: `--setup kokoro` (on the CPU, about 1.3 GB), and
+  `--setup chatterbox orpheus` (best on an NVIDIA GPU with CUDA; their weights are about 4 and
+  6.6 GB). A take said there is the same voice and words as on a Mac, not the same file.
+- **Type**: SF Pro and SF Symbols are licensed for Apple platforms only, so a film of a Mac app is
+  made on a Mac. Web products and command-line tools are not affected.
 
 ## Install
 
