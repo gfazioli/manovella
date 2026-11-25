@@ -113,7 +113,8 @@ const check = (ok, what) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${what}`); if
 // and do not change; false, a run that takes them from its settings.json, as a user's does
 function start(extra = [], env = {}, { given = true, cwd } = {}) {
   const p = spawn('node', [STUDIO, ...(given ? ['--out', join(TMP, 'out'), ...(ROOTS ? ['--roots', ROOTS] : [])] : []), ...extra],
-    { cwd, stdio: ['ignore', 'pipe', 'inherit'], env: { ...process.env, STUDIO_PREFS: join(TMP, 'prefs'), MANOVELLA_MUSIC: given ? BRAND : '', ...env } });
+    // CLAUDECODE: the copy names Claude, as these checks read it, wherever the test runs from (another agent's below)
+    { cwd, stdio: ['ignore', 'pipe', 'inherit'], env: { ...process.env, STUDIO_PREFS: join(TMP, 'prefs'), MANOVELLA_MUSIC: given ? BRAND : '', CLAUDECODE: '1', ...env } });
   const lines = [];
   let code = null;
   p.on('exit', (c) => { code = c; });
@@ -149,12 +150,14 @@ check(ICON.toString('ascii', 1, 4) === 'PNG' && ICON.readUInt32BE(16) === 1024 &
 }
 
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
+// a page at rest: no thumbnail still loading, the viewer not busy
+const idleOn = (page) => page.waitForFunction(() => !document.querySelector('.thumb.wait') && !document.querySelector('#viewer.busy'), null, { timeout: 60000 });
 async function wizard(name, steps) {
   const s = start(['--no-open']);
   const page = await browser.newPage({ viewport: { width: 1480, height: 940 } });
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  const idle = () => page.waitForFunction(() => !document.querySelector('.thumb.wait') && !document.querySelector('#viewer.busy'), null, { timeout: 60000 });
+  const idle = () => idleOn(page);
   const shot = async (n) => SHOTS && page.screenshot({ path: join(SHOTS, `${name}-${n}.png`) });
   await page.goto(await s.url);
   await page.waitForSelector('.card');
@@ -1266,6 +1269,65 @@ await page.close({ runBeforeUnload: true });
 await sleep(7000);
 check(s.lines.includes('CLOSED') && s.code() === 0, 'a window that goes away: CLOSED, exit 0');
 if (s.code() === null) s.p.kill();
+
+// ---------------------------------------------------------------- another agent: --detach, --wait, its name in the copy
+// An agent that no background exit wakes starts the Studio detached and waits on its state file until the
+// line comes. With --agent the copy names that agent and never Claude, and the end screen gives its command;
+// with no agent known (no --agent, no CLAUDECODE) it says "your agent" and gives every agent's command.
+{
+  const env = { ...process.env, STUDIO_PREFS: join(TMP, 'prefs'), MANOVELLA_MUSIC: BRAND, CLAUDECODE: '' };
+  const studio = (...a) => spawnSync('node', [STUDIO, ...a], { encoding: 'utf8', env });
+  const detach = (...a) => {
+    const d = studio('--detach', '--no-open', '--out', join(TMP, 'out'), ...(ROOTS ? ['--roots', ROOTS] : []), ...a);
+    return { d, at: d.stdout.match(/^STUDIO (\S+)$/m)?.[1], state: d.stdout.match(/^STATE (.+)$/m)?.[1] };
+  };
+  // every step's text, from the first to the end screen, through the shortest brief: a promo loop of the first product
+  const toSent = async (at) => {
+    const pg = await browser.newPage({ viewport: { width: 1480, height: 940 } }), errs = [], texts = [];
+    pg.on('pageerror', (e) => errs.push(e.message));
+    const idle = () => idleOn(pg);
+    await pg.goto(at); await pg.waitForSelector('.card'); await idle();
+    await pg.click('.card:has-text("Promo loop")'); await idle();
+    await pg.click('#next'); await pickProduct(pg);
+    for (let i = 0; i < 9 && !(await pg.$('.sent')); i++) { texts.push(await pg.evaluate(() => document.body.innerText)); await pg.click('#next'); await idle(); }
+    await pg.waitForSelector('.sent', { timeout: 10000 });
+    texts.push(await pg.evaluate(() => document.body.innerText));
+    await pg.close();
+    return { texts, sent: texts.at(-1), errs };
+  };
+  const context = async (at) => (await fetch(new URL('/api/context', at), { headers: { 'x-studio-key': new URL(at).searchParams.get('k') } })).json();
+
+  const a = detach('--agent', 'codex');
+  check(a.d.status === 0 && !!a.at && !!a.state, `--detach: back at once with STUDIO and STATE (${a.d.status}: ${a.d.stdout.trim()} ${a.d.stderr.trim()})`);
+  if (a.at && a.state) {
+    const w = studio('--wait', a.state, '--for', '1');
+    check(w.status === 0 && w.stdout.trim() === 'WAITING', `--wait: WAITING while the Studio is open (${w.stdout.trim()})`);
+    const ctx = await context(a.at);
+    check(ctx.agent?.name === 'Codex' && ctx.schema.fields.notes.label === 'Notes for Codex' && !/Claude/.test(JSON.stringify(ctx.schema)), `--agent codex: the schema's copy names Codex (${ctx.schema.fields.notes.label})`);
+    const r = await toSent(a.at);
+    const named = r.texts.filter((t) => /Claude/.test(t));
+    check(r.errs.length === 0 && named.length === 0 && r.texts.some((t) => /Codex picks three/.test(t)), `--agent codex: no step names Claude, and they name Codex (${named.length} naming Claude; ${r.errs.join('; ')})`);
+    check(/Back to Codex: it is reading the brief/.test(r.sent) && /codex "Use the site-promo-film skill on the brief ~?\/.+brief\.json"/.test(r.sent), `--agent codex: the end screen sends the user back to Codex, with its command (${r.sent.replace(/\s+/g, ' ').slice(-220)})`);
+    const end = studio('--wait', a.state, '--for', '20');
+    check(/^BRIEF .+brief\.json$/.test(end.stdout.trim()) && existsSync(end.stdout.trim().slice(6)), `--wait: the brief's line once it is created (${end.stdout.trim()})`);
+  }
+
+  const b = detach();
+  if (b.at && b.state) {
+    const ctx = await context(b.at);
+    const r = await toSent(b.at);
+    check(ctx.agent === null && ctx.agents.length === 4 && r.texts.every((t) => !/Claude/.test(t)) && r.texts.some((t) => /Your agent picks three/.test(t)), `no agent known: the copy says "your agent" (${ctx.agent})`);
+    check(/Back to your agent: it is reading the brief/.test(r.sent) && ['claude "/manovella:site-promo-film brief', 'codex "', 'copilot -i "', 'gemini -i "'].every((c) => r.sent.includes(c)), `no agent known: the end screen sends the user back to "your agent" and gives every agent's command (${r.sent.replace(/\s+/g, ' ').slice(-300)})`);
+    studio('--wait', b.state, '--for', '20');
+  } else check(false, `--detach without --agent: ${b.d.stderr.trim()}`);
+
+  // a Studio that stopped without an ending (killed): --wait reads CLOSED, and says where its log is
+  const c = detach('--agent', 'gemini');
+  const pid = c.state && JSON.parse(readFileSync(c.state, 'utf8')).pid;
+  if (pid) { process.kill(pid, 'SIGKILL'); await sleep(500); }
+  const gone = c.state && studio('--wait', c.state, '--for', '5');
+  check(!!pid && gone.stdout.trim() === 'CLOSED' && /log/.test(gone.stderr), `--wait: a Studio gone without a line reads CLOSED (${gone?.stdout.trim()}; ${gone?.stderr.trim()})`);
+}
 
 // ---------------------------------------------------------------- the window: the Studio's own app, where it is built
 // A stand-in for ~/Applications/Manovella.app under a temporary HOME: it writes down how it was

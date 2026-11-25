@@ -1,9 +1,9 @@
 {
   "name": "Manovella",
   "id": "manovella",
-  "version": "1.19.0",
+  "version": "1.20.0",
   "ping": "/api/ping",
-  "hint": "Manovella opens from Claude Code: /manovella:studio.",
+  "hint": "Manovella opens from your coding agent: /manovella:studio in Claude Code, or ask for Manovella's Studio.",
   "width": 1480,
   "height": 940,
   "appearance": "dark",

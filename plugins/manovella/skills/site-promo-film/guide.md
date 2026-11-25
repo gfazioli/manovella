@@ -42,9 +42,9 @@ review rounds, other formats, delivery and cleanup.
 
 ## 3 — The questions
 
-AskUserQuestion, two rounds of at most four questions, the default first in each and marked
-"(Recommended)". If the tool is not available, ask the same questions as one numbered list with the
-default in brackets, and wait.
+The agent's own question tool where it has one (AskUserQuestion in Claude Code), two rounds of at
+most four questions, the default first in each and marked "(Recommended)". Without one, ask the same
+questions as one numbered list with the default in brackets, and wait.
 
 **Round 1**
 
