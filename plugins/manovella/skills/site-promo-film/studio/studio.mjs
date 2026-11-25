@@ -865,7 +865,7 @@ const server = createServer(async (req, res) => {
         clearTimeout(byeTimer); byeTimer = setTimeout(() => finish('CLOSED'), 5000); return json(res, 200, { ok: true });
       case 'context': {
         const P = prefs();
-        return json(res, 200, { studio: { name: STUDIO.name, version: STUDIO.version }, agent: AGENT, app: AGENT?.app || 'your agent', agents: Object.values(AGENTS), schema: SCHEMA_COPY, roots: ROOTS, out: OUT, library: deliveryLibrary(), products: products(P), preselect: PRODUCT ? resolve(untilde(PRODUCT)) : await gitTop(process.cwd()), last: P.last || null });
+        return json(res, 200, { studio: { name: STUDIO.name, version: STUDIO.version }, agent: AGENT, app: AGENT?.app || 'your agent', agents: Object.values(AGENTS), platform: platform(), schema: SCHEMA_COPY, roots: ROOTS, out: OUT, library: deliveryLibrary(), products: products(P), preselect: PRODUCT ? resolve(untilde(PRODUCT)) : await gitTop(process.cwd()), last: P.last || null });
       }
       case 'product': {
         const p = resolve(untilde(url.searchParams.get('path') || ''));

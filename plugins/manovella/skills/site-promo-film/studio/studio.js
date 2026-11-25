@@ -1499,7 +1499,8 @@
       }); })),
       h('div', { class: 'desc' }, `A preset sets who speaks and how it reads at once, and each ▶ says ${model || !voiced ? 'the line above' : `“${sampleLine()}”`} its way. Every setting stays open in the cards beside this one.`));
     const who = (b) => {
-      b.append(seg(F.voice.options, S.voice, setVoice));
+      // a macOS voice only where macOS speaks it (the server says which system it runs on)
+      b.append(seg(F.voice.options.filter((o) => o.value !== 'mac' || CTX.platform === 'darwin'), S.voice, setVoice));
       if (model) b.append(h('div', { class: 'vcards models' }, SCHEMA.voices.map((x) => vcard({
         sel: v === x, onclick: () => { S.voiceModel = x.model; if (x.speaker) S.voiceSpeaker = x.speaker; TOUCHED.add('voiceModel'); TOUCHED.add('voiceSpeaker'); render(); },
         name: [x.label, x.chosen ? h('span', { class: 'chip acc' }, 'chosen by ear') : null], about: x.about,
