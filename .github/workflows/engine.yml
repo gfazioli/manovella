@@ -54,6 +54,9 @@ jobs:
           STUDIO_TEST_IDLE: 240000   # the previews' shaders drawn in software: no GPU here
         # its products: the repositories beside this checkout, this one among them
         run: node "$SKILL/studio/selftest.mjs" --roots "$GITHUB_WORKSPACE/.." --shots "$RUNNER_TEMP/shots"
+      - uses: actions/setup-python@v7   # kokoro takes Python 3.10 to 3.12; the runner's own is newer
+        with:
+          python-version: '3.12'
       - name: Kokoro through PyTorch, set up and telling two steps
         run: |
           node "$SKILL/scripts/voice.mjs" --setup kokoro
@@ -133,6 +136,9 @@ jobs:
           node-version: 24
       - name: ffmpeg
         run: sudo apt-get update -q && sudo apt-get install -y -q ffmpeg
+      - uses: actions/setup-python@v7   # kokoro takes Python 3.10 to 3.12; the runner's own is newer
+        with:
+          python-version: '3.12'
       - name: Set up, and one line each
         run: node "$SKILL/scripts/voice.mjs" --setup chatterbox orpheus
       - name: Their versions

@@ -260,7 +260,7 @@ function makeVenv(venv) {
   const tries = [process.env.VOICE_SETUP_PYTHON && [process.env.VOICE_SETUP_PYTHON], ...TORCH_PYTHON.map((v) => [`python${v}`]), ['python3'], ['python'],
     ...(process.platform === 'win32' ? TORCH_PYTHON.map((v) => ['py', [`-${v}`]]) : [])].filter(Boolean).map(([cmd, pre]) => probe(cmd, pre));
   const found = tries.find((t) => t.exe && TORCH_PYTHON.includes(t.ver))?.exe;
-  if (!found) stop(3, `no Python ${TORCH_PYTHON.join(', ')} here (${tries.map((t) => `${t.name}: ${t.ver || 'none'}`).join(', ')}). Install 3.12 (apt install python3.12-venv; on Windows, python.org's installer),\n  or name one with VOICE_SETUP_PYTHON=<python>.`);
+  if (!found) stop(3, `no Python ${TORCH_PYTHON.join(', ')} here (${tries.map((t) => `${t.name}: ${t.ver || 'none'}`).join(', ')}). Install 3.12 beside it: the simplest on any system is uv (https://docs.astral.sh/uv/):\n  uv python install 3.12, then VOICE_SETUP_PYTHON="$(uv python find 3.12)" node voice.mjs --setup …\n  (or apt install python3.12-venv where the distribution has it; on Windows, python.org's installer).`);
   mkdirSync(dirname(venv), { recursive: true });
   console.log(`making ${venv} with ${found}`);
   if (spawnSync(found, ['-m', 'venv', venv], { stdio: 'inherit' }).status !== 0) stop(3, `could not make the venv at ${venv}.`);
