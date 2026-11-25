@@ -66,7 +66,8 @@ chosen), and every choice written to one `brief.json`. Nothing is installed and 
     your shell tool's command timeout (`--for 50` under a 60 s limit; 240 when not given), or
     the command's timeout set above it: it prints the ending line, or `WAITING`; run it again
     until it prints the ending. `--wait` needs no escalation. To close the Studio before that,
-    end the `pid` the state file names (outside the sandbox too).
+    end the `pid` the state file names (outside the sandbox too). Where nothing may run outside
+    the sandbox, the Studio cannot open: use the guided mode (below) instead.
 - **The window** is the Studio's own app where this Mac has built it
   (`~/Applications/Manovella.app`, its name, version and icon in the Dock), else a Chrome app window; `MANOVELLA_WINDOW=chrome` keeps Chrome. Without either it opens the default
   browser; `--no-open` prints the URL instead, for a session whose screen is elsewhere.
