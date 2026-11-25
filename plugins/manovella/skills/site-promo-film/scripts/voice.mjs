@@ -107,6 +107,13 @@ import { shown, stepName, TAGS, ALIAS, TAG_RE, unit } from './narrate.mjs';
 const HERE = dirname(fileURLToPath(import.meta.url)), RATE = 48000;
 const MLX_AUDIO = '0.6.5';   // the version the takes below, and every seed in a story, were said with
 const VENV = join(homedir(), '.local', 'share', 'film-voice', 'venv');
+// The engine the models run on: MLX on an Apple Silicon Mac; elsewhere PyTorch, where Kokoro is the model
+// (voice-torch.py), on the CPU, or a CUDA GPU when torch finds one. A machine has one, in the same venv.
+export const MLX = process.env.VOICE_ENGINE ? process.env.VOICE_ENGINE === 'mlx' : process.platform === 'darwin' && process.arch === 'arm64'; // VOICE_ENGINE=torch: a Mac tries the other path (a test)
+const TORCH_PYTHON = ['3.12', '3.11', '3.10'];   // kokoro 0.9.4 takes these; 3.12 is the one it was heard with
+const TORCH_INDEX = 'https://download.pytorch.org/whl/cpu';
+// Kokoro's weights as PyTorch reads them (voice-torch.py), beside MLX's bf16 conversion in MODELS
+export const KOKORO_TORCH = 'hexgrad/Kokoro-82M';
 // The most a model may write for one line, in its tokens (voice-mlx.py says why): about 48 s of
 // Orpheus. Part of a recording's key: a line said under another ceiling is said again.
 const CEILING = 4000;
@@ -153,11 +160,14 @@ function forModel(text, model, keep) {
 /** A line's own pace: the story's tempo, or with "human" within 3 % of it, the same for the same step on every run. */
 const humanTempo = (tempo, human, name) => (!human || human === 'clean' ? tempo : Math.min(1.15, Math.max(0.85, +(tempo * (1 + 0.03 * (2 * unit(name) - 1))).toFixed(4))));
 /** The Python that runs the models: $VOICE_PYTHON, or the one --setup makes. */
-export const python = () => process.env.VOICE_PYTHON || join(VENV, 'bin', 'python');
+export const python = () => process.env.VOICE_PYTHON || join(VENV, ...(process.platform === 'win32' ? ['Scripts', 'python.exe'] : ['bin', 'python']));
 /** Whether that Python has what Kokoro's text needs (`--setup kokoro` installs it): misaki and the espeak-ng loader, looked for in its site-packages. */
 export const hasKokoroPackages = () => {
-  const lib = join(dirname(dirname(python())), 'lib');
-  try { return readdirSync(lib).some((d) => /^python3/.test(d) && ['misaki', 'espeakng_loader'].every((p) => existsSync(join(lib, d, 'site-packages', p)))); } catch { return false; }
+  const root = dirname(dirname(python())), lib = join(root, 'lib');
+  const sites = [join(root, 'Lib', 'site-packages')]; // Windows' venv; elsewhere lib/python3.x/site-packages
+  try { sites.push(...readdirSync(lib).filter((d) => /^python3/.test(d)).map((d) => join(lib, d, 'site-packages'))); } catch { /* none */ }
+  const needs = ['misaki', 'espeakng_loader', ...(MLX ? [] : ['kokoro'])];
+  return sites.some((site) => needs.every((p) => existsSync(join(site, p))));
 };
 
 const run = (cmd, args) => execFileSync(cmd, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
@@ -166,17 +176,19 @@ const stop = (code, message) => { console.error(`voice.mjs: ${message}`); proces
 
 /** Says `lines` [{ out, text, seed }] with `model` (and its `voice`, at `temperature` when not null, in `lang` when named), one WAV each. */
 function say(model, voice, lines, scratch, temperature = null, lang = null) {
+  if (!MLX && model !== KOKORO) stop(3, `${model} runs on MLX, an Apple Silicon Mac's. Here the voice model is Kokoro ("kokoro" in the story's "mlx"), or \`say\` on a Mac, or recordings (narrate.mjs --from).`);
   const py = python();
-  if (!existsSync(py)) stop(3, `no Python with mlx-audio at ${py}.\n  Make it, once on each Mac: node ${join(HERE, 'voice.mjs')} --setup\n  (or point VOICE_PYTHON at one). Not using another voice.`);
+  if (!existsSync(py)) stop(3, `no Python with ${MLX ? 'mlx-audio' : 'Kokoro'} at ${py}.\n  Make it, once on each machine: node ${join(HERE, 'voice.mjs')} --setup${MLX ? '' : ' kokoro'}\n  (or point VOICE_PYTHON at one). Not using another voice.`);
   const spec = join(scratch, 'lines.json');
   writeFileSync(spec, JSON.stringify({ model, voice: voice ?? null, max_tokens: CEILING, temperature, lang, lines }));
-  const r = spawnSync(py, [join(HERE, 'voice-mlx.py'), spec], { stdio: ['ignore', 'ignore', 'pipe'], encoding: 'utf8' });
+  const r = spawnSync(py, [join(HERE, MLX ? 'voice-mlx.py' : 'voice-torch.py'), spec], { stdio: ['ignore', 'ignore', 'pipe'], encoding: 'utf8' });
   rmSync(spec, { force: true });
   if (r.status !== 0) stop(3, `the voice model did not run (${model}).\n${String(r.stderr || r.error?.message || '').trim().split('\n').slice(-4).join('\n')}`);
 }
 
 /** Once on each Mac: the Python that runs the models, then each model named, downloaded and tried. */
 function setup(names) {
+  if (!MLX) return setupTorch(names);
   if (process.platform !== 'darwin' || process.arch !== 'arm64') stop(3, 'the voice models run on MLX, which is an Apple Silicon Mac\'s. On this machine a story is told by `say` or by recordings (narrate.mjs --from).');
   if (process.env.VOICE_PYTHON) stop(2, `VOICE_PYTHON is set (${process.env.VOICE_PYTHON}): --setup makes ${VENV}, which it would not be used from. Unset it, or keep your own Python.`);
   if (!existsSync(join(VENV, 'bin', 'python'))) {
@@ -215,6 +227,41 @@ function setup(names) {
     }
   } finally { rmSync(scratch, { recursive: true, force: true }); }
   if (!names.length) console.log('no model named: each is downloaded at the first story that uses it (or now: --setup chatterbox orpheus).');
+}
+
+/** Once on each machine without MLX: a Python 3.10-3.12 venv with PyTorch (CPU) and Kokoro, then one line said. */
+function setupTorch(names) {
+  const other = names.filter((n) => modelOf(n) !== KOKORO);
+  if (other.length) stop(3, `${other.join(', ')}: these run on MLX, an Apple Silicon Mac's. Here: node ${join(HERE, 'voice.mjs')} --setup kokoro`);
+  if (process.env.VOICE_PYTHON) stop(2, `VOICE_PYTHON is set (${process.env.VOICE_PYTHON}): --setup makes ${VENV}, which it would not be used from. Unset it, or keep your own Python.`);
+  const py = python();
+  if (!existsSync(py)) {
+    // a Python kokoro takes: VOICE_SETUP_PYTHON, python3.12…, or Windows' launcher (py -3.12)
+    const runs = (cmd, pre = []) => spawnSync(cmd, [...pre, '-c', 'import sys; print(sys.executable)'], { encoding: 'utf8' });
+    const tries = [process.env.VOICE_SETUP_PYTHON && [process.env.VOICE_SETUP_PYTHON], ...TORCH_PYTHON.map((v) => [`python${v}`]),
+      ...(process.platform === 'win32' ? TORCH_PYTHON.map((v) => ['py', [`-${v}`]]) : [])].filter(Boolean);
+    const found = tries.map(([cmd, pre]) => runs(cmd, pre)).find((r) => r.status === 0)?.stdout.trim();
+    if (!found) stop(3, `no Python ${TORCH_PYTHON.join(', ')} here (kokoro takes these). Install 3.12 (apt install python3.12-venv; on Windows, python.org's installer),\n  or name one with VOICE_SETUP_PYTHON=<python>.`);
+    mkdirSync(dirname(VENV), { recursive: true });
+    console.log(`making ${VENV} with ${found}`);
+    if (spawnSync(found, ['-m', 'venv', VENV], { stdio: 'inherit' }).status !== 0) stop(3, `could not make the venv at ${VENV}.`);
+  }
+  const pip = (...a) => spawnSync(py, ['-m', 'pip', 'install', '--quiet', '--disable-pip-version-check', ...a], { stdio: 'inherit' }).status === 0;
+  const pins = join(HERE, 'voice-constraints-torch.txt');
+  console.log(`PyTorch for the CPU, then Kokoro and its text packages, into ${VENV} (about 1 GB the first time)…`);
+  // torch by itself first, from PyTorch's CPU index (PyPI's Linux wheel brings CUDA's 2 GB); an Intel Mac's comes from PyPI
+  if (!pip('-c', pins, ...(process.platform === 'darwin' ? [] : ['--index-url', TORCH_INDEX]), 'torch')) stop(3, `pip could not install PyTorch into ${VENV}.`);
+  if (!pip('-c', pins, 'kokoro', 'soundfile', 'misaki', 'spacy', 'num2words', 'phonemizer-fork', 'espeakng-loader')) stop(3, `pip could not install Kokoro into ${VENV}.`);
+  if (!pip('--no-deps', SPACY_MODEL)) stop(3, `pip could not install the English text model (${SPACY_MODEL}) into ${VENV}.`);
+  if (spawnSync(py, ['-c', 'import kokoro, soundfile'], { stdio: ['ignore', 'ignore', 'inherit'] }).status !== 0) stop(3, `Kokoro is installed in ${VENV} and does not import.`);
+  console.log(`the Python that says Kokoro: ${py}`);
+  const scratch = mkdtempSync(join(tmpdir(), 'film-voice-'));
+  try {
+    const wav = join(scratch, 'probe.wav');
+    console.log(`${KOKORO}: saying one line through PyTorch (a first run downloads the model: about 330 MB)…`);
+    say(KOKORO, KNOWN[KOKORO].voice, [{ out: wav, text: PROBE.text, seed: PROBE.seed }], scratch);
+    console.log(`${KOKORO}: ${seconds(wav).toFixed(2)} s (2.25 s on MLX: the same voice and words through another engine). Hear it.`);
+  } finally { rmSync(scratch, { recursive: true, force: true }); }
 }
 
 function main() {
@@ -296,7 +343,8 @@ function main() {
   for (const p of steps) {
     p.raw = join(dir, 'raw', `${p.name}.wav`); p.wav = join(dir, `${p.name}.wav`);
     // a temperature or a lang enters the key only when one is asked for: a take said before tones existed keeps its key
-    p.keys = { raw: sha(model, voice, p.seed, p.text, CEILING, ...(temperature == null ? [] : [temperature]), ...(lang ? [lang] : [])) };
+    // and the engine, when it is not MLX: a take said through PyTorch is another recording
+    p.keys = { raw: sha(model, voice, p.seed, p.text, CEILING, ...(temperature == null ? [] : [temperature]), ...(lang ? [lang] : []), ...(MLX ? [] : ['torch'])) };
     p.keys.wav = sha(p.keys.raw, p.filters, level, LIMIT, RATE);
     const was = index[p.name] ?? {};
     p.resay = was.raw !== p.keys.raw || !existsSync(p.raw);
