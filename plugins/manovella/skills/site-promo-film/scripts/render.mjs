@@ -422,7 +422,10 @@ async function audioCheck(file, start, len, src) {
 const stillName = (t, dur) => `t${Number(t).toFixed(2).padStart(dur >= 100 ? 6 : 5, '0')}`;
 const clock = (s) => { const m = Math.floor(s / 60), r = Math.floor(s % 60); return `${m}:${String(r).padStart(2, '0')}`; };
 
-const browser = await chromium.launch({ channel: 'chrome' });
+// Off macOS a machine may have no GPU (a server, a CI runner): Chrome then draws WebGL in software only
+// when allowed to, and the looks and cuts drawn by shaders need it. With a GPU the flag changes nothing.
+const GL = process.platform === 'darwin' ? [] : ['--enable-unsafe-swiftshader'];
+const browser = await chromium.launch({ channel: 'chrome', args: GL });
 try {
   const probe = await openPage(browser);
   const META = await probe.evaluate(() => window.PROMO_META);
@@ -679,7 +682,7 @@ try {
       // one browser took turns — 223 ms a frame with grain, 22 ms with a browser each (measured)
       let own, page;
       for (let attempt = 1; ; attempt++) {
-        own = await chromium.launch({ channel: 'chrome' });
+        own = await chromium.launch({ channel: 'chrome', args: GL });
         page = await openPage(own, META);
         if (digest(await shot(page, refT, refO)) === REF) break;
         if (attempt === 3) { console.log('a worker\'s browser still draws the reference frame differently after 3 launches: rendering on, but this render may not repeat to the byte'); break; }
