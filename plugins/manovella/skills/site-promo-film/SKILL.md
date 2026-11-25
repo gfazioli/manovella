@@ -56,10 +56,12 @@ chosen), and every choice written to one `brief.json`. Nothing is installed and 
 - **Run** `node <this skill's dir>/studio/studio.mjs` from the workspace (its repositories'
   siblings are the products offered), and say in one line that the window is open. It ends on its
   own with one line: `BRIEF <path>`, or `CANCELLED`, `CLOSED`, `TIMEOUT` (say so and stop).
-  - Where a background command's exit wakes you (Claude Code): run it in the background, and its
-    exit brings you that line.
-  - Elsewhere (Codex, Copilot CLI, Gemini CLI): add `--detach --agent codex` (or `copilot`,
-    `gemini`: the Studio then names you and shows your command). Run that command outside your
+  - In Claude Code: run it in the background, and its exit brings you that line.
+  - In any other agent (Codex, Copilot CLI, Gemini CLI…), always this way, even where your shell
+    can keep a command running and read it later: a Studio held by your shell ends with your
+    session or the command's time limit, while the user is still choosing. Add
+    `--detach --agent codex` (or `copilot`, `gemini`: the Studio then names you and shows your
+    command). Run that command outside your
     sandbox (in Codex, with escalated permissions): the Studio writes its cache and listens on
     127.0.0.1. It returns at once with `STUDIO <url>` and `STATE <file>`. Then run
     `node <this skill's dir>/studio/studio.mjs --wait <file> --for <seconds>`, a `--for` below
