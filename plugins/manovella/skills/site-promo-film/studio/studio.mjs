@@ -444,10 +444,14 @@ async function listTracks(productName) {
 function voiceKit() {
   const hub = process.env.HF_HUB_CACHE || join(process.env.HF_HOME || join(HOME, '.cache', 'huggingface'), 'hub');
   return {
-    silicon: platform() === 'darwin' && process.arch === 'arm64', python: existsSync(VOICE.python()),
+    // silicon: MLX runs here, every model; else PyTorch, Kokoro alone (its own weights, voice.mjs KOKORO_TORCH)
+    silicon: VOICE.MLX, python: existsSync(VOICE.python()),
     // a model is there when its weights are, and Kokoro's text packages too (a Python from before `--setup kokoro` has none)
-    models: Object.fromEntries(Object.entries(VOICE.MODELS).map(([k, r]) => [k, existsSync(join(hub, `models--${r.replace('/', '--')}`, 'snapshots')) && (k !== 'kokoro' || VOICE.hasKokoroPackages())])),
-    setup: `node ${join(SKILL, 'scripts', 'voice.mjs')} --setup ${Object.keys(VOICE.MODELS).join(' ')}`,
+    models: Object.fromEntries(Object.entries(VOICE.MODELS).map(([k, r]) => {
+      const repo = VOICE.MLX ? r : k === 'kokoro' ? VOICE.KOKORO_TORCH : null;
+      return [k, !!repo && existsSync(join(hub, `models--${repo.replace('/', '--')}`, 'snapshots')) && (k !== 'kokoro' || VOICE.hasKokoroPackages())];
+    })),
+    setup: `node ${join(SKILL, 'scripts', 'voice.mjs')} --setup ${VOICE.MLX ? Object.keys(VOICE.MODELS).join(' ') : 'kokoro'}`,
   };
 }
 /** The voices a model offers by name (Orpheus's, Kokoro's), and whether it has a tone to set (Kokoro reads at no temperature). */
@@ -900,7 +904,7 @@ const server = createServer(async (req, res) => {
         const offered = (k, v) => SCHEMA.fields[k].options.some((x) => x.value === v);
         if (!offered('voiceModel', model) || (o.speaker && !speakers.includes(o.speaker)) || !offered('voiceTone', o.tone) || !offered('voiceTempo', o.tempo) || !offered('voiceHuman', o.human) || !o.text) return json(res, 400, { error: 'not a sample the schema offers' });
         if (!toned(model)) o.tone = 'warm'; // no tone to read at: one sample serves every tone asked for
-        if (!kit.silicon) return json(res, 409, { error: 'silicon', message: 'The voice models run on an Apple Silicon Mac.' });
+        if (!kit.silicon && model !== 'kokoro') return json(res, 409, { error: 'silicon', message: 'Chatterbox and Orpheus run on an Apple Silicon Mac; here, Kokoro.' });
         if (!kit.python) return json(res, 409, { error: 'setup', message: agentCopy(`Not set up on this Mac: Claude does it at the first film that speaks (a 600 MB Python, then 330 MB to 3.5 GB a model), or now: `) + kit.setup });
         if (!kit.models[model]) return json(res, 409, { error: 'download', message: agentCopy(`${model} is not on this Mac yet: ${SCHEMA.fields.voiceModel.options.find((x) => x.value === model).size}, downloaded once, at the first film that uses it (or now: `) + `${kit.setup}).` });
         try { return json(res, 200, { id: await sample(o) }); } catch (e) { return json(res, 500, { error: 'said', message: String(e.stderr || e.message || e).trim().split('\n').slice(-3).join(' ') }); }
