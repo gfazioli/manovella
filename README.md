@@ -132,7 +132,9 @@ macOS on Apple Silicon is Manovella's home, and the engine, the Studio and the r
   MLX, from a Python 3.12 (a recent distribution's own is newer: `uv python install 3.12`, then
   `VOICE_SETUP_PYTHON="$(uv python find 3.12)"`): `--setup kokoro` (on the CPU, about 1.3 GB), and
   `--setup chatterbox orpheus` (best on an NVIDIA GPU with CUDA; their weights are about 4 and
-  6.6 GB). A take said there is the same voice and words as on a Mac, not the same file.
+  6.6 GB, and Orpheus needs about 7 GB of the GPU's memory, or 13 GB of RAM on a CPU). A GPU newer
+  than their PyTorch build (an RTX 50) is left for the CPU, saying so; `VOICE_DEVICE=cpu` or `cuda`
+  decides. A take said there is the same voice and words as on a Mac, not the same file.
 - **Type**: SF Pro and SF Symbols are licensed for Apple platforms only, so a film of a Mac app is
   made on a Mac. Web products and command-line tools are not affected.
 
