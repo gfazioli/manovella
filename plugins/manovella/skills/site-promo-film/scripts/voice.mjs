@@ -4,6 +4,10 @@
 //   node voice.mjs story.json [--out <dir>] [--audition <takes>] [--recordings]
 //   node voice.mjs --setup [chatterbox] [orpheus] [kokoro] [<Hugging Face repo> …]     once on each Mac
 //
+// Off a Mac (Linux, Windows) the same models run on PyTorch through voice-torch.py, from a Python 3.12:
+// `--setup kokoro` (venv-torch, on the CPU) and `--setup chatterbox orpheus` (venv-large, best on an NVIDIA
+// GPU; VOICE_DEVICE=cpu|cuda decides). The rest of this header is MLX's, on an Apple Silicon Mac.
+//
 // `say`'s best voices read fluently and still sound read. A local model sounds closer to a person,
 // costs nothing, needs no account and works offline once it is downloaded. This says each step's
 // sentence with one (voice-mlx.py, through mlx-audio), trims the silence round it, paces it and
@@ -109,7 +113,8 @@ const MLX_AUDIO = '0.6.5';   // the version the takes below, and every seed in a
 const VENV = join(homedir(), '.local', 'share', 'film-voice', 'venv');
 // The engine the models run on: MLX on an Apple Silicon Mac (venv); elsewhere PyTorch (voice-torch.py), on the
 // CPU or a CUDA GPU when torch finds one: Kokoro in venv-torch, Chatterbox and Orpheus in venv-large.
-export const MLX = process.env.VOICE_ENGINE ? process.env.VOICE_ENGINE === 'mlx' : process.platform === 'darwin' && process.arch === 'arm64'; // VOICE_ENGINE=torch: a Mac tries the other path (a test)
+// every Mac: an x64 Node under Rosetta on Apple Silicon keeps MLX's venv, and an Intel Mac its old answer (MLX needs Apple Silicon)
+export const MLX = process.env.VOICE_ENGINE ? process.env.VOICE_ENGINE === 'mlx' : process.platform === 'darwin'; // VOICE_ENGINE=torch: a Mac tries the other path (a test)
 const TORCH_PYTHON = ['3.12'];   // kokoro 0.9.4 takes 3.10 to 3.12, and the pins (numpy 2.5, networkx 3.7) 3.12 alone
 const TORCH_INDEX = 'https://download.pytorch.org/whl/cpu';
 // Kokoro's weights as PyTorch reads them (voice-torch.py), beside MLX's bf16 conversion in MODELS
@@ -196,6 +201,8 @@ function say(model, voice, lines, scratch, temperature = null, lang = null) {
   // PYTHONUTF8: Windows' Python would read and print in its ANSI code page (a profile path with an accent)
   const r = spawnSync(py, [join(HERE, MLX ? 'voice-mlx.py' : 'voice-torch.py'), spec], { stdio: ['ignore', 'ignore', 'pipe'], encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1' } });
   rmSync(spec, { force: true });
+  // what voice-torch.py says of itself (the GPU left for the CPU…), heard on success too
+  if (r.status === 0) for (const l of String(r.stderr || '').split('\n')) if (l.startsWith('voice-torch.py:')) console.log(l);
   if (r.status !== 0) stop(3, `the voice model did not run (${model})${r.signal ? `: ended by ${r.signal}, which on a CPU is often memory (Orpheus wants about 13 GB of it there, 7 GB of a GPU's)` : ''}.\n${String(r.stderr || r.error?.message || '').trim().split('\n').slice(-4).join('\n')}`);
 }
 
@@ -303,13 +310,15 @@ function setupLarge(models) {
   const index = process.platform === 'darwin' ? [] : ['--extra-index-url', cuda ? TORCH_CUDA_INDEX : TORCH_INDEX];
   if (!pip(...pinned, ...index, 'torch==2.6.0', 'torchaudio==2.6.0')) stop(3, `pip could not install PyTorch into ${VENV_LARGE}.`);
   // a venv made on the CPU before a GPU came keeps its +cpu torch, which satisfies the pin: the CUDA build, over it
-  if (cuda && spawnSync(py, ['-c', 'import sys, torch; sys.exit(0 if torch.cuda.is_available() else 1)']).status !== 0) {
+  // (its CUDA libraries come with it: on Linux the +cu124 wheel needs the nvidia-* packages the +cpu one did not)
+  if (cuda && spawnSync(py, ['-c', 'import sys, torch; sys.exit(0 if torch.version.cuda else 1)']).status !== 0) {
     console.log('this venv\'s PyTorch is the CPU\'s: putting the CUDA build in its place…');
-    if (!pip('--force-reinstall', '--no-deps', '--index-url', TORCH_CUDA_INDEX, 'torch==2.6.0+cu124', 'torchaudio==2.6.0+cu124')) stop(3, `pip could not install PyTorch for CUDA into ${VENV_LARGE}.`);
+    if (!pip(...pinned, '--force-reinstall', '--extra-index-url', TORCH_CUDA_INDEX, 'torch==2.6.0+cu124', 'torchaudio==2.6.0+cu124')) stop(3, `pip could not install PyTorch for CUDA into ${VENV_LARGE}.`);
   }
-  // CUDA as torch sees it, after all that: a driver too old for cu124 leaves these models on the CPU (voice-torch.py says so too)
-  const onGpu = cuda && spawnSync(py, ['-c', 'import sys, torch; sys.exit(0 if torch.cuda.is_available() else 1)']).status === 0;
-  if (cuda && !onGpu) console.log('nvidia-smi answers, but PyTorch cannot use the GPU (its driver may be older than CUDA 12.4 needs): these models will run on the CPU.');
+  // the GPU as voice-torch.py will judge it: CUDA usable, and kernels of its major version in this build (not an RTX 50's)
+  const GPU_OK = 'import sys, torch\nok = torch.cuda.is_available() and any(int(a.split("_")[1]) // 10 == torch.cuda.get_device_capability()[0] for a in torch.cuda.get_arch_list() if a.startswith("sm_"))\nsys.exit(0 if ok else 1)';
+  const onGpu = cuda && !['cpu'].includes(process.env.VOICE_DEVICE) && spawnSync(py, ['-c', GPU_OK]).status === 0;
+  if (cuda && !onGpu) console.log('nvidia-smi answers, but these models will run on the CPU: PyTorch cannot use this GPU (a driver older than CUDA 12.4 needs, or a GPU newer than its kernels), or VOICE_DEVICE=cpu.');
   if (!pip(...pinned, `chatterbox-tts==${CHATTERBOX_TTS}`, 'snac')) stop(3, `pip could not install chatterbox-tts and SNAC into ${VENV_LARGE}.`);
   console.log(`the Python that says ${models.map((m) => Object.keys(MODELS).find((k) => MODELS[k] === m)).join(' and ')}: ${py}${onGpu ? '' : ' (on the CPU)'}`);
   const scratch = mkdtempSync(join(tmpdir(), 'film-voice-'));

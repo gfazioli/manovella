@@ -91,7 +91,7 @@ def orpheus(spec, device):
     except ImportError:
         sys.exit('voice-torch.py: Orpheus\'s packages are not in this Python: run `node voice.mjs --setup orpheus`')
     tokenizer = AutoTokenizer.from_pretrained(spec['model'])
-    model = AutoModelForCausalLM.from_pretrained(spec['model'], torch_dtype=torch.bfloat16 if device == 'cuda' else torch.float32).to(device).eval()
+    model = AutoModelForCausalLM.from_pretrained(spec['model'], torch_dtype=torch.bfloat16 if device.startswith('cuda') else torch.float32).to(device).eval()
     snac = SNAC.from_pretrained('hubertsiuzdak/snac_24khz').eval().to(device)
     voice, limit = spec.get('voice') or 'leah', int(spec.get('max_tokens') or 4000)
     temperature = spec['temperature'] if spec.get('temperature') is not None else 0.6   # Canopy's default
@@ -128,14 +128,19 @@ def orpheus(spec, device):
 
 
 def pick_device():
-    """CUDA when torch has kernels for this GPU, else the CPU, saying why; VOICE_DEVICE=cpu|cuda decides instead.
-    A GPU newer than the build (an RTX 50, sm_120, on torch 2.6.0's cu124) is "available" and then fails on its first kernel."""
-    if os.environ.get('VOICE_DEVICE'):
-        return os.environ['VOICE_DEVICE']
-    if not torch.cuda.is_available():
+    """CUDA when torch has kernels for this GPU, else the CPU, saying why. A GPU is covered by a kernel built for its
+    major version (sm_86 serves an RTX 40's sm_89, as torch itself judges); one newer than the build (an RTX 50,
+    sm_120, on torch 2.6.0's cu124) is "available" and fails on its first kernel. VOICE_DEVICE=cpu keeps to the CPU,
+    VOICE_DEVICE=cuda tries the GPU anyway (where torch sees one)."""
+    want = os.environ.get('VOICE_DEVICE', '')
+    if want not in ('', 'cpu', 'cuda'):
+        sys.exit(f"voice-torch.py: VOICE_DEVICE is cpu or cuda, not {want}")
+    if want == 'cpu' or not torch.cuda.is_available():
         return 'cpu'
+    if want == 'cuda':
+        return 'cuda'
     major, minor = torch.cuda.get_device_capability()
-    if f'sm_{major}{minor}' not in torch.cuda.get_arch_list():
+    if not any(int(a.split('_')[1]) // 10 == major for a in torch.cuda.get_arch_list() if a.startswith('sm_')):
         print(f"voice-torch.py: {torch.cuda.get_device_name()} (sm_{major}{minor}) is newer than this PyTorch's CUDA kernels "
               f"({' '.join(torch.cuda.get_arch_list())}): saying it on the CPU (VOICE_DEVICE=cuda tries the GPU anyway)", file=sys.stderr, flush=True)
         return 'cpu'
