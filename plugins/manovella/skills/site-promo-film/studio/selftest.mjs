@@ -79,7 +79,7 @@ import { request as httpRequest } from 'node:http';
 import { mkdtempSync, readFileSync, mkdirSync, existsSync, rmSync, writeFileSync, chmodSync, statSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const { chromium } = createRequire(join(process.cwd(), 'noop.js'))('playwright-core');
 const STUDIO = join(dirname(fileURLToPath(import.meta.url)), 'studio.mjs');
@@ -87,7 +87,7 @@ const IDENTITY = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.
 const SCHEMA = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'schema.json'), 'utf8'));
 const ICON = readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'icon-1024.png'));
 const PICTURE = join(dirname(fileURLToPath(import.meta.url)), '..', 'docs', 'looks.jpg'); // one of the kit's own pictures
-const { synth } = await import(join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'beats.mjs'));
+const { synth } = await import(pathToFileURL(join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'beats.mjs')).href);
 const argv = process.argv.slice(2);
 const arg = (n) => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : null; };
 const SHOTS = arg('--shots');
@@ -138,7 +138,7 @@ check(/^\d+\.\d+\.\d+$/.test(IDENTITY.version || '') && IDENTITY.name === 'Manov
 check(ICON.toString('ascii', 1, 4) === 'PNG' && ICON.readUInt32BE(16) === 1024 && ICON.readUInt32BE(20) === 1024, 'and a 1024 px PNG icon for its window app');
 // the voices the Studio offers are the ones voice.mjs says, in the tones it reads
 {
-  const V = await import(join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'voice.mjs'));
+  const V = await import(pathToFileURL(join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'voice.mjs')).href);
   const F = SCHEMA.fields;
   const same = (a, b) => JSON.stringify([...a].sort()) === JSON.stringify([...b].sort());
   check(same(F.voiceModel.options.map((o) => o.value), Object.keys(V.MODELS)) && same(F.voiceTone.options.map((o) => o.value), Object.keys(V.TONES)), 'the schema offers the models and the tones voice.mjs has');
@@ -1247,7 +1247,7 @@ check((await fetch(url.origin + '/api/voice-sample?model=chatterbox&tone=shouty&
 }
 check((await fetch(url.origin + '/api/voice-sample?model=kokoro&speaker=leah&text=Hi', { headers: { 'x-studio-key': k } })).status === 400, 'voice sample: a voice of another model is refused');
 { // Kokoro says Sara's Italian line through voice.mjs when this Mac has it (the model, and the packages --setup kokoro adds)
-  const has = kit.python && kit.models.kokoro && spawnSync((await import(join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'voice.mjs'))).python(), ['-c', 'import misaki, espeakng_loader'], { stdio: 'ignore' }).status === 0;
+  const has = kit.python && kit.models.kokoro && spawnSync((await import(pathToFileURL(join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'voice.mjs')).href)).python(), ['-c', 'import misaki, espeakng_loader'], { stdio: 'ignore' }).status === 0;
   const q = new URLSearchParams({ model: 'kokoro', speaker: 'if_sara', tone: 'bright', tempo: '1', human: 'clean', text: 'Ecco Manovella. Tutto quello che ti serve.' });
   const r = await fetch(`${url.origin}/api/voice-sample?${q}`, { headers: { 'x-studio-key': k } }), j = await r.json();
   if (kit.silicon && has) {

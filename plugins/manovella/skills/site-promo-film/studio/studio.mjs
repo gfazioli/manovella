@@ -99,7 +99,7 @@ const ROUTES = { // URL prefix → directories searched in order
 };
 const SCHEMA = JSON.parse(readFileSync(join(HERE, 'schema.json'), 'utf8'));
 const STUDIO = JSON.parse(readFileSync(join(HERE, 'studio.json'), 'utf8')); // name, version: the page and the window app read it
-const VOICE = await import(join(SKILL, 'scripts', 'voice.mjs')); // its models and its Python: what a sample is said with
+const VOICE = await import(pathToFileURL(join(SKILL, 'scripts', 'voice.mjs')).href); // a URL: a Windows path is none // its models and its Python: what a sample is said with
 
 // ---------------------------------------------------------------- arguments
 const argv = process.argv.slice(2);
