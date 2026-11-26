@@ -84,10 +84,11 @@
           <li><b>Faster, knowingly</b>: <code>QOS=default WORKERS=12 TEMP_MAX=86</code> is the old behaviour, for a short film when you ask for speed. One render at a time, always.</li>
           <li><b>The governor reads the chip, not the render</b>, so heat from other work holds the render too. It needs <code>swiftc</code> (Xcode&rsquo;s command-line tools) to build <code>thermo.swift</code> once; without it, macOS&rsquo;s own thermal state, which only acts at &ldquo;serious&rdquo;.</li>
           <li><b>Spotlight</b>: the scratch folders end in <code>.noindex</code>, because chunks written and deleted by the thousand kept Spotlight&rsquo;s indexers busy after a render.</li>
+          <li><b>On Linux and Windows</b> a render runs at below-normal priority, which Chrome and ffmpeg inherit, instead of a QoS class. Linux&rsquo;s governor reads the CPU&rsquo;s sensor (hwmon&rsquo;s coretemp or k10temp, else a thermal zone); Windows has none to read, so no governor there. The renderer drives Google Chrome, else Edge on Windows or Chromium on Linux (<code>MANOVELLA_CHROME</code> names any), and a machine without a GPU draws the shader looks and cuts in software: slower, the same frames.</li>
         </ul>
 
         <h2 id="delivery">Delivery</h2>
-        <p>The finished films leave the work folder for a folder of their own, and the work folder goes to the Trash once its source is safe in the product&rsquo;s kit. See <a href="films.html#delivery">Making a film</a>. <code>deliver.mjs</code> puts each cover through ImageOptim when it is installed, with an SSIM against the original: a real release film&rsquo;s posters went from 1.0 MB to 0.13 MB at SSIM 0.9995.</p>
+        <p>The finished films leave the work folder for a folder of their own, and the work folder goes to the Trash (the Recycle Bin on Windows; <code>gio</code> or trash-cli on Linux) once its source is safe in the product&rsquo;s kit. See <a href="films.html#delivery">Making a film</a>. <code>deliver.mjs</code> puts each cover through ImageOptim when it is installed, with an SSIM against the original: a real release film&rsquo;s posters went from 1.0 MB to 0.13 MB at SSIM 0.9995.</p>
 
         <div class="pager">
           <a href="parts.html"><small>Previous</small><b>&larr; Parts and tutorials</b></a>

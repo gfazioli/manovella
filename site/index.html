@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Manovella: product films, written as code</title>
-<meta name="description" content="Manovella, a Claude Code plugin, makes product films as code on your Mac: every frame a pure function of time, real motion blur, loops exact to the pixel.">
+<meta name="description" content="Manovella makes product films as code in Claude Code and other coding agents: every frame a pure function of time, real motion blur, loops exact to the pixel.">
 <meta name="theme-color" content="#1F1D39">
 <link rel="canonical" href="https://manovella.mov/">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
@@ -12,21 +12,21 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Manovella">
 <meta property="og:title" content="Manovella: product films, written as code">
-<meta property="og:description" content="Every frame a pure function of time, real motion blur, loops exact to the pixel, rendered on your Mac. A Claude Code plugin.">
+<meta property="og:description" content="Every frame a pure function of time, real motion blur, loops exact to the pixel, rendered on your own machine. For Claude Code and other coding agents.">
 <meta property="og:url" content="https://manovella.mov/">
 <meta property="og:image" content="https://manovella.mov/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Manovella: product films, written as code">
-<meta name="twitter:description" content="Every frame a pure function of time, real motion blur, loops exact to the pixel, rendered on your Mac. A Claude Code plugin.">
+<meta name="twitter:description" content="Every frame a pure function of time, real motion blur, loops exact to the pixel, rendered on your own machine. For Claude Code and other coding agents.">
 <meta name="twitter:image" content="https://manovella.mov/og.png">
 <link rel="preload" href="fonts/geist/geist-100-900-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="base.css">
 <link rel="stylesheet" href="site.css">
 <script src="site.js" defer></script>
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Manovella","description":"A Claude Code plugin that makes promo, launch, release and tutorial films of your product as code.","applicationCategory":"DeveloperApplication","operatingSystem":"macOS","url":"https://manovella.mov/","image":"https://manovella.mov/og.png","license":"https://opensource.org/licenses/MIT","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"author":{"@type":"Person","name":"Giovambattista Fazioli","url":"https://gfazioli.github.io/"},"sameAs":["https://github.com/gfazioli/manovella"]}
+{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Manovella","description":"A plugin for Claude Code and other coding agents that makes promo, launch, release and tutorial films of your product as code.","applicationCategory":"DeveloperApplication","operatingSystem":"macOS, Linux, Windows","url":"https://manovella.mov/","image":"https://manovella.mov/og.png","license":"https://opensource.org/licenses/MIT","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"author":{"@type":"Person","name":"Giovambattista Fazioli","url":"https://gfazioli.github.io/"},"sameAs":["https://github.com/gfazioli/manovella"]}
 </script>
 <!-- FAQPage: scripts/site.mjs fills this from the #faq section at build time, so the questions live in one place. -->
 <script type="application/ld+json" id="faq-ld"></script>
@@ -57,7 +57,7 @@
   <img class="logo" src="logo-256.png" srcset="logo-256.png 1x, logo-512.png 2x" width="128" height="128" alt="Manovella: a 1920s movie camera with two film reels and a violet hand crank">
   <p class="eyebrow">Manovella</p>
   <h1>Product films,<br>written as code</h1>
-  <p class="lede">A Claude Code plugin that makes promo, launch, release and tutorial films of your product, on your Mac. Every frame is a pure function of time, with real motion blur, loops exact to the pixel and your UI as vector.</p>
+  <p class="lede">A plugin for Claude Code, Codex, Copilot CLI and Gemini CLI that makes promo, launch, release and tutorial films of your product, on your own machine. Every frame is a pure function of time, with real motion blur, loops exact to the pixel and your UI as vector.</p>
   <div class="actions">
     <div class="install" role="group" aria-label="Install commands">
       <pre><code id="install-cmd"><span class="p">$</span> claude plugin marketplace add gfazioli/manovella
@@ -68,9 +68,9 @@
   </div>
   <ul class="meta">
     <li>Free and MIT-licensed</li>
-    <li>macOS on Apple Silicon</li>
-    <li>Renders on your Mac</li>
-    <li>For Claude Code</li>
+    <li>macOS, Linux and Windows</li>
+    <li>Renders on your machine</li>
+    <li>For Claude Code and other agents</li>
     <li data-stars-item hidden><a href="https://github.com/gfazioli/manovella/stargazers"><span aria-hidden="true">&#9733;</span> <span data-stars></span> on GitHub</a></li>
   </ul>
   <a class="ph" id="ph" data-post-id="" href="https://www.producthunt.com/@gfazioli" target="_blank" rel="noopener noreferrer" hidden><img alt="Manovella on Product Hunt" width="250" height="54"></a>
@@ -117,8 +117,8 @@
     <li data-reveal="morph"><h3>Your product's own UI, as vector</h3><p>Rebuilt from its source: windows, menus, a cursor and real shortcuts, sharp at any resolution, never a screen recording.</p></li>
     <li data-reveal="morph"><h3>Sound you hear before you choose</h3><p>Six voice presets and thirteen voices from three local models say your line before you pick one. Your music, from a library of yours or a file, has its beat measured, the cuts land on it, and the voice is heard over it before you choose. Subtitles in the film, beside it, or both.</p></li>
     <li data-reveal="morph"><h3>Release films from a tag</h3><p>Name a version: what it changed is shown changing in place, between two version cards.</p></li>
-    <li data-reveal="morph"><h3>On your Mac, and cool</h3><p>No upload, no render farm: every frame is drawn and encoded on your Mac. A render runs in the <code>utility</code> QoS class on a third of the cores, and a governor holds the workers when the chip passes 80&nbsp;&deg;C.</p></li>
-    <li data-reveal="morph"><h3>Small and steady</h3><p>A 5&nbsp;MB plugin with no build step: pages and Node scripts that drive the Chrome and ffmpeg on your Mac. One kind of film, made the same way every time.</p></li>
+    <li data-reveal="morph"><h3>On your machine, and cool</h3><p>No upload, no render farm: every frame is drawn and encoded on your own machine. On a Mac a render runs in the <code>utility</code> QoS class on a third of the cores, and a governor holds the workers when the chip passes 80&nbsp;&deg;C.</p></li>
+    <li data-reveal="morph"><h3>Small and steady</h3><p>A 5&nbsp;MB plugin with no build step: pages and Node scripts that drive the Chrome and ffmpeg on your machine. One kind of film, made the same way every time.</p></li>
   </ul>
 </section>
 
@@ -174,15 +174,16 @@
       <pre class="block"><code>claude plugin marketplace add gfazioli/manovella
 claude plugin install manovella@manovella</code></pre>
       <p>To update by hand: <code>claude plugin marketplace update manovella</code>, then <code>claude plugin update manovella@manovella</code>. Or declare it in <code>~/.claude/settings.json</code> (merged into what is there) and Claude Code keeps the plugin current: <code>{ "extraKnownMarketplaces": { "manovella": { "source": { "source": "github", "repo": "gfazioli/manovella" }, "autoUpdate": true } } }</code>.</p>
+      <p>Codex CLI and GitHub Copilot CLI install it from the same marketplace, and Gemini CLI as an extension: <code>gemini extensions install https://github.com/gfazioli/manovella</code>. See <a href="guide/#agents">Other coding agents</a>.</p>
       <p>Then ask: <em>"a 15 s promo loop of acme.app, 16:9 and 9:16, with our music"</em>, or open <code>/manovella:studio</code>. The <a href="guide/">docs</a> take it from there.</p>
     </div>
     <div data-reveal="rise">
       <h3>Requirements</h3>
       <ul class="req">
-        <li><b>macOS on Apple Silicon</b>, with Claude Code.</li>
+        <li><b>macOS on Apple Silicon</b>, or <a href="guide/#other-systems">Linux and Windows</a>, with Claude Code, Codex, Copilot CLI or Gemini CLI.</li>
         <li><b>Node</b> (tested with 24.3), <b>ffmpeg</b> (tested with 9.0.2) and <b>Google Chrome</b>, which the renderer drives through <code>playwright-core</code> installed in each film's work folder: nothing else is downloaded. With Homebrew: <code>brew install node ffmpeg</code>.</li>
         <li><b>Xcode Command Line Tools</b> (<code>swiftc</code>), optional: for the Studio's own window and the chip's thermometer. Without them the Studio opens in a Chrome app window, and renders are held on macOS's thermal state.</li>
-        <li><b>Voices, optional</b>: Python 3.13 and a one-time voice setup. Without them a film speaks with a macOS voice, or not at all.</li>
+        <li><b>Voices, optional</b>: Python 3.13 on a Mac (3.12 elsewhere) and a one-time voice setup. Without them a film speaks with a macOS voice, or not at all.</li>
       </ul>
     </div>
   </div>
@@ -192,11 +193,12 @@ claude plugin install manovella@manovella</code></pre>
   <h2 id="faq-h" data-reveal="rise">Questions</h2>
   <div class="faq" data-scope data-stagger>
     <details data-reveal="rise"><summary>Is Manovella free?</summary><div class="a"><p>Yes. Manovella is free and MIT-licensed. If it saves you time, you can <a href="#sponsor">sponsor its development</a> or buy me a coffee.</p></div></details>
-    <details data-reveal="rise"><summary>Is it an AI video generator?</summary><div class="a"><p>No. Claude writes the film as code: one HTML canvas whose every frame is a pure function of time, <code>seek(t)</code>. Headless Chrome captures it frame by frame, sixteen subframes each, and ffmpeg blends and encodes them. No generative video model draws a frame.</p></div></details>
-    <details data-reveal="rise"><summary>How is it different from other HTML-to-video tools?</summary><div class="a"><p>It is narrower on purpose. Many are general: any kind of video, a timeline editor, rendering in the cloud. Manovella makes films of your product, the same way every time: a pure function of time drawn on a canvas, motion blur on every frame, loops exact to the pixel, your UI rebuilt as vector, its sound heard before it is chosen, and every frame rendered on your Mac.</p></div></details>
+    <details data-reveal="rise"><summary>Is it an AI video generator?</summary><div class="a"><p>No. Your coding agent writes the film as code: one HTML canvas whose every frame is a pure function of time, <code>seek(t)</code>. Headless Chrome captures it frame by frame, sixteen subframes each, and ffmpeg blends and encodes them. No generative video model draws a frame.</p></div></details>
+    <details data-reveal="rise"><summary>How is it different from other HTML-to-video tools?</summary><div class="a"><p>It is narrower on purpose. Many are general: any kind of video, a timeline editor, rendering in the cloud. Manovella makes films of your product, the same way every time: a pure function of time drawn on a canvas, motion blur on every frame, loops exact to the pixel, your UI rebuilt as vector, its sound heard before it is chosen, and every frame rendered on your own machine.</p></div></details>
     <details data-reveal="rise"><summary>Does it record my screen?</summary><div class="a"><p>No. Your product's UI is rebuilt as vector from its source: windows, menus, a cursor and real shortcuts, sharp at any resolution, never a screen recording.</p></div></details>
-    <details data-reveal="rise"><summary>What do I need to run it?</summary><div class="a"><p>macOS on Apple Silicon with Claude Code, Node, ffmpeg and Google Chrome, and, optionally, the Xcode Command Line Tools for the Studio's own window and the chip's thermometer. Voices are optional: Python 3.13 and a one-time setup, or a macOS voice.</p></div></details>
-    <details data-reveal="rise"><summary>Does it run on Linux or Windows?</summary><div class="a"><p>Manovella is macOS-first: the Studio's window, the thermometer that keeps renders cool and the macOS voices are Mac code, and it is built and tested on macOS on Apple Silicon.</p></div></details>
+    <details data-reveal="rise"><summary>What do I need to run it?</summary><div class="a"><p>macOS on Apple Silicon, Linux or Windows; Claude Code, Codex, Copilot CLI or Gemini CLI; Node, ffmpeg and Google Chrome; and, optionally on a Mac, the Xcode Command Line Tools for the Studio's own window and the chip's thermometer. Voices are optional: Python 3.13 on a Mac (3.12 elsewhere) and a one-time setup, or a macOS voice.</p></div></details>
+    <details data-reveal="rise"><summary>Does it run on Linux or Windows?</summary><div class="a"><p>Yes, since 1.22. The engine, the Studio and the renders run on Linux (Windows through WSL2 too) and on Windows, and CI runs them on both. macOS on Apple Silicon is still its home: the Studio's own window, the macOS voices and SF Pro are the Mac's, and the voice models run on MLX there and on PyTorch elsewhere, best on an NVIDIA GPU. <a href="guide/#other-systems">What changes</a>.</p></div></details>
+    <details data-reveal="rise"><summary>Does it work with Codex, Copilot CLI or Gemini CLI?</summary><div class="a"><p>Yes, since 1.22. Codex CLI and GitHub Copilot CLI install the plugin from the same marketplace, and Gemini CLI as an extension. The engine is Node, Chrome and ffmpeg and the instructions are Agent Skills, so how good a film is follows the agent's model. <a href="guide/#agents">How to install each</a>.</p></div></details>
     <details data-reveal="rise"><summary>Which files do I get?</summary><div class="a"><p><code>.mp4</code> (H.264 or HEVC), <code>.mov</code> (ProRes 422 HQ), <code>.webm</code> or <code>.gif</code>, in every aspect you ask for, with a cover per aspect and chapter marks for a long film. A transparent film (the look <code>transparent</code>, rendered with <code>ALPHA=1</code>) comes as <code>.mov</code> (ProRes 4444) or <code>.webm</code> (VP9 with alpha).</p></div></details>
     <details data-reveal="rise"><summary>Will a render overheat my Mac?</summary><div class="a"><p>A render is minutes of work, so it runs in the <code>utility</code> QoS class on a third of the cores, and a governor holds the workers whenever the chip passes 80&nbsp;&deg;C (without the Xcode Command Line Tools, whenever macOS says the Mac is hot).</p></div></details>
     <details data-reveal="rise"><summary>Can I use my own music and voice?</summary><div class="a"><p>Yes. Point Manovella at a music library, a folder of audio files, and the Studio lists its tracks: their beat is measured and the cuts land on it. A voice-over comes from a local voice model or a macOS voice, with subtitles.</p></div></details>
