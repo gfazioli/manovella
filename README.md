@@ -220,7 +220,7 @@ and the names in `musicLibraryIgnore` are skipped.
 
 Point Manovella at it with the environment variable `MANOVELLA_MUSIC` (for one run), or in
 `~/Library/Application Support/manovella/settings.json` (`~/.config/manovella/settings.json` on
-other systems); a leading `~` is expanded. Nothing is auto-detected.
+Linux, `%APPDATA%\manovella\settings.json` on Windows); a leading `~` is expanded. Nothing is auto-detected.
 
 ```json
 {

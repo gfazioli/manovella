@@ -37,7 +37,7 @@
         <h1>By hand</h1>
         <p class="lead">The quick start without Claude, the files of the engine and the scripts: render, beats, voice, mix and deliver.</p>
 
-        <p>Everything Claude does goes through scripts you can run yourself, from the skill&rsquo;s folder: <code>~/.claude/plugins/cache/manovella/manovella/&lt;version&gt;/skills/site-promo-film</code>, the newest version. The skills&rsquo; <code>SKILL.md</code> files are the method (how to ask, storyboard, source the brand, direct, verify); this page is the tooling.</p>
+        <p>Everything Claude does goes through scripts you can run yourself, from the skill&rsquo;s folder: <code>~/.claude/plugins/cache/manovella/manovella/&lt;version&gt;/skills/site-promo-film</code>, the newest version (another agent keeps it elsewhere: see <a href="index.html#window">Getting started</a>). The skills&rsquo; <code>SKILL.md</code> files are the method (how to ask, storyboard, source the brand, direct, verify); this page is the tooling.</p>
 
         <h2 id="quick-start">Quick start</h2>
         <div class="code">
@@ -78,7 +78,7 @@ DRY=1 node deliver.mjs trash $W --kit &lt;repo&gt;/scripts/film                 
           <tbody>
             <tr><td class="k"><code>render.mjs</code></td><td><code>stills</code>, <code>sheet</code>, <code>looks</code>, <code>loopcheck</code>, <code>video</code>, <code>beats</code>: formats, chapters, resumable chunks, the heat governor, the beat check.</td></tr>
             <tr><td class="k"><code>beats.mjs</code></td><td>A soundtrack&rsquo;s tempo, beats, bars and sections, from its samples; the bpm and <code>AUDIO_AT</code> that put the film on its beat.</td></tr>
-            <tr><td class="k"><code>voice.mjs</code></td><td>A story told by a voice model on the Mac instead of <code>say</code>; <code>--setup</code> once on each Mac, <code>--audition</code> to compare takes.</td></tr>
+            <tr><td class="k"><code>voice.mjs</code></td><td>A story told by a voice model instead of <code>say</code>, on PyTorch off a Mac (<a href="sound.html#voice-elsewhere">Sound</a>); <code>--setup</code> once on each machine, <code>--audition</code> to compare takes.</td></tr>
             <tr><td class="k"><code>narrate.mjs</code></td><td>A tutorial&rsquo;s story into a voice, a clock and subtitles: <code>narration.wav</code>, <code>narration.js</code>, <code>captions.srt</code> and <code>.vtt</code>.</td></tr>
             <tr><td class="k"><code>mix.mjs</code></td><td>A voice and a music track into one soundtrack: the music measured under the voice, up between lines.</td></tr>
             <tr><td class="k"><code>deliver.mjs</code></td><td>The finished films into a folder of their own, and the work folder to the Trash once its source is safe.</td></tr>
@@ -94,7 +94,7 @@ DRY=1 node deliver.mjs trash $W --kit &lt;repo&gt;/scripts/film                 
         <div class="code">
           <button class="copy" type="button">copy</button>
           <pre><code>node beats.mjs track.mp3                                       # the track's tempo, bars and sections
-node voice.mjs --setup chatterbox orpheus kokoro               # once on each Mac
+node voice.mjs --setup chatterbox orpheus kokoro               # once on each machine
 node voice.mjs story.json                                      # a voice model tells the story
 node mix.mjs --voice narration.wav --music track.mp3 --out mix.wav
 node deliver.mjs ~/Downloads/acme-promo ../acme-promo.mp4      # the finished film, into its own folder</code></pre>
