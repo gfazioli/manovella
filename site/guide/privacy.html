@@ -4,14 +4,14 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Privacy policy &middot; Manovella docs</title>
-<meta name="description" content="How Manovella and its website handle personal data: what the plugin keeps on your Mac, when it reaches the network and why, and what the site loads." />
+<meta name="description" content="How Manovella and its website handle personal data: what the plugin keeps on your computer, when it reaches the network and why, and what the site loads." />
 <link rel="canonical" href="https://manovella.mov/guide/privacy.html" />
 <link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png" />
 <link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png" />
 <meta property="og:type" content="article" />
 <meta property="og:site_name" content="Manovella" />
 <meta property="og:title" content="Privacy policy &middot; Manovella docs" />
-<meta property="og:description" content="How Manovella and its website handle personal data: what the plugin keeps on your Mac, when it reaches the network and why, and what the site loads." />
+<meta property="og:description" content="How Manovella and its website handle personal data: what the plugin keeps on your computer, when it reaches the network and why, and what the site loads." />
 <meta property="og:url" content="https://manovella.mov/guide/privacy.html" />
 <meta property="og:image" content="https://manovella.mov/og.png" />
 <meta property="og:image:width" content="1200" />
@@ -19,7 +19,7 @@
 <meta property="og:image:alt" content="Manovella: product films, written as code" />
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="Privacy policy &middot; Manovella docs" />
-<meta name="twitter:description" content="How Manovella and its website handle personal data: what the plugin keeps on your Mac, when it reaches the network and why, and what the site loads." />
+<meta name="twitter:description" content="How Manovella and its website handle personal data: what the plugin keeps on your computer, when it reaches the network and why, and what the site loads." />
 <meta name="twitter:image" content="https://manovella.mov/og.png" />
 <link rel="preload" href="../fonts/geist/geist-100-900-latin.woff2" as="font" type="font/woff2" crossorigin />
 <link rel="stylesheet" href="../base.css" />
@@ -35,7 +35,7 @@
       <article class="page">
         <p class="eyebrow">About</p>
         <h1>Privacy policy</h1>
-        <p class="lead">The short version: Manovella has no account, no telemetry and no analytics. It runs on your computer and reaches the network only when you set up a voice, a film&rsquo;s tooling or a font, or open its About, which shows the sponsors&rsquo; avatars from GitHub. This website sets no cookies of its own.</p>
+        <p class="lead">The short version: Manovella has no account, no telemetry and no analytics. It runs on your computer and reaches the network only when you set up or use a voice model, a film&rsquo;s tooling or a font, or open its About, which shows the sponsors&rsquo; avatars from GitHub. This website sets no cookies of its own.</p>
 
         <p><i>Last updated: 26 November 2026</i></p>
 
@@ -56,8 +56,8 @@
         <h3>When it does reach the network</h3>
         <ul>
           <li><b>A film&rsquo;s tooling.</b> Each film&rsquo;s work folder gets <code>npm i playwright-core</code>, which asks the npm registry for that package. It drives the Chrome you already have; no browser is downloaded.</li>
-          <li><b>The voice setup</b>, once per machine and only if you run <code>voice.mjs --setup</code>. It makes a Python environment and has <code>pip</code> install mlx-audio and the packages pinned in <code>voice-constraints.txt</code> from pip&rsquo;s package index, then has mlx-audio fetch each voice model you name from Hugging Face (<code>mlx-community/chatterbox-turbo-fp16</code>, <code>mlx-community/orpheus-3b-0.1-ft-8bit</code> and <code>mlx-community/Kokoro-82M-bf16</code>) into <code>~/.cache/huggingface</code>. Asking for <code>kokoro</code> also installs the packages pinned in <code>voice-constraints-kokoro.txt</code> from pip&rsquo;s index, and spaCy&rsquo;s English text model, a wheel pip downloads from its release page on GitHub. On Linux and Windows the same setup has pip install PyTorch from PyTorch&rsquo;s own index (<code>download.pytorch.org</code>) beside pip&rsquo;s, with the packages pinned in <code>voice-constraints-torch.txt</code> and <code>voice-constraints-large.txt</code>, and the models are fetched from Hugging Face as PyTorch weights (<code>hexgrad/Kokoro-82M</code>, <code>ResembleAI/chatterbox-turbo</code>, <code>unsloth/orpheus-3b-0.1-ft</code> and <code>hubertsiuzdak/snac_24khz</code>). Those downloads are made by pip, mlx-audio and the models&rsquo; own packages, not by Manovella&rsquo;s own code, and their own privacy statements apply. After that, a voice runs offline. <code>brew install python@3.13</code> is only a command the script suggests when Python 3.13 is missing; it never runs it.</li>
-          <li><b>Another font family</b>, only if you ask for one that is not in the kit (<code>fonts.mjs add</code>). It requests the family from Google Fonts (<code>fonts.googleapis.com</code>, then the font files its answer names), with a generic browser user-agent string and nothing else of yours.</li>
+          <li><b>The voice models</b>, only if you set them up with <code>voice.mjs --setup</code>. It makes a Python environment and has <code>pip</code> install mlx-audio and the packages pinned in <code>voice-constraints.txt</code> from pip&rsquo;s package index, then has mlx-audio fetch each voice model you name from Hugging Face (<code>mlx-community/chatterbox-turbo-fp16</code>, <code>mlx-community/orpheus-3b-0.1-ft-8bit</code> and <code>mlx-community/Kokoro-82M-bf16</code>, with <code>mlx-community/snac_24khz</code> and <code>mlx-community/S3TokenizerV2</code>, which Orpheus and Chatterbox need) into <code>~/.cache/huggingface</code>. Asking for <code>kokoro</code> also installs the packages pinned in <code>voice-constraints-kokoro.txt</code> from pip&rsquo;s index, and spaCy&rsquo;s English text model, a wheel pip downloads from its release page on GitHub. On Linux and Windows the same setup has pip install PyTorch from PyTorch&rsquo;s own index (<code>download.pytorch.org</code>) beside pip&rsquo;s, with the packages pinned in <code>voice-constraints-torch.txt</code> and <code>voice-constraints-large.txt</code>, and the models are fetched from Hugging Face as PyTorch weights (<code>hexgrad/Kokoro-82M</code>, <code>ResembleAI/chatterbox-turbo</code>, <code>unsloth/orpheus-3b-0.1-ft</code> and <code>hubertsiuzdak/snac_24khz</code>). Those downloads are made by pip, mlx-audio and the models&rsquo; own packages, not by Manovella&rsquo;s own code, and their own privacy statements apply. A model not named at setup is downloaded the first time a story uses it. After that a voice works without a network; with one, Hugging Face&rsquo;s library may still ask <code>huggingface.co</code> whether its copy is current. <code>brew install python@3.13</code> is only a command the script suggests when Python 3.13 is missing; it never runs it.</li>
+          <li><b>Another font family</b>, only if you ask for one that is not in the kit (<code>fonts.mjs add</code>). It requests the family from Google Fonts (<code>fonts.googleapis.com</code>, then the font files its answer names), with a generic browser user-agent string and nothing else of yours, and the family&rsquo;s licence, <code>OFL.txt</code>, from Google Fonts&rsquo; repository on GitHub (<code>raw.githubusercontent.com</code>).</li>
           <li><b>Installing and updating</b> the plugin goes through your agent (Claude Code, Codex, Copilot CLI or Gemini CLI) and GitHub, whose own policies apply.</li>
         </ul>
         <p>Your requests and briefs are read by your agent&rsquo;s model inside its session, under its provider&rsquo;s terms (Anthropic&rsquo;s for Claude Code); Manovella adds nothing to what that session sends.</p>
@@ -65,7 +65,7 @@
         <h3>What it keeps on your machine</h3>
         <ul>
           <li><b>The Studio&rsquo;s remembered briefs</b> (the last one for each product) and <code>settings.json</code> (the folders you choose in Settings), in <code>~/Library/Application Support/manovella/</code> (<code>~/.config/manovella/</code> on Linux, <code>%APPDATA%\manovella\</code> on Windows).</li>
-          <li><b>A cache</b> of pictures converted for the Studio and the Chrome app window&rsquo;s own profile, in <code>~/Library/Caches/manovella/</code> (<code>~/.cache/manovella/</code> on Linux, <code>%LOCALAPPDATA%\manovella\cache\</code> on Windows).</li>
+          <li><b>A cache</b> of pictures converted for the Studio, the Chrome app window&rsquo;s own profile, and a detached Studio&rsquo;s runs (a state file and a log each, kept a week), in <code>~/Library/Caches/manovella/</code> (<code>~/.cache/manovella/</code> on Linux, <code>%LOCALAPPDATA%\manovella\cache\</code> on Windows).</li>
           <li><b>A film&rsquo;s work folder</b>, <code>~/Downloads/&lt;name&gt;-work/</code> (or in the work folder you choose in Settings), until you throw it away, and the delivered films where you keep them.</li>
           <li><b>The voice environment</b> in <code>~/.local/share/film-voice</code> and the models in <code>~/.cache/huggingface</code>, if you set the voices up.</li>
         </ul>
