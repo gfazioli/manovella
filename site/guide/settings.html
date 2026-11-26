@@ -47,7 +47,7 @@
                                        (a paragraph per track, starting with its file name)
 &lt;library&gt;/&lt;Brand&gt;/video/&lt;name&gt;/        delivered films, when you ask for that</code></pre>
         </div>
-        <p>The Studio&rsquo;s Settings is the normal way to set it: see <a href="#studio-settings">below</a>. By hand, point Manovella at it with the environment variable <code>MANOVELLA_MUSIC</code> (for one run), or in <code>~/Library/Application Support/manovella/settings.json</code> (<code>~/.config/manovella/settings.json</code> on other systems); a leading <code>~</code> is expanded. Nothing is auto-detected.</p>
+        <p>The Studio&rsquo;s Settings is the normal way to set it: see <a href="#studio-settings">below</a>. By hand, point Manovella at it with the environment variable <code>MANOVELLA_MUSIC</code> (for one run), or in <code>~/Library/Application Support/manovella/settings.json</code> (<code>~/.config/manovella/settings.json</code> on Linux, <code>%APPDATA%\manovella\settings.json</code> on Windows); a leading <code>~</code> is expanded. Nothing is auto-detected.</p>
         <div class="code">
           <button class="copy" type="button">copy</button>
           <pre><code>{
@@ -64,7 +64,7 @@
         </div>
 
         <h2 id="studio-settings">The Studio&rsquo;s Settings</h2>
-        <p>The gear beside the logo at the top of the Studio&rsquo;s sidebar, or <b>Settings&hellip;</b> (<kbd>&#8984;</kbd><kbd>,</kbd>) in the app menu of <code>Manovella.app</code>, opens the Settings window, with four panes in its sidebar under About Manovella: <b>Projects</b>, <b>Pictures</b>, <b>Music library</b> and <b>Work folder</b>. A change is saved at once to <code>settings.json</code>, and a folder is chosen with the Mac&rsquo;s folder picker. A value the command line or the environment gives the run is shown as &ldquo;this run&rdquo; and not changed.</p>
+        <p>The gear beside the logo at the top of the Studio&rsquo;s sidebar, or <b>Settings&hellip;</b> (<kbd>&#8984;</kbd><kbd>,</kbd>) in the app menu of <code>Manovella.app</code>, opens the Settings window, with four panes in its sidebar under About Manovella: <b>Projects</b>, <b>Pictures</b>, <b>Music library</b> and <b>Work folder</b>. A change is saved at once to <code>settings.json</code>, and a folder is chosen with the Mac&rsquo;s folder picker (elsewhere, by typing its path). A value the command line or the environment gives the run is shown as &ldquo;this run&rdquo; and not changed.</p>
         <figure class="shot">
           <div class="frame">
             <img src="../shots/settings.jpg" alt="The Studio&#x27;s Settings: a sidebar with About Manovella and four panes, the Music library pane open on its folder" width="1600" height="1016" loading="lazy" />
@@ -114,10 +114,10 @@
         <table class="keys">
           <thead><tr><th>Path</th><th>What</th></tr></thead>
           <tbody>
-            <tr><td class="k"><code>~/Library/Application Support/manovella/</code></td><td>The Studio&rsquo;s remembered briefs (one per product) and <code>settings.json</code>, which its Settings write.</td></tr>
-            <tr><td class="k"><code>~/Library/Caches/manovella/</code></td><td>Pictures converted for the Studio, and the Chrome app window&rsquo;s own profile.</td></tr>
-            <tr><td class="k"><code>~/Applications/Manovella.app</code></td><td>The Studio&rsquo;s window app, once built.</td></tr>
-            <tr><td class="k"><code>~/.local/share/film-voice</code></td><td>The voice models&rsquo; Python environment, made by <code>voice.mjs --setup</code>.</td></tr>
+            <tr><td class="k"><code>~/Library/Application Support/manovella/</code><br><code>~/.config/manovella/</code> (Linux)<br><code>%APPDATA%\manovella\</code> (Windows)</td><td>The Studio&rsquo;s remembered briefs (one per product) and <code>settings.json</code>, which its Settings write.</td></tr>
+            <tr><td class="k"><code>~/Library/Caches/manovella/</code><br><code>~/.cache/manovella/</code> (Linux)<br><code>%LOCALAPPDATA%\manovella\cache\</code> (Windows)</td><td>Pictures converted for the Studio, and the Chrome app window&rsquo;s own profile.</td></tr>
+            <tr><td class="k"><code>~/Applications/Manovella.app</code></td><td>The Studio&rsquo;s window app on a Mac, once built.</td></tr>
+            <tr><td class="k"><code>~/.local/share/film-voice</code></td><td>The voice models&rsquo; Python environments, made by <code>voice.mjs --setup</code>: <code>venv</code> on a Mac, <code>venv-torch</code> and <code>venv-large</code> elsewhere.</td></tr>
             <tr><td class="k"><code>~/Downloads/&lt;name&gt;-work/</code></td><td>A film&rsquo;s work folder, until it is delivered. <code>~/Downloads</code> is the default work root: <code>workRoot</code> moves it.</td></tr>
             </tbody>
         </table>

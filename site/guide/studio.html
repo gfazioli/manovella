@@ -37,7 +37,7 @@
         <h1>The Studio</h1>
         <p class="lead">Ten steps from a recipe to a brief, every choice shown moving on the real engine and the sound heard, ending in a brief that Claude answers with storyboards.</p>
 
-        <p>Run <code>/manovella:studio</code>, or the skill with no argument. The Studio opens a window of its own: ten steps from a recipe to a brief, where the recipes, formats, looks, your pictures, the type and the motion are shown moving on the real engine, in the product&rsquo;s colour and the film&rsquo;s aspect, and the sound is heard. Each step is a deck of cards, each saying at a glance what is chosen in it: one opens at a time, its controls in a panel under its row, and with all of them closed the step is an overview of its choices. The window is dark, in Manovella&rsquo;s violet whatever the product. It ends with <code>brief.json</code> in the film&rsquo;s work folder, the picture, the fonts and the track it needs beside it, and hands it back to Claude, who answers with the storyboards. Nothing is installed and nothing renders.</p>
+        <p>Run <code>/manovella:studio</code>, or the skill with no argument; in Codex or Copilot CLI, ask for Manovella&rsquo;s Studio. The Studio opens a window of its own: ten steps from a recipe to a brief, where the recipes, formats, looks, your pictures, the type and the motion are shown moving on the real engine, in the product&rsquo;s colour and the film&rsquo;s aspect, and the sound is heard. Each step is a deck of cards, each saying at a glance what is chosen in it: one opens at a time, its controls in a panel under its row, and with all of them closed the step is an overview of its choices. The window is dark, in Manovella&rsquo;s violet whatever the product. It ends with <code>brief.json</code> in the film&rsquo;s work folder, the picture, the fonts and the track it needs beside it, and hands it back to the agent that opened it, which answers with the storyboards. Nothing is installed and nothing renders.</p>
         <figure class="shot">
           <div class="frame">
             <img src="../img/studio.jpg" alt="The Studio&#x27;s motion step: the cuts as tiles, the cube chosen and turning in the viewer, an iMac on the aurora look, with motion blur on" width="1600" height="1016" loading="lazy" />
@@ -96,7 +96,7 @@
           <li><b>The engine&rsquo;s own pages</b>, played by calling their <code>seek(t)</code>. A look seen here is the look the renderer draws. One page plays at a time, at 60 fps when a frame is cheap and 30 when it is not; a new one cross-fades in over the last, and a paused one is not drawn again.</li>
           <li><b>A hover is a look, not a choice.</b> The tile under the pointer plays, and the viewer goes back to the choice when the pointer leaves.</li>
           <li><b>Motion blur</b> in the viewer&rsquo;s bar paints each frame as the mean of up to five moments, the way the render blends its sixteen: the way to judge a fast move.</li>
-          <li><b>Pictures</b> are converted once with <code>sips</code> (HEIC included) to a JPEG of at most 3840 px in <code>~/Library/Caches/manovella/</code>, and the chosen one is copied into the work folder. The brief records where the picture came from: a wallpaper pack&rsquo;s licence is often personal use only.</li>
+          <li><b>Pictures</b> are converted once, with <code>sips</code> on a Mac (HEIC included) and ffmpeg elsewhere, to a JPEG of at most 3840 px in Manovella&rsquo;s <a href="settings.html#files">cache folder</a>, and the chosen one is copied into the work folder. The brief records where the picture came from: a wallpaper pack&rsquo;s licence is often personal use only.</li>
         </ul>
 
         <h2 id="settings">Settings</h2>
@@ -104,7 +104,7 @@
 
         <h2 id="keys">Keys and the window</h2>
         <p>The window keeps Manovella&rsquo;s violet whatever the product: the product&rsquo;s colour is in the previews, and beside its name in the steps. The viewer scrubs by dragging. From the keyboard: <kbd>Space</kbd> plays, <kbd>&larr;</kbd> <kbd>&rarr;</kbd> step, <kbd>B</kbd> is the motion blur, <kbd>F</kbd> a larger preview, <kbd>Enter</kbd> continues and <kbd>Shift</kbd>+<kbd>Enter</kbd> goes back. Going back keeps every choice, and so does choosing another recipe, for the ones made by hand. When Continue is off, the page says what it waits for. The window works down to 900 &times; 600, its sidebar reduced to the steps&rsquo; numbers.</p>
-        <p>The Studio remembers the last brief, per product, in <code>~/Library/Application Support/manovella/</code>: <i>Like last time</i> starts from it.</p>
+        <p>The Studio remembers the last brief, per product, in Manovella&rsquo;s <a href="settings.html#files">settings folder</a>: <i>Like last time</i> starts from it.</p>
 
         <h2 id="by-hand">Running it by hand</h2>
         <p>From a workspace, <code>node studio/studio.mjs</code> in the skill&rsquo;s folder. It prints <code>STUDIO &lt;url&gt;</code>, then one of <code>BRIEF &lt;path&gt;</code>, <code>CANCELLED</code>, <code>CLOSED</code> or <code>TIMEOUT</code>, and exits. Options:</p>
@@ -113,8 +113,10 @@
           <li><code>--roots &lt;dir&gt;,&hellip;</code>: where the repositories are. Without it, the project folders in Settings, else the parent of the repository the command runs in; <code>MANOVELLA_ROOTS</code> does the same.</li>
           <li><code>--product &lt;path&gt;</code>: preselect a product.</li>
           <li><code>--out &lt;dir&gt;</code>: where the work folder goes (default: the Work folder in Settings, <code>~/Downloads</code> unless changed); it wins over Settings for that run.</li>
+          <li><code>--agent claude|codex|copilot|gemini</code>: who the brief goes back to. The Studio names that agent, and its last screen gives that agent&rsquo;s command.</li>
+          <li><code>--detach</code>: the Studio goes on in a process of its own, and this one prints <code>STUDIO &lt;url&gt;</code> and <code>STATE &lt;file&gt;</code> and exits. <code>node studio/studio.mjs --wait &lt;file&gt;</code> then prints the Studio&rsquo;s line when it ends, or <code>WAITING</code> after <code>--for</code> seconds (240 by default), to be run again. It is for an agent that the end of a background command does not wake.</li>
         </ul>
-        <p>The window is the Studio&rsquo;s own app, <code>~/Applications/Manovella.app</code>, where it has been built (see <a href="index.html#window">Getting started</a>): its name, version and icon in the Dock instead of one more Google Chrome. Otherwise, or with <code>MANOVELLA_WINDOW=chrome</code>, a Chrome app window on a profile of its own. Either way it closes with the Studio.</p>
+        <p>The window is the Studio&rsquo;s own app, <code>~/Applications/Manovella.app</code>, where it has been built (see <a href="index.html#window">Getting started</a>): its name, version and icon in the Dock instead of one more Google Chrome. Otherwise, or with <code>MANOVELLA_WINDOW=chrome</code>, a Chrome app window on a profile of its own. Either way it closes with the Studio. Off a Mac it is a Chrome app window (Chromium on Linux where there is no Chrome), else the default browser; on a Linux machine without a display, only the address is printed.</p>
 
         <div class="pager">
           <a href="index.html"><small>Previous</small><b>&larr; Getting started</b></a>

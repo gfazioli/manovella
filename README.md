@@ -15,7 +15,8 @@
   <sub>Made with <a href="https://github.com/gfazioli/glancecard">glancecard</a> · refreshed daily</sub></p>
 </div>
 
-Manovella makes promo, launch, release and tutorial films of your product with Claude Code. A film
+Manovella makes promo, launch, release and tutorial films of your product with Claude Code or another
+coding agent. A film
 is one HTML canvas whose every frame is a pure function of time, `seek(t)`: headless Chrome
 captures it frame by frame, sixteen subframes each, and ffmpeg blends and encodes them. The film is
 a function and the video a sampling of it, so any frame can be reviewed as a still, a change costs
@@ -26,8 +27,9 @@ frame by frame.
 
 ![The Studio's motion step: the cuts as tiles, the cube chosen and turning in the viewer, an iMac on the aurora look, with motion blur on](plugins/manovella/skills/site-promo-film/docs/studio.jpg)
 
-> Manovella ships as a Claude Code plugin with its own marketplace, from this repository. It is
-> macOS-first: the window, the thermometer and the voices are Mac code.
+> Manovella ships as a Claude Code plugin with its own marketplace, from this repository, which Codex
+> and Copilot CLI install too, and as a Gemini CLI extension. It is macOS-first, and runs on Linux and
+> Windows as well ([below](#on-linux-and-windows)).
 
 ## What sets it apart
 
@@ -186,7 +188,7 @@ model.
 | --- | --- | --- |
 | Codex CLI | `codex plugin marketplace add gfazioli/manovella`, then `codex plugin add manovella@manovella` | ask for Manovella's Studio |
 | GitHub Copilot CLI | `copilot plugin marketplace add gfazioli/manovella`, then `copilot plugin install manovella@manovella` | ask for Manovella's Studio |
-| Gemini CLI | `gemini extensions install https://github.com/gfazioli/manovella`, from the first release that carries the extension (`manovella-gemini.tar.gz` as its only asset); before it, each skill by itself: `gemini skills install https://github.com/gfazioli/manovella --path plugins/manovella/skills/site-promo-film`, and the same with `release-film` (uninstall those two with `gemini skills uninstall` before installing the extension: a skill installed by itself overrides the extension's) | `/manovella:studio` with the extension, else ask for Manovella's Studio |
+| Gemini CLI | `gemini extensions install https://github.com/gfazioli/manovella` (since 1.22.0), and `gemini extensions update manovella` to update. A skill installed by itself (`gemini skills install`) overrides the extension's: uninstall it first | `/manovella:studio` |
 
 A film installs packages and voice models from the network, writes its work folder outside the
 project (`~/Downloads/<name>-work`), starts Chrome and the Studio's window, and renders for minutes.

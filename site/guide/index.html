@@ -4,14 +4,14 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Getting started &middot; Manovella docs</title>
-<meta name="description" content="Install Manovella, the Claude Code plugin that makes product films as code, and take it from the Studio to a first film on a neutral product." />
+<meta name="description" content="Install Manovella, product films as code, in Claude Code, Codex, Copilot CLI or Gemini CLI, and take it from the Studio to a first film." />
 <link rel="canonical" href="https://manovella.mov/guide/" />
 <link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png" />
 <link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png" />
 <meta property="og:type" content="article" />
 <meta property="og:site_name" content="Manovella" />
 <meta property="og:title" content="Getting started &middot; Manovella docs" />
-<meta property="og:description" content="Install Manovella, the Claude Code plugin that makes product films as code, and take it from the Studio to a first film on a neutral product." />
+<meta property="og:description" content="Install Manovella, product films as code, in Claude Code, Codex, Copilot CLI or Gemini CLI, and take it from the Studio to a first film." />
 <meta property="og:url" content="https://manovella.mov/guide/" />
 <meta property="og:image" content="https://manovella.mov/og.png" />
 <meta property="og:image:width" content="1200" />
@@ -19,7 +19,7 @@
 <meta property="og:image:alt" content="Manovella: product films, written as code" />
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="Getting started &middot; Manovella docs" />
-<meta name="twitter:description" content="Install Manovella, the Claude Code plugin that makes product films as code, and take it from the Studio to a first film on a neutral product." />
+<meta name="twitter:description" content="Install Manovella, product films as code, in Claude Code, Codex, Copilot CLI or Gemini CLI, and take it from the Studio to a first film." />
 <meta name="twitter:image" content="https://manovella.mov/og.png" />
 <link rel="preload" href="../fonts/geist/geist-100-900-latin.woff2" as="font" type="font/woff2" crossorigin />
 <link rel="stylesheet" href="../base.css" />
@@ -35,7 +35,7 @@
       <article class="page">
         <p class="eyebrow">Guide</p>
         <h1>Getting started</h1>
-        <p class="lead">Manovella is a Claude Code plugin that makes product films as code: promo loops, teasers, tutorials and release films, built from your product&rsquo;s own brand and interface.</p>
+        <p class="lead">Manovella makes product films as code inside a coding agent, Claude Code, Codex, Copilot CLI or Gemini CLI: promo loops, teasers, tutorials and release films, built from your product&rsquo;s own brand and interface.</p>
 
         <h2 id="what">What it is</h2>
         <p>A film is one HTML page whose <code>seek(t)</code> draws the frame at time <code>t</code> from scratch. Headless Chrome captures the page frame by frame, sixteen subframes each, and ffmpeg blends and encodes them. The film is a function and the video a sampling of it, so any frame can be reviewed as a still, a change costs a re-render of what changed, and a loop closes to the pixel.</p>
@@ -44,14 +44,26 @@
 
         <h2 id="requirements">Requirements</h2>
         <ul>
-          <li><b>macOS on Apple Silicon</b>, with Claude Code.</li>
+          <li><b>macOS on Apple Silicon</b>, Manovella&rsquo;s home, or <a href="#other-systems">Linux and Windows</a>.</li>
+          <li><b>A coding agent</b>: Claude Code, or <a href="#agents">Codex CLI, GitHub Copilot CLI or Gemini CLI</a>.</li>
           <li><b>Node</b> (tested with 24.3), <b>ffmpeg</b> (tested with 9.0.2) and <b>Google Chrome</b>. The renderer drives Chrome through <code>playwright-core</code>, installed in each film&rsquo;s work folder: nothing else is downloaded. With Homebrew: <code>brew install node ffmpeg</code>.</li>
           <li><b>Xcode Command Line Tools</b> (<code>swiftc</code>), optional: for the Studio&rsquo;s own window and the chip&rsquo;s thermometer. Without them the Studio opens in a Chrome app window, and renders are held on macOS&rsquo;s thermal state.</li>
-          <li><b>Voices, optional.</b> Python 3.13 and a one-time setup (see <a href="sound.html#voice">Sound</a>). Without them a film speaks with a macOS voice, or not at all.</li>
+          <li><b>Voices, optional.</b> Python 3.13 on a Mac (3.12 elsewhere) and a one-time setup (see <a href="sound.html#voice">Sound</a>). Without them a film speaks with a macOS voice, or not at all.</li>
+        </ul>
+
+        <h2 id="other-systems">On Linux and Windows</h2>
+        <p>The engine, the Studio and the renders run on Linux (Windows through WSL2 too) and on Windows as well, and CI runs them on both. What changes there:</p>
+        <ul>
+          <li><b>Node, ffmpeg and Chrome</b>: on Linux <code>apt install ffmpeg</code> (or your distribution&rsquo;s) and Google Chrome, or Chromium where Chrome has no build (linux-arm64); on Windows <code>winget install OpenJS.NodeJS.LTS</code>, <code>winget install Gyan.FFmpeg</code> and <code>winget install Google.Chrome</code>. A machine without a GPU draws the shader looks and cuts in software: slower, the same frames.</li>
+          <li><b>The Studio</b> opens in a Chrome app window (the window app is the Mac&rsquo;s), or in the default browser.</li>
+          <li><b>Renders</b> run at below-normal priority, with a heat governor on Linux and none on Windows: see <a href="rendering.html#heat">Rendering</a>.</li>
+          <li><b>The Trash</b>: on Linux <code>gio</code> or trash-cli; on Windows the Recycle Bin.</li>
+          <li><b>Voices</b>: the voice models run on PyTorch from a Python 3.12, Chatterbox and Orpheus best on an NVIDIA GPU; the macOS voices are the Mac&rsquo;s. See <a href="sound.html#voice-elsewhere">Sound</a>.</li>
+          <li><b>Type</b>: SF Pro and SF Symbols are licensed for Apple platforms only, so a film of a Mac app is made on a Mac. Web products and command-line tools are not affected.</li>
         </ul>
 
         <h2 id="install">Install</h2>
-        <p>Manovella is a Claude Code plugin with a marketplace of its own:</p>
+        <p>In Claude Code, Manovella is a plugin with a marketplace of its own:</p>
         <div class="code">
           <button class="copy" type="button">copy</button>
           <pre><code>claude plugin marketplace add gfazioli/manovella
@@ -59,16 +71,38 @@ claude plugin install manovella@manovella</code></pre>
         </div>
         <p>To update by hand, run <code>claude plugin marketplace update manovella</code> and then <code>claude plugin update manovella@manovella</code>. Or declare it in <code>~/.claude/settings.json</code> (merged into what is there) and Claude Code keeps the plugin current: <code>{ "extraKnownMarketplaces": { "manovella": { "source": { "source": "github", "repo": "gfazioli/manovella" }, "autoUpdate": true } } }</code>.</p>
 
+        <h3 id="agents">Other coding agents</h3>
+        <p>The engine is Node, Chrome and ffmpeg, and the instructions are two Agent Skills, so three other agents install Manovella too. How good a film is follows the agent&rsquo;s model. The installs are tested, and in Copilot CLI so is a film&rsquo;s way from the Studio to its stills; Codex and Gemini CLI are next (<a href="https://github.com/gfazioli/manovella/issues/1">#1</a>). This guide says Claude for the agent: in another one, read its name.</p>
+        <div class="tablewrap">
+        <table class="keys">
+          <thead><tr><th>Agent</th><th>Install</th></tr></thead>
+          <tbody>
+            <tr><td class="k">Codex CLI</td><td><code>codex plugin marketplace add gfazioli/manovella</code>, then <code>codex plugin add manovella@manovella</code></td></tr>
+            <tr><td class="k">GitHub Copilot CLI</td><td><code>copilot plugin marketplace add gfazioli/manovella</code>, then <code>copilot plugin install manovella@manovella</code></td></tr>
+            <tr><td class="k">Gemini CLI</td><td><code>gemini extensions install https://github.com/gfazioli/manovella</code>, and <code>gemini extensions update manovella</code> to update</td></tr>
+          </tbody>
+        </table>
+        </div>
+        <p>For the Studio, ask Codex or Copilot CLI for Manovella&rsquo;s Studio; Gemini CLI has <code>/manovella:studio</code>.</p>
+        <p>A film installs packages and voice models from the network, writes its work folder outside the project, starts Chrome and the Studio, and renders for minutes. Give the agent room for that:</p>
+        <ul>
+          <li><b>Codex</b>: its default sandbox (no network) asks at every such command; approve them, or start it with <code>--sandbox danger-full-access</code> for a film.</li>
+          <li><b>Copilot CLI</b>: <code>--add-dir ~/Downloads</code> (or <code>--allow-all-paths</code>) and <code>--allow-all-urls</code>, or <code>--allow-all</code> for both.</li>
+          <li><b>Gemini CLI</b>: it asks before each tool; <code>--approval-mode auto_edit</code> approves its file edits, <code>yolo</code> every tool.</li>
+          <li><b>Every agent</b>: a render at 1080p60 takes about 29 times the film&rsquo;s length, so the shell&rsquo;s command timeout must allow it, or the render goes on detached and resumes with <code>RESUME=1</code>.</li>
+        </ul>
+
         <h2 id="window">The window app</h2>
-        <p>The Studio opens in a small app of its own, built once per Mac (and again after a change to the window kit or to <code>studio.json</code>). Without it the Studio opens in a Chrome app window.</p>
+        <p>On a Mac the Studio opens in a small app of its own, built once per Mac (and again after a change to the window kit or to <code>studio.json</code>). Without it the Studio opens in a Chrome app window.</p>
         <div class="code">
           <button class="copy" type="button">copy</button>
           <pre><code>S=$(ls -d ~/.claude/plugins/cache/manovella/manovella/*/skills/site-promo-film | sort -V | tail -1)
 "$S/studio/window/build.sh" "$S/studio"     # installs ~/Applications/Manovella.app</code></pre>
         </div>
+        <p>In another agent the skill is elsewhere: <code>~/.codex/plugins/cache/manovella/manovella/&lt;version&gt;/skills/site-promo-film</code> (Codex), <code>~/.copilot/installed-plugins/manovella/manovella/skills/site-promo-film</code> (Copilot CLI), <code>~/.gemini/extensions/manovella/skills/site-promo-film</code> (Gemini CLI).</p>
 
         <h2 id="first-film">A first film</h2>
-        <p>Three ways in, all inside Claude Code:</p>
+        <p>Three ways in, in Claude Code. In another agent, ask in words; Gemini CLI has <code>/manovella:studio</code> too.</p>
         <div class="tablewrap">
         <table class="keys">
           <thead><tr><th>Ask</th><th>What happens</th></tr></thead>
