@@ -24,7 +24,12 @@ the engine.**
 | `template/fx.js` | The look, loaded by the page: a backdrop (flat, gradient, field or picture; soft brand light; dots, grid or lines in parallax; a floor in perspective; a spotlight), a finish (vignette, grain) and the effects that lean on it (frosted glass, click ripples, focus-pull headlines). Twenty-three presets and `photo`, every field overridable, documented at the top of the file. Shared with release-film. |
 | `template/type.js` | Headlines and kinetic type (§3): `TYPE.draw(ctx, t, spec)` in thirteen styles — rise, focus, settle, track, wipe, cascade, weight, split, flap, type, swap, odometer, decode — with an emphasis mark, a pace, and `TYPE.load` for a family's faces. A pure function of t, like the rest. |
 | `template/fonts/` | Twenty open-licensed families (latin + latin-ext woff2, each with its OFL.txt) and `fonts.json`, their faces. A film copies only what it uses into `src/fonts/`; `scripts/fonts.mjs add` fetches another. |
-| `scripts/render.mjs` | `stills <dir> t…`, `sheet <dir>` (the timeline's checkpoints), `looks <dir> <t>`, `loopcheck`, `video <out> [workers]`. Reads size, fps, duration and chapters from the page; jitters every subframe; renders in resumable chunks; `FROM`/`TO`, `PREVIEW=1`, `RESUME=1`, `KEEP=1`, `AUDIO=`, `SHUTTER=`; the extension picks the format (.mp4, .mov ProRes, .webm, .gif; `HEVC=1`; `ALPHA=1` for a transparent .mov or .webm); checks the track before the render and the file after it; fails a capture whose page lost a WebGL context, and a second render of a cut while one runs. Documented at the top. |
+| `template/space.js` | A 3D shot in a film (§5b), on three.js: `SPACE.shot` (a scene and a light rig that follows the look's tone), `load` a GLB, `SPACE.orbit` (a camera on springs), a model's `turn`, `pose` (its glTF animation at a time) and `tint`, `project` (a point of the model on the frame), `SPACE.sequence` (a hero shot rendered by Blender, drawn by `t`). Documented at the top. Copied into a film only when it has 3D. |
+| `template/space.html` | A product in 3D, an 8 s loop: the sample model turns once, the camera goes to its dial, the dial turns. The page a 3D film starts from. |
+| `template/three/` | three.js r187 as one classic script (`three.min.js`, 647 KB, with its glTF loader) and its MIT `LICENSE`, which travels with it. Built by the repository's `scripts/vendor-three.mjs`. |
+| `template/models/` | `acme.glb` and `acme.glb.js`: the Acme Pod, the kit's sample model (its own, MIT), for the templates, the Studio and the tests. Never in a product's film. |
+| `scripts/blender.mjs` | (with `blender-prepare.py`, `blender-render.py` and `blender-acme.py` beside it: run it from the skill's own `scripts/`) Blender, headless, where it is installed (§5b): `prepare <model> <out.glb>` (a .blend, .fbx, .obj, .stl, .ply, .usd or .gltf as a plain GLB, centred, scaled, decimated, and as a script the page loads), `render` (a hero shot as PNGs with alpha, cool like `render.mjs`), `embed`, `sample`, `where`, `--selftest`. Without Blender it stops with exit 3 and says where to get it. Documented at the top. |
+| `scripts/render.mjs` | `stills <dir> t…`, `sheet <dir>` (the timeline's checkpoints), `looks <dir> <t>`, `loopcheck`, `video <out> [workers]`. Reads size, fps, duration and chapters from the page; jitters every subframe; renders in resumable chunks; `FROM`/`TO`, `PREVIEW=1`, `RESUME=1`, `KEEP=1`, `AUDIO=`, `SHUTTER=`; the extension picks the format (.mp4, .mov ProRes, .webm, .gif; `HEVC=1`; `ALPHA=1` for a transparent .mov or .webm); checks the track before the render and the file after it; fails a capture whose page lost a WebGL context, and a second render of a cut while one runs; says what draws a page's WebGL (a GPU, or software: `GL=software` asks for it). Documented at the top. |
 | `scripts/narrate.mjs` | A film's story (`story.json`: a sentence a step, a tutorial's or a promo's that speaks) into a voice, a clock and subtitles: `voice/*.aiff`, `narration.wav` (the film's `AUDIO`), `narration.js` (each step's time, for the page) and `captions.srt` / `.vtt`. The Mac's `say`, or `--from` a folder of your own recordings. `"human": "natural"` varies the pauses as a person's; a model's sounds (`[chuckle]`) are kept out of the subtitles. Documented at the top. |
 | `scripts/voice.mjs` | (with `voice-mlx.py`, `voice-torch.py` and `voice-constraints*.txt` beside it: copy them all) The same story told by a voice model that runs on the Mac (`"mlx"` in `story.json`: Chatterbox for a lesson, Orpheus for a promo, Kokoro for a quick draft or a film in Italian), closer to a person than `say`: it says each step (`voice-mlx.py`, through mlx-audio), paces and levels it, then calls `narrate.mjs`. A take is a seed; `"tone"` (calm, warm, bright) is how freely the model reads, `"human"` varies each line's pace within 3 % and lets a line make a sound (`[chuckle]`, `[sigh]`: each model's own spelling, or left out). `--audition` compares takes, `--recordings` stops at the recordings, `--setup` makes the Python and fetches the models once on each Mac (`voice-constraints.txt` pins what it installs) and says whether that Mac repeats the takes recorded here. Documented at the top. |
 | `scripts/mix.mjs` | A voice and a music track into one soundtrack, for `AUDIO=`: both measured (EBU R128), the music `--under` LU under the voice while it speaks, `--lift` dB up between lines, down before each line begins; prints what came out, measured on the result. Documented at the top. |
@@ -330,6 +335,7 @@ by the third. **The format is the first decision and the one to vary.**
 | Bento | a grid of live tiles, each one proof working; the camera racks focus onto one | a product with many small features | `reel.html` bento, `FILM.selective` |
 | Terminal | a command typed by a person, output streaming, a summary line | a CLI, a developer tool | `reel.html` terminal, `FILM.typed`, `PARTS.terminal` |
 | Devices in 3D | the surfaces as objects: a cover-flow, a turntable, on a glossy floor | cross-platform, "works everywhere" | `reel.html` devices (WebGL), `PARTS.laptop`, `PARTS.desktop`, `PARTS.phone`, `PARTS.tablet` |
+| Product in 3D | a physical product as a model: it turns, the camera orbits it, a part of it moves | hardware, packaging, a hero object (§5b: never the UI as a model) | `space.html`, `space.js` |
 | Zoom-through | each scene is inside a detail of the last: the camera dives through a letter, an icon, a row | nested products, a story of depth | the `iris` portal (`r0`, `zoom`) |
 | Data story | a number that grows, a chart that draws itself, a line that extends: the measurement is the hero | monitoring, analytics, a quota | `promo.html` tracks, `TN`, `PARTS.ring` |
 | Before / after | the same task twice, the old way and the new, split or wiped | a speed-up, a redesign | `split`, `wipe` transitions |
@@ -772,6 +778,8 @@ Canvas traps, each measured on a real film:
   `w` for perspective-correct mapping, mipmaps plus anisotropic filtering. An identity
   rig reproduces the flat frame, so switch between the 2D and GL paths only while
   something is moving.
+- **A model is another thing**: a physical product as a 3D object, lit and turned, is drawn by
+  three.js through `space.js`, not by these quads: §5b.
 - **A lifted layer overhangs its base in projection.** Fade it at the scroll edges
   (a `destination-out` gradient on the offscreen layer), in proportion to the lift.
 - **The cursor lives in world coordinates** (springs on x and y at different
@@ -779,6 +787,110 @@ Canvas traps, each measured on a real film:
   click target on a tilted plane is that point *projected at the click time*.
 - **Watch the frame edges**: a camera that frames the hero can leave a 20 px sliver of
   some chrome along the top. Frame it fully in or fully out.
+
+## 5b — 3D: a model in the page, Blender beside it
+
+A film can show an object in three dimensions, two ways: a model drawn by three.js inside `seek(t)`
+(`space.js`; `space.html` is the demo), or a hero shot rendered by Blender and drawn by `t` like a
+picture (`blender.mjs render`). The first is the default; the second is for what three.js does not draw.
+
+- **When.** A physical product or a hero object: hardware, packaging, a thing people hold. **Never in
+  place of the real UI**: a product's screens are rebuilt as vector (§1, `parts.js`), and a UI that
+  must tilt is composited as `promo.html` does (§5). A product that is software and nothing else gets
+  no 3D shot because one is possible; *Devices in 3D* stays the format for its surfaces.
+- **The model is the product's own**, asked for like any asset (§1): its CAD export, its `.blend`, a
+  GLB from the user or the product's repository. Never one taken from a model library to stand for
+  the product, never a generated one. The Acme Pod (`template/models/`) is the kit's sample, for the
+  templates and the tests: it is in no product's film.
+- **Make it ready** with `node <this skill's dir>/scripts/blender.mjs prepare <model> src/models/<product>.glb`,
+  which needs Blender (free; a download of about 400 MB, 1 GB installed; `blender.mjs where` says
+  whether it is there, and without it the command stops with exit 3 and where to get it: say that to
+  the user, never install it unasked). It takes a .blend, .fbx, .obj, .stl, .ply, .usd or .gltf and writes a
+  plain GLB: transforms applied, centred on the vertical axis, stood on the ground, its longest side
+  1, decimated to 60,000 triangles in all (`--tris`), textures at most 2048 px (`--texture`), every
+  material as glTF's PBR; a model that moves keeps its animation. Read what it prints: the triangles
+  before and after, the materials' names, the animations and their lengths, and a note for each thing
+  glTF could not carry (a procedural texture, a shader that was not a Principled BSDF). Beside the
+  GLB it writes `<product>.glb.js`, the same file as a script: a page opened from disk can fetch
+  nothing, so the page loads the model with `<script src>`. A model that is already a suitable GLB
+  needs no Blender: `blender.mjs embed <model.glb>` writes the script alone.
+- **Into the film's `src/`**, only for a film with 3D: `three/` (the script and its LICENSE),
+  `space.js`, `models/<product>.glb.js`. The page loads them as `space.html` does, three.js first.
+- **In the page**, the order in `seek(t)` is the method: the look's backdrop, then the shot, then
+  what is 2D on top of it (headlines, a callout), then the look's finish.
+  - `const SHOT = SPACE.shot({ W, H, rig: 'auto', tone: LOOK.tone, accent: C.accent })`, and in
+    `window.ready`, `const model = await SHOT.load('models/<product>.glb')`: the page is ready only
+    once the model is.
+  - **Set from `t`, on every frame, everything that moves**, then draw once: `model.turn(deg)`,
+    `model.pose('<animation>', seconds)` (the glTF's own animation at a time: no clock runs it),
+    `SHOT.draw(ctx, pose, { shift })`. three.js keeps a scene between frames, so a thing set on one
+    frame and not on the next is carried over: that is the one way a 3D shot stops being a function of `t`.
+  - The camera is `SPACE.orbit([[t, yaw, pitch, dist, f, zeta], …], home)`, springs like
+    `FILM.camera`'s: degrees, and the distance in the model's longest sides. A turntable is
+    `model.turn(360 * t / period)`; one that must be at rest at a loop point is
+    `model.turn(360 * FILM.spr(t, t0, 0.5, 1))`, a whole turn that settles exactly.
+  - `shift: [x, y]` moves the picture on the frame, in pixels, without changing its perspective: the
+    model beside a headline. `SHOT.project([x, y, z], pose, { shift })` is where a point of the model
+    lands on the frame: a callout's line, a cursor's target.
+  - `model.tint('<material>', C.accent)` puts a material in the brand's colour, by the name
+    `prepare` printed; `model.part('<name>')` is a node of the model, to move by hand.
+- **The light follows the look**: `rig: 'auto'` is `daylight` on a light tone (a soft room, a key
+  from the upper left, a light shadow on the ground) and `studio` on a dark one (a dim room, a hard
+  key, a rim in the accent from behind); `soft` is nearly shadowless. The ground is invisible and
+  shows only the shadow, so the look's backdrop stays the backdrop. Colour is sRGB through the
+  Khronos PBR Neutral curve, which keeps a brand colour that colour.
+- **It is a film like the rest.** Each of `render.mjs`'s subframes is one draw at its own moment, so
+  a turning model blurs as a moving card does, and the subframe's jitter goes into the 3D camera, so
+  edges in a slow orbit do not shimmer; a look, a transition and `ALPHA=1` take the layer as they
+  take any other. Every shot of a page shares one WebGL context of Chrome's sixteen (§7). Measured on
+  `space.html`: the same frame drawn after other frames is the same file; half a second at full
+  quality rendered twice is the same mp4; `loopcheck` is inf.
+- **What it costs.** A subframe of `space.html` took 46 ms on a plain look against 38 ms for
+  `promo.html` (an M1 Max): the 3D layer is about 8 ms of it, and half a second at full quality took
+  39 to 41 s. three.js and the sample model are 925 KB in `src/`; nothing is downloaded.
+- **Where it runs.** Wherever Chrome does. On a machine without a GPU (a server, a CI runner) Chrome
+  draws WebGL in software, which `render.mjs` says in its first line (`webgl: …SwiftShader…`): on the
+  same Mac, forced with `GL=software`, a subframe took 163 ms and the page was ready in 2.8 s. The
+  pictures differ a little from a GPU's (PSNR 51 dB on `space.html`): render every part of one film
+  on one kind of machine.
+- **A hero shot from Blender**, for what three.js does not draw: glass and refraction, light that
+  bounces, a simulation, a depth of field. `node blender.mjs render <model|scene.blend> src/<name>
+  --fps <the film's> --shutter <the film's> --size <WxH> --seconds <s>` writes `src/<name>/0001.png…`
+  with alpha and `sequence.js`; the page loads that script, then
+  `const HERO = await SPACE.sequence('<name>')` in `window.ready` and `HERO.draw(ctx, t - t0, { x, y, w, h })`
+  in `seek`, in the context's own transform, like a picture.
+  - A model gets a stage of its own (a camera at `--pose yaw,pitch,dist,fov`, the numbers
+    `SPACE.orbit` takes; a studio light; a ground that only catches the shadow; a turntable); a
+    `.blend` is rendered through its own camera, lights and animation. `--tint Accent=#RRGGBB` as
+    `model.tint`.
+  - **Its motion blur is Blender's own**, set to the film's shutter (`--shutter`, `--phase`), not the
+    engine's: a frame of the sequence is a picture, and the engine can blur how the picture moves
+    across the frame but not what moves inside it; sixteen Blender frames a film frame for the
+    engine to blend would cost sixteen renders a frame. So render at the film's fps and shutter, and
+    at the size it is shown: a sequence drawn smaller than the frame is cut at its own edges, shadow included.
+  - **What it costs, by engine**, a frame of the sample at 1920×1080 (an M1 Max, 52 °C throughout):
+    - Cycles on the CPU, the default: 133 s (64 samples, 3 of 10 cores), so two seconds at 30 fps
+      are over two hours. The same frame is the same file every time, and it runs on a machine
+      with no GPU.
+    - Cycles with `--gpu`: 13 s, after a first frame of three minutes while Cycles builds its
+      kernels, once. Two runs differ by a few pixels (94 dB), and by more from the CPU's (45 dB).
+    - `--engine eevee`: half a second, on the GPU, the same file twice. It has no shadow catcher:
+      the model casts no shadow on the look unless the scene has a floor of its own.
+
+    So EEVEE for a shot three.js could nearly draw, Cycles for what only a path tracer draws, and
+    the time said to the user before a Cycles shot starts (§0: a render is asked for, and one runs
+    at a time, Chrome's or Blender's). Try a frame or two first (`--frames 1-2 --size 640x360
+    --samples 24`: 9 s a frame on the CPU), and keep the shot to a few seconds.
+  - It renders cool like `render.mjs`: a third of the cores, the utility QoS class, the thermal
+    governor between frames. No date, host or render time is written into the frames.
+- **Blender MCP is optional.** Where the user's agent has a Blender MCP server (`claude mcp add
+  blender uvx mcp-for-blender`, with Blender open and its add-on on), a model can be built or
+  adjusted in that Blender while the user watches; the result is saved as a `.blend`, and `prepare`
+  takes it from there. Nothing in the kit needs it, and a film is never held up for it.
+- **Blender is tried on macOS**, with Blender 5.3. On Linux and Windows `blender.mjs` looks where
+  Blender installs itself and takes `MANOVELLA_BLENDER` or the settings' `"blender"`; it has not been
+  run there. three.js in the page is tried on all three (CI renders a still of `space.html` on Linux
+  and on Windows, in software).
 
 ## 6 — Stills before the render
 

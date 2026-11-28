@@ -46,6 +46,15 @@ everything in a subshell, `( cd <folder> && … )`: a bare `cd` is refused by a 
   (stills at every cut's half-way point), and at most half a second across the cut at full quality
   (`FROM=16.5 TO=17 node render.mjs video x.mp4`: 30 frames, 50 to 90 s).
 
+- A 3D page (`template/space.html`, `space.js`): the scratch folder also takes `template/three/` and
+  `template/models/` (folders: `cp -R`). Stills, `loopcheck`, the same frame after other frames
+  (`stills a 3.25` against `stills b 5.5 0.7 3.25`: the two `t03.25.png` must be the same bytes), and
+  half a second across the turn (`FROM=1 TO=1.5`, about 40 s). `GL=software` draws it as a machine
+  without a GPU does. The Studio's stand-in in 3D is `studio/stage.html#ui=object`.
+- Blender: `node scripts/blender.mjs --selftest` (11 s with Blender, a sample, an .obj decimated and a
+  hero shot rendered twice; without Blender it runs what needs none and says the rest is skipped).
+  A hero shot is a render: a frame or two, small (`--frames 1-2 --size 640x360 --samples 24`).
+
 ## Traps
 
 - A step arrives with a 0.36 s animation: a screenshot taken at once shows an empty pane. Wait

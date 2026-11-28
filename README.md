@@ -41,6 +41,9 @@ frame by frame.
 - **Loops exact to the pixel**, checked, not eyeballed.
 - **Your product's own UI, rebuilt as vector** from its source: windows, menus, a cursor and real
   shortcuts, sharp at any resolution, never a screen recording.
+- **A physical product in 3D**, when the product is one: its own model drawn by three.js inside
+  `seek(t)`, so it takes the same motion blur, looks and cuts as everything else; or a hero shot
+  rendered by Blender, headless and cool, and drawn by `t` like a picture.
 - **Release films from a tag**: what one version changed, shown changing in place, between two
   version cards.
 - **Sound, heard before it is chosen**: music from your library or a file of yours, its beat
@@ -60,7 +63,7 @@ ends with a `brief.json` that Claude answers with three storyboards.
 
 **What film** (promo loop, social teaser, film in chapters, release film, README GIF, tutorial,
 from scratch)
-· **which product** (a repository or a URL; its accent guessed from the source) · **format** (eleven)
+· **which product** (a repository or a URL; its accent guessed from the source) · **format** (twelve)
 and the **device** it is shown in (a Mac window, a MacBook, an iMac, an iPhone, an iPad, a browser,
 a terminal, or the UI alone) · **look** (twenty-three, or a picture of yours) · **type** (fifteen
 sets, or any installed family) · **motion** (thirteen ways for a headline to arrive, twenty-four
@@ -73,7 +76,7 @@ subtitles) · **length** (the kind's own, or one you type) **and output** · **r
 <table>
 <tr>
 <td width="50%" valign="top"><img src="plugins/manovella/skills/site-promo-film/docs/looks.jpg" alt="The twenty-three looks"><br><b>23 looks</b>: backdrops, brand light, grain, glass, from flat to WebGL fields</td>
-<td width="50%" valign="top"><img src="plugins/manovella/skills/site-promo-film/docs/reel.jpg" alt="The reel, scene by scene"><br><b>11 formats</b>, the first decision of a film</td>
+<td width="50%" valign="top"><img src="plugins/manovella/skills/site-promo-film/docs/reel.jpg" alt="The reel, scene by scene"><br><b>12 formats</b>, the first decision of a film</td>
 </tr>
 <tr>
 <td width="50%" valign="top"><img src="plugins/manovella/skills/site-promo-film/docs/transitions.jpg" alt="Every transition, half done"><br><b>24 cuts</b>, by what they do to the frame</td>
@@ -110,6 +113,11 @@ The full catalogue, with every look, format, part and transition in pictures, is
 - **Xcode Command Line Tools** (`swiftc`), optional: for the Studio's own window app and the chip's
   thermometer. Without them the Studio opens in a Chrome app window, and renders are held on
   macOS's thermal state instead of a temperature.
+- **Blender, optional**: only to make a 3D model ready for a film (any of .blend, .fbx, .obj, .stl,
+  .ply, .usd, .gltf into a GLB) or to render a hero shot. Free; a download of about 400 MB, 1 GB
+  installed (`brew install --cask blender`, or blender.org). Made and tried with Blender 5.3 on
+  macOS. A film whose model is already a GLB needs none: three.js is in the kit (647 KB, MIT),
+  nothing is downloaded for it.
 - **Voices, optional**: Python 3.13 (`brew install python@3.13`) and, once per Mac,
   `node <skill>/scripts/voice.mjs --setup` (a 600 MB environment in `~/.local/share/film-voice`;
   each model is downloaded at its first use: Chatterbox 3 GB, Orpheus 3.5 GB, Kokoro 330 MB, which
@@ -137,6 +145,9 @@ macOS on Apple Silicon is Manovella's home, and the engine, the Studio and the r
   6.6 GB, and Orpheus needs about 7 GB of the GPU's memory, or 13 GB of RAM on a CPU). A GPU newer
   than their PyTorch build (an RTX 50) is left for the CPU, saying so; `VOICE_DEVICE=cpu` or `cuda`
   decides. A take said there is the same voice and words as on a Mac, not the same file.
+- **3D**: three.js runs wherever Chrome does, in software where there is no GPU (CI renders a still
+  of the 3D demo on both). Blender is looked for where it installs itself (`MANOVELLA_BLENDER`, or
+  `"blender"` in the settings, names another); its part has been run on macOS only.
 - **Type**: SF Pro and SF Symbols are licensed for Apple platforms only, so a film of a Mac app is
   made on a Mac. Web products and command-line tools are not affected.
 
@@ -262,6 +273,9 @@ picker. The same file takes three more optional keys; a folder that is not there
 On the command line, `--roots` (or `MANOVELLA_ROOTS`) and `--out` win over `projectFolders` and
 `workRoot` for one run, and `MANOVELLA_MUSIC` over `musicLibrary`.
 
+One more key, written by hand: `"blender"`, the Blender program (or `Blender.app`) for a film's 3D,
+when it is not where the system installs it; `MANOVELLA_BLENDER` names it for one run.
+
 ## Use
 
 | Ask | What happens |
@@ -276,7 +290,8 @@ Or just ask: *"a 15 s promo loop of acme.app, 16:9 and 9:16, with our music"*.
 
 | Path | What it is |
 | --- | --- |
-| `plugins/manovella/skills/site-promo-film/` | The engine (`template/`), its tools (`scripts/`: render, beats, voice, mix, deliver), the Studio (`studio/`) and its window kit (`studio/window/`). |
+| `plugins/manovella/skills/site-promo-film/` | The engine (`template/`), its tools (`scripts/`: render, beats, voice, mix, deliver, blender), the Studio (`studio/`) and its window kit (`studio/window/`). |
+| `scripts/vendor-three.mjs` | Builds the three.js the engine ships (`template/three/`), from a pinned release. |
 | `plugins/manovella/skills/release-film/` | Release films, on the same engine. |
 | `plugins/manovella/commands/studio.md` | `/manovella:studio`. |
 | `.claude/skills/verify/` | How to verify a change to the engine without rendering a film. |
@@ -308,4 +323,4 @@ Your help truly matters.
 
 ## License
 
-MIT, see [LICENSE](LICENSE). The fonts in `plugins/manovella/skills/site-promo-film/template/fonts/` keep their own open licences, in a file beside each family.
+MIT, see [LICENSE](LICENSE). The fonts in `plugins/manovella/skills/site-promo-film/template/fonts/` keep their own open licences, in a file beside each family. three.js, in `plugins/manovella/skills/site-promo-film/template/three/`, is MIT too, under its authors' copyright: its `LICENSE` is beside it.

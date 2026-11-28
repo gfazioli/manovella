@@ -33,7 +33,7 @@ the window works down to 900 x 600, its sidebar reduced to the steps' numbers.
 | --- | --- | --- |
 | What film? | a recipe: promo loop, social teaser, film in chapters, release film, README GIF, tutorial, from scratch | each recipe's own template, playing |
 | Which product? | a repository among the workspace's siblings, or a URL; the version for a release; the name | its homepage, latest tag and film kit, and a guess at its accent (the kit's last film, an Xcode AccentColor, a manifest's `theme_color`, a `--brand` variable) |
-| Which format? | up to three of the eleven, or Claude's pick of three; and the device the product is shown in (a Mac window, a MacBook, an iMac, an iPhone, an iPad, a browser, a terminal, just the UI), or each format's own | the reel's scenes, on hover, in your colour and look; the stand-in product in each device, laid out as that device has it |
+| Which format? | up to three of the twelve, or Claude's pick of three; and the device the product is shown in (a Mac window, a MacBook, an iMac, an iPhone, an iPad, a browser, a terminal, just the UI), or each format's own | the reel's scenes, on hover, in your colour and look; the stand-in product in each device, laid out as that device has it |
 | Which look? | one of the twenty-three, a sheet of the first real frame later, or a picture from your Mac (dropped, chosen, or among the recent ones in Pictures, or in the picture folders you add in Settings) with its blur, treatment (dimmed, brand tint, duotone) and a Ken Burns; the palette scheme | every look rendered on a stand-in product (`studio/stage.html`), in your colour and aspect |
 | Which type? | a type set from the kit (display, text, mono), any family from the kit or installed on this Mac and its weight, or the brand's own | each set as a specimen in its own faces; the headline set large on the stage |
 | Which motion? | how the headlines arrive (thirteen styles), an emphasis on one word, the family of cuts (twenty-four, by what they do to the frame: quiet, move, depth, reveal), the pace, the motion blur's shutter | each style and each cut playing on the stage, in your look and type, at the pace chosen; a cut's two seams marked on the scrubber |
@@ -185,6 +185,11 @@ verify); this page is the catalogue.
 | `scripts/mix.mjs` | A voice and a music track into one soundtrack: the music measured under the voice, up between lines. |
 | `template/type.js` | Headlines: thirteen styles of arrival, an emphasis, a pace, `TYPE.load` for a family's faces. |
 | `template/fonts/` | Twenty open-licensed families with their licences, and `fonts.json`. |
+| `template/space.js` | A 3D shot in a film, on three.js: a model, a camera on springs, a light rig that follows the look, a glTF animation set by time, a Blender-rendered sequence drawn by `t`. |
+| `template/space.html` | A product in 3D, an 8 s loop of the sample model. |
+| `template/three/` | three.js r187 as one classic script (647 KB) and its MIT licence. |
+| `template/models/` | The Acme Pod, the kit's sample model (`acme.glb`, and `acme.glb.js` for a page opened from disk). |
+| `scripts/blender.mjs` | Blender, headless: a model made ready for the page (`prepare`), a hero shot rendered as frames with alpha (`render`), cool like `render.mjs` (`blender-prepare.py`, `blender-render.py`, `blender-acme.py`). |
 | `template/parts.js` | Vector parts: a macOS window, a browser, a terminal, an iPhone, an iPad, a MacBook, an iMac, keycaps, a switch, a ring. |
 | `template/parts.html` | Every part on one 16:10 sheet, a page like the others: `PAGE=parts.html node render.mjs stills parts 0` makes the PNG that `docs/parts.jpg` is converted from (`sips -s format jpeg -s formatOptions 92`). |
 | `scripts/render.mjs` | `stills`, `sheet`, `looks`, `loopcheck`, `video`, `beats`: formats, chapters, resumable chunks, the heat governor, the beat check. |
@@ -241,11 +246,51 @@ every scene settled and every transition half done:
 | Bento | a product with many small features |
 | Terminal | a CLI, a developer tool |
 | Devices in 3D | cross-platform, "works everywhere" |
+| Product in 3D | hardware, packaging, a hero object (`space.html`) |
 | Zoom-through | a story of depth: each scene inside a detail of the last |
 | Data story | monitoring, analytics, a quota |
 | Before / after | a speed-up, a redesign |
 | Tutorial | onboarding, a long film |
 | What's new | a release (`release-film`) |
+
+## 3D
+
+For a physical product or a hero object, never for the UI (that is rebuilt as vector): the
+product's own model, drawn by three.js inside `seek(t)` between the look's backdrop and the
+headlines. `space.html` is the demo, on the kit's sample model, and this is it:
+
+![A product in 3D: the title card, a turn, an orbit, the model's own animation, two more looks](docs/space.jpg)
+
+```js
+const SHOT = SPACE.shot({ W, H, rig: 'auto', tone: LOOK.tone, accent: C.accent });
+const pod = await SHOT.load('models/acme.glb');          // before frame 0
+const CAM = SPACE.orbit([[0.8, -16, 9, 2.45, 0.6, 0.95]], { yaw: 28, pitch: 14, dist: 2.9 });
+// in seek(t): everything that moves, from t; then one draw
+pod.turn(360 * FILM.spr(t, 0.8, 0.5, 1));
+pod.pose('Dial', t - 4.6);
+SHOT.draw(ctx, CAM(t), { shift: [330, 20] });
+```
+
+- **A film like the rest.** Every subframe is one draw at its own moment, so a turning model takes
+  the engine's motion blur, and the subframe's jitter goes into the 3D camera. The same frame is
+  the same file whatever was drawn before it, half a second rendered twice is the same mp4, and the
+  demo's loop is exact. A transition and `ALPHA=1` carry the layer; the light rig follows the look's tone.
+- **The model** is the product's own. `node scripts/blender.mjs prepare model.fbx models/product.glb`
+  takes a .blend, .fbx, .obj, .stl, .ply, .usd or .gltf and writes a plain GLB (centred, on the
+  ground, its longest side 1, decimated to 60,000 triangles, textures at most 2048 px) and the same
+  file as a script, since a page opened from disk can fetch nothing.
+- **What it costs.** three.js is 647 KB in the kit, loaded only by a page that has 3D. A subframe
+  of the demo took 46 ms on a plain look against 38 ms for `promo.html` (an M1 Max); in software,
+  on a machine without a GPU, 163 ms (the same Mac with `GL=software`).
+- **A hero shot from Blender**, for what three.js does not draw (glass, bounced light, a
+  simulation): `node scripts/blender.mjs render <model|scene.blend> hero --fps 30 --seconds 2`
+  writes PNGs with alpha and `SPACE.sequence('hero')` draws them by `t`. Its motion blur is
+  Blender's own, set to the film's shutter. A 1920×1080 frame of the sample took 133 s in Cycles on
+  the CPU (64 samples, 3 of 10 cores; the same file every time), 13 s with `--gpu`, half a second
+  with `--engine eevee` (no shadow on the ground). It runs on a third of the cores in the utility
+  QoS class, under the same thermal governor as a render.
+- **Blender MCP**, optional: an agent with a Blender MCP server can build or adjust the model in a
+  Blender left open, then `prepare` takes the saved `.blend`. Nothing in the kit depends on it.
 
 ## Parts
 
