@@ -386,6 +386,16 @@ list for a YouTube description. `PREVIEW=1` drafts the whole film at a sixteenth
 format into an encode. The output's extension picks it: `.mp4` (H.264, or `HEVC=1`), `.mov`
 (ProRes 422 HQ), `.webm`, `.gif`.
 
+**A 4:4:4 master.** `CHROMA=444` (or `PROMO_META.chroma = 444`) ends an `.mp4` as H.264 High 4:4:4
+Predictive (`yuv444p`) instead of High `yuv420p`, so thin coloured text and one-pixel UI strokes keep
+their colour: the capture is lossless, so only the last conversion changes, and the finished-file
+check expects `yuv444p` then. It is a master to keep or to edit from, not the file to publish. On
+the Mac it was made on (macOS 27, Apple Silicon) AVFoundation and Chrome both decoded it, measured
+with a Swift probe and a `<video>` element. From the codecs' documentation, not measured here:
+hardware decoders (phones, TVs, many browsers' and editors' fast paths) implement 4:2:0 profiles
+only and refuse or fall back, and the platforms re-encode an upload to 4:2:0 anyway, so deliver the
+default file.
+
 ### Heat
 
 A render keeps the chip busy for minutes, and a run of test renders once took it to

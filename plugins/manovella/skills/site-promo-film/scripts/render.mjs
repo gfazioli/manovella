@@ -58,6 +58,12 @@
 //                that ends before the film, or a second or more of silence in it, is said, and the
 //                render goes on.
 //   HEVC=1       an .mp4 as H.265 10-bit (tagged hvc1, so QuickTime and Safari play it) instead of H.264
+//   CHROMA=444   an .mp4 as H.264 High 4:4:4 Predictive (yuv444p), or PROMO_META.chroma = 444: thin coloured text
+//                and UI strokes keep the colour 4:2:0 averages away. Our capture is lossless, so only the last
+//                conversion changes. A MASTER, not a deliverable: QuickTime, Safari, most hardware decoders and
+//                the platforms' own players refuse or re-encode 4:4:4 H.264 (README.md, "A 4:4:4 master").
+//                .mp4 and H.264 only (HEVC=1 and the other formats are refused). The finished file's pixel
+//                format is checked against it: yuv444p when asked, yuv420p otherwise.
 //   ALPHA=1      a transparent background, for a film laid over other footage in an editor: the page
 //                captured on a clear background (with fx.js's look 'transparent', #look=transparent, it
 //                draws none), each chunk kept lossless with its alpha (FFV1, 16-bit RGBA) and its
@@ -749,6 +755,8 @@ try {
       writeFileSync(metaFile, ';FFMETADATA1\n' + chaps.map((c) => `[CHAPTER]\nTIMEBASE=1/1000\nSTART=${Math.round(c.s * 1000)}\nEND=${Math.round(c.e * 1000)}\ntitle=${c.title.replace(/[=;#\\\n]/g, ' ')}\n`).join(''));
     }
     // the output's size, worked out once: the scale filters are given it, and the file is checked against it
+    const CHROMA444 = String(process.env.CHROMA || META.chroma || '') === '444';
+    if (CHROMA444 && ext !== '.mp4') throw new Error(`CHROMA=444 is for an .mp4 (H.264 High 4:4:4 Predictive), not ${ext}`);
     const even = (x) => Math.trunc(x / 2) * 2, fit = (x) => (SCALE !== 1 ? even(x * SCALE) : x);
     const gf = Number(process.env.GIF_FPS || 30), gw = Number(process.env.GIF_W || 960);
     const [outW, outH] = ext === '.gif' ? [gw, Math.round(gw * META.height / (2 * META.width)) * 2] : [fit(META.width), fit(META.height)];
@@ -771,12 +779,13 @@ try {
       venc = ['-vf', `${resize}scale=out_color_matrix=bt709:out_range=tv,format=${webmFmt},${colr}`,
         '-c:v', 'libvpx-vp9', '-crf', PREVIEW ? '32' : '18', '-b:v', '0', '-row-mt', '1', '-deadline', 'good', '-cpu-used', PREVIEW ? '5' : '2', ...tags];
     } else if (process.env.HEVC === '1') {
+      if (CHROMA444) throw new Error('CHROMA=444 is H.264 (High 4:4:4 Predictive): leave HEVC=1 out');
       venc = ['-vf', `${scale}scale=out_color_matrix=bt709:out_range=tv,format=yuv420p10le,${colr}`,
         '-c:v', 'libx265', '-preset', PREVIEW ? 'fast' : 'slow', '-crf', PREVIEW ? '24' : '16', '-tag:v', 'hvc1',
         '-x265-params', 'colorprim=bt709:transfer=bt709:colormatrix=bt709:range=limited:log-level=error', ...tags];
     } else {
-      venc = ['-vf', `${scale}scale=out_color_matrix=bt709:out_range=tv,format=yuv420p,${colr}`,
-        '-c:v', 'libx264', '-preset', PREVIEW ? 'veryfast' : 'slow', '-crf', PREVIEW ? '20' : '14', '-profile:v', 'high', ...tags,
+      venc = ['-vf', `${scale}scale=out_color_matrix=bt709:out_range=tv,format=${CHROMA444 ? 'yuv444p' : 'yuv420p'},${colr}`,
+        '-c:v', 'libx264', '-preset', PREVIEW ? 'veryfast' : 'slow', '-crf', PREVIEW ? '20' : '14', '-profile:v', CHROMA444 ? 'high444' : 'high', ...tags,
         // the scale filter drops the primaries/transfer tags, so write them into the bitstream
         '-bsf:v', 'h264_metadata=colour_primaries=1:transfer_characteristics=1:matrix_coefficients=1'];
     }
@@ -813,6 +822,8 @@ try {
       const tags = [v.color_primaries, v.color_transfer, v.color_space];
       if (!gif && tags.some((x) => x !== 'bt709')) bad.push(`colour tagged ${tags.join('/')}, not bt709`);
       if (ALPHA && !hasAlpha(v)) bad.push(`no alpha in it (${v.pix_fmt})`);
+      // the pixel format the settings ask for: 4:2:0 for H.264 (what every player takes), 4:4:4 for CHROMA=444
+      if (ext === '.mp4' && process.env.HEVC !== '1' && v.pix_fmt !== (CHROMA444 ? 'yuv444p' : 'yuv420p')) bad.push(`${v.pix_fmt}, not ${CHROMA444 ? 'yuv444p (CHROMA=444)' : 'yuv420p'}`);
     }
     if (!(Math.abs(got.duration - len) <= 1 / outFps + 0.02)) bad.push(`${got.duration} s long, not ${len}`);
     if (withAudio && !got.streams.some((s) => s.codec_type === 'audio')) bad.push('no sound in it, though AUDIO was given');
@@ -824,7 +835,7 @@ try {
       if (Number(/YMIN=(\d+)/.exec(a.stdout)?.[1]) === 255) console.log('warning: ALPHA=1, but its first frame is opaque all over: does the page draw its backdrop? (#look=transparent draws none)');
     }
     if (bad.length) throw new Error(`${out} is not what was asked: ${bad.join('; ')}. The chunks are kept in ${segDir}; if one of them is at fault, RESUME=1 would reuse it: render again without it`);
-    console.log(`checked: ${v.width}x${v.height}, ${n} frames, ${got.duration.toFixed(2)} s${gif ? '' : ', BT.709'}${ALPHA ? ', with alpha' : ''}${withAudio ? ', with sound' : ''}`);
+    console.log(`checked: ${v.width}x${v.height}, ${n} frames, ${got.duration.toFixed(2)} s${gif ? '' : ', BT.709'}${ALPHA ? ', with alpha' : ''}${withAudio ? ', with sound' : ''}${CHROMA444 ? ', 4:4:4 (a master: QuickTime and Safari will not play it)' : ''}`);
     if (process.env.KEEP !== '1') rmSync(segDir, { recursive: true, force: true });
     console.log(`done in ${((Date.now() - started) / 1000).toFixed(0)}s → ${out}${reused ? ` (${reused} of ${chunks.length} chunks reused)` : ''}`);
     if (heat.peak != null) console.log(`heat: peak ${heat.peak} ${thermo.unit}, workers held ${(heat.held / 1000).toFixed(0)}s`);
