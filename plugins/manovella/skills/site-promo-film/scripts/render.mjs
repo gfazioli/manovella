@@ -3,7 +3,8 @@
 //   node render.mjs stills <outdir> t1 t2 …        one PNG per time, in seconds
 //   node render.mjs sheet <outdir> [n]             stills at the page's checkpoints (PROMO_META.checkpoints,
 //                                                  e.g. a timeline's: each scene settled, each transition
-//                                                  half way), or n even times; writes labels.json for contact.mjs
+//                                                  half way), or n even times, and the busiest frame between each
+//                                                  two of them (MOTION=0: without); writes labels.json for contact.mjs
 //   node render.mjs looks <outdir> <t> [preset…]   frame t once per fx.js look preset, for choosing
 //   node render.mjs loopcheck                      frame 0 against the last subframe (PSNR must be inf)
 //   node render.mjs video <out> [workers]          SUB subframes per frame, blended with tmix
@@ -171,6 +172,60 @@ function linuxThermometer() {
   if (!files.length) return null;
   return { unit: '°C', read: async () => { const t = files.map((f) => Number(text(f)) / 1000).filter((x) => x > 0 && x < 150); return t.length ? Math.max(...t) : null; } };
 }
+/** The thermal governor: `heat.hot` is true while the chip is above TEMP_MAX (workers hold between frames
+ *  until it is 8 degrees cooler); `heat.stop()` ends it. Says what it found, with the worker count. */
+function startHeat(workers) {
+  const TMAX = Number(process.env.TEMP_MAX ?? 80), thermo = TMAX > 0 ? thermometer() : null;
+  const heat = { hot: false, now: null, peak: null, held: 0, since: 0, unit: thermo?.unit, stop() {} };
+  if (thermo) {
+    const limit = thermo.unit === '°C' ? TMAX : 2, back = thermo.unit === '°C' ? TMAX - 8 : 1;
+    const tick = async () => {
+      const v = await thermo.read();
+      if (v == null) return;
+      heat.now = v; heat.peak = Math.max(heat.peak ?? v, v);
+      if (!heat.hot && v >= limit) { heat.hot = true; heat.since = Date.now(); console.log(`heat: ${v} ${thermo.unit} >= ${limit}, workers holding`); }
+      else if (heat.hot && v <= back) { heat.hot = false; heat.held += Date.now() - heat.since; console.log(`heat: ${v} ${thermo.unit}, resuming`); }
+    };
+    const first = tick();
+    const governor = setInterval(tick, 2000).unref(); // unref: a render that throws still exits
+    heat.stop = () => { clearInterval(governor); if (heat.hot) heat.held += Date.now() - heat.since; };
+    heat.ready = first.then(() => console.log(`${workers} workers, QoS ${process.env.FILM_QOS || 'default'}, governor at ${limit} ${thermo.unit}${heat.now != null ? ` (now ${heat.now})` : ''}`));
+  } else console.log(`${workers} workers, QoS ${process.env.FILM_QOS || 'default'}, no thermal governor${TMAX > 0 ? ' (no thermometer here)' : ''}`);
+  return heat;
+}
+const workersDefault = () => Math.max(2, Math.round(cpus().length / 3));
+/** The moments in motion. A still at each checkpoint shows the film at rest; what crosses what happens between
+ *  them. Between each two checkpoints (and the film's ends) two frames, by the speeds above (frame k of the range
+ *  from F0: its time is (F0 + k) / fps): the one that moves fastest, and the last one still moving at half that
+ *  speed. A spring is fastest early and arrives slowly, and a shape converging onto another meets it on the way
+ *  in: the first frame alone shows the move, the second shows what it lands on. Neither counts when the peak is
+ *  not a move (under MOVE, default 1), nor within 0.15 s of a checkpoint (which shows it already) or 0.1 s of each
+ *  other. The page declares nothing. */
+function motionMoments(speeds, F0, fps, times, dur, labels = []) {
+  const MOVE = Number(process.env.MOVE || 1), NEAR = 0.15;
+  const marks = times.map((t, i) => [t, labels[i] || '']).sort((a, b) => a[0] - b[0]);
+  const edges = [[0, 'the start'], ...marks, [dur, 'the end']];
+  const out = [];
+  for (let i = 0; i + 1 < edges.length; i++) {
+    const inside = [];
+    for (let k = 0; k < speeds.length; k++) {
+      const t = (F0 + k) / fps;
+      if (t > edges[i][0] + NEAR && t < edges[i + 1][0] - NEAR) inside.push([k, t]);
+    }
+    if (!inside.length) continue;
+    const [pk, pt] = inside.reduce((a, b) => (speeds[b[0]] > speeds[a[0]] ? b : a));
+    if (speeds[pk] < MOVE) continue;
+    const span = `${edges[i][1] || 'rest'} → ${edges[i + 1][1] || 'rest'}`;
+    out.push({ t: +pt.toFixed(3), speed: speeds[pk], label: `in motion, speed ${speeds[pk].toFixed(1)}, ${span}` });
+    const late = inside.filter(([k, t]) => t > pt && speeds[k] >= speeds[pk] / 2).at(-1);
+    if (late && late[1] - pt >= 0.1) out.push({ t: +late[1].toFixed(3), speed: speeds[late[0]], label: `slowing, speed ${speeds[late[0]].toFixed(1)}, ${span}` });
+  }
+  return out;
+}
+/** PSNR of two PNG files, ffmpeg's own words for it ('average:inf' when they are the same). */
+const psnrOf = async (a, b) => ((await ffmpeg(['-hide_banner', '-i', a, '-i', b,
+  '-filter_complex', '[0]format=gbrp[a];[1]format=gbrp[b];[a][b]psnr', '-f', 'null', '-'],
+{ stdio: ['ignore', 'ignore', 'pipe'], anyExit: true })).match(/average:\S+/) || ['no psnr line'])[0];
 const url = (extra) => {
   const h = [PAGE_HASH, extra].filter(Boolean).join('&');
   return pathToFileURL(PAGE).href + (h ? '#' + h : ''); // 'file://' + a Windows path is no address
@@ -297,12 +352,12 @@ function lockCut(file, cut) {
   }
   throw busy();
 }
-// The frames that move fast, one '1' or '0' a frame from F0. Each frame is captured once at a quarter of its
+// How fast each frame moves, from F0: the mean difference to the next one (0-255). Each frame is captured once at a quarter of its
 // size, without jitter or grain, on `pages` pages of the first browser at once, and ffmpeg gives
 // the mean absolute difference (0-255) between it and the next frame: the speed across the interval
 // its subframes span. Measured on reel.html against 16 and 48 subframes (no jitter, no grain,
 // lossless): the two part below 52 dB PSNR from a speed of about 6, and agree to 61-68 dB under 2.
-async function fastFrames(browser, meta, F0, F1, pages, heat) {
+async function frameSpeeds(browser, meta, F0, F1, pages, heat) {
   const n = F1 - F0, per = Math.ceil(n / pages), clip = { x: 0, y: 0, width: meta.width, height: meta.height, scale: 0.25 };
   const parts = await Promise.all(Array.from({ length: Math.ceil(n / per) }, async (_, i) => {
     const a = F0 + i * per, b = Math.min(F1, a + per);
@@ -324,7 +379,11 @@ async function fastFrames(browser, meta, F0, F1, pages, heat) {
   }));
   const v = parts.flat();
   if (v.length !== n) throw new Error(`measuring how fast the frames move: ${v.length} speeds for ${n} frames`);
-  // fast: above FAST, or beside a frame that is (a move starts and stops between two captures)
+  return v;
+}
+// Which of them are fast: above FAST, or beside a frame that is (a move starts and stops between two captures)
+async function fastFrames(browser, meta, F0, F1, pages, heat) {
+  const v = await frameSpeeds(browser, meta, F0, F1, pages, heat);
   return v.map((x, i) => +(x > FAST || v[i - 1] > FAST || v[i + 1] > FAST)).join('');
 }
 // a soundtrack's loudness: loudnorm's first pass on the stretch the film uses, and the second pass's
@@ -483,16 +542,25 @@ try {
     const n = Number(nArg || 12);
     const points = META.checkpoints?.length && !nArg ? META.checkpoints
       : Array.from({ length: n }, (_, i) => ({ t: +((i + 0.5) * DUR / n).toFixed(2), label: '' }));
+    // the busiest frame between each two checkpoints, which the stills at rest do not show
+    let moments = [];
+    if (process.env.MOTION !== '0') {
+      const workers = workersDefault(), heat = startHeat(workers);
+      await heat.ready;
+      const speeds = await frameSpeeds(browser, META, 0, Math.round(FPS * DUR), workers, heat);
+      heat.stop();
+      moments = motionMoments(speeds, 0, FPS, points.map((q) => q.t), DUR, points.map((q) => q.label));
+    }
     mkdirSync(out, { recursive: true });
     const page = await openPage(browser, META);
     const labels = {};
-    for (const { t, label } of points) {
+    for (const { t, label } of [...points, ...moments].sort((a, b) => a.t - b.t)) {
       const k = stillName(t, DUR);
       writeFileSync(join(out, k + '.png'), await shot(page, Number(t)));
       labels[k] = label || '';
     }
     writeFileSync(join(out, 'labels.json'), JSON.stringify(labels, null, 2));
-    console.log(`${points.length} stills → ${out} (then: node contact.mjs ${out} sheet.png 4)`);
+    console.log(`${points.length} stills${moments.length ? ` and ${moments.length} in motion` : ''} → ${out} (then: node contact.mjs ${out} sheet.png 4)`);
   } else if (mode === 'looks') {
     const [out, tArg, ...only] = args;
     if (!out || tArg === undefined) throw new Error('usage: render.mjs looks <outdir> <t> [preset…]');
@@ -523,13 +591,65 @@ try {
       // grain is a new pattern every frame by design; seek leaves it out on request
       for (const [k, t] of Object.entries(cases)) writeFileSync(join(dir, k + '.png'), await shot(page, t, { loopcheck: true }));
       for (const k of ['lastSub', 'lastFrame']) {
-        const out = await ffmpeg(['-hide_banner', '-i', join(dir, 'first.png'), '-i', join(dir, k + '.png'),
-          '-filter_complex', '[0]format=gbrp[a];[1]format=gbrp[b];[a][b]psnr', '-f', 'null', '-'],
-        { stdio: ['ignore', 'ignore', 'pipe'], anyExit: true });
-        console.log(k, (out.match(/average:\S+/) || ['no psnr line'])[0]);
+        console.log(k, await psnrOf(join(dir, 'first.png'), join(dir, k + '.png')));
       }
       rmSync(dir, { recursive: true, force: true });
     }
+  } else if (mode === 'seekcheck') {
+    // Frame k drawn cold, on a page that has drawn nothing but its first frame, against frame k drawn right
+    // after frame k-1 on a page that has been walking the film: a page that carries something from one frame
+    // to the next (a scratch canvas, a cache a frame filled) draws the two differently. Same screenshots as
+    // the render's, no jitter; the grain is a function of the frame, so it is in. Identical is the answer
+    // (inf); SEEK_DB (default 90) leaves room for a rasteriser's last level on a few hundred pixels, and a
+    // carried scratch canvas measured 77.7.
+    const n = Number(args[0] || 12), last = Math.round(FPS * DUR) - 1, limit = Number(process.env.SEEK_DB || 90);
+    const at = (t) => Math.min(last, Math.max(1, Math.round(t * FPS)));
+    const named = [...new Set((META.checkpoints || []).map((c) => at(c.t)))].sort((a, b) => a - b);
+    let frames = named.length > n ? Array.from({ length: n }, (_, i) => named[Math.floor(i * named.length / n)]) : named;
+    for (let i = 0; frames.length < n && i < n; i++) frames.push(at((i + 0.5) * DUR / n));
+    frames = [...new Set(frames)].sort((a, b) => a - b);
+    const dir = join(HERE, '.seekcheck.noindex');
+    mkdirSync(dir, { recursive: true });
+    const warm = await openPage(browser, META);
+    let bad = 0;
+    for (const k of frames) {
+      await shot(warm, (k - 1) / FPS); // frame k-1, whose state the next one may inherit
+      const after = await shot(warm, k / FPS);
+      const fresh = await openPage(browser, META);
+      const cold = await shot(fresh, k / FPS);
+      await fresh.close();
+      let db = Infinity;
+      if (!after.equals(cold)) {
+        writeFileSync(join(dir, `f${k}-after.png`), after); writeFileSync(join(dir, `f${k}-cold.png`), cold);
+        db = Number((await psnrOf(join(dir, `f${k}-cold.png`), join(dir, `f${k}-after.png`))).slice(8));
+        if (db >= limit) { unlinkSync(join(dir, `f${k}-after.png`)); unlinkSync(join(dir, `f${k}-cold.png`)); }
+      }
+      const fail = db < limit;
+      if (fail) bad++;
+      console.log(`${fail ? 'FAIL' : 'ok  '} frame ${String(k).padStart(5)} (${(k / FPS).toFixed(2)} s)  cold against after frame ${k - 1}: PSNR ${db === Infinity ? 'inf' : db.toFixed(1) + ' dB'}${fail ? ` (under ${limit}: pictures in ${dir})` : ''}`);
+    }
+    if (!bad) rmSync(dir, { recursive: true, force: true });
+    console.log(bad ? `${bad} of ${frames.length} frames differ when drawn cold: the page carries state from one frame to the next (SKILL §4's scratch canvas)`
+      : `${frames.length} frames, each the same cold and after the one before it`);
+    if (bad) process.exitCode = 1;
+  } else if (mode === 'speeds') {
+    const FROM = Number(process.env.FROM || 0), TO = Number(process.env.TO || DUR);
+    if (!(FROM >= 0 && TO <= DUR + 1e-9 && TO > FROM)) throw new Error(`FROM/TO must lie within 0..${DUR}`);
+    const F0 = Math.round(FROM * FPS), F1 = Math.round(TO * FPS), workers = Number(process.env.WORKERS || workersDefault());
+    const heat = startHeat(workers);
+    await heat.ready;
+    const speeds = await frameSpeeds(browser, META, F0, F1, workers, heat);
+    heat.stop();
+    const id = basename(PAGE_FILE) + (PAGE_HASH && '#' + PAGE_HASH);
+    const file = resolve(args[0] || join(HERE, '.speeds.noindex', id.replace(/[^\w.-]+/g, '-').slice(0, 60) + '.json'));
+    mkdirSync(dirname(file), { recursive: true });
+    const { checkpoints, holds, moves } = META;
+    // the busiest frames between the page's checkpoints, or between 8 even times where it has none (as layoutcheck.mjs's)
+    const pts = checkpoints?.length ? checkpoints : Array.from({ length: 8 }, (_, i) => ({ t: +((i + 0.5) * DUR / 8).toFixed(2), label: '' }));
+    const moments = motionMoments(speeds, F0, FPS, pts.map((q) => q.t), DUR, pts.map((q) => q.label));
+    writeFileSync(file, JSON.stringify({ page: id, fps: FPS, duration: DUR, F0, F1, speeds: speeds.map((x) => +x.toFixed(4)), checkpoints, holds, moves, holdMax: META.holdMax, pause: META.pause, moments }));
+    console.log(`speeds of ${speeds.length} frames from ${(F0 / FPS).toFixed(2)} s: mean ${(speeds.reduce((a, b) => a + b, 0) / speeds.length).toFixed(2)}, max ${Math.max(...speeds).toFixed(1)}`);
+    console.log(`speeds → ${file}`);
   } else if (mode === 'video') {
     const [outArg, workersArg] = args;
     if (!outArg) throw new Error('usage: render.mjs video <out.mp4|.mov|.webm|.gif> [workers]');
@@ -547,7 +667,7 @@ try {
     mkdirSync(segRoot, { recursive: true });
     lockCut(join(segRoot, cut + '.lock'), cut);
     if (existsSync(join(segRoot, 'manifest.json'))) console.log(`${segRoot} holds the chunks of a render.mjs before 0.18.4, which are not reused: delete them`);
-    const workers = Number(workersArg || process.env.WORKERS || Math.max(2, Math.round(cpus().length / 3)));
+    const workers = Number(workersArg || process.env.WORKERS || workersDefault());
     const FROM = Number(process.env.FROM || 0), TO = Number(process.env.TO || DUR);
     if (!(FROM >= 0 && TO <= DUR + 1e-9 && TO > FROM)) throw new Error(`FROM/TO must lie within 0..${DUR}`);
     const F0 = Math.round(FROM * FPS), F1 = Math.round(TO * FPS), frames = F1 - F0, len = frames / FPS;
@@ -571,23 +691,7 @@ try {
 
     const started = Date.now();
     let done = 0, doneSub = 0, lastLog = 0, since; // since: the workers' start, for the eta
-    // the thermal governor: workers hold between frames while the chip is above TEMP_MAX
-    const TMAX = Number(process.env.TEMP_MAX ?? 80), thermo = TMAX > 0 ? thermometer() : null;
-    const heat = { hot: false, now: null, peak: null, held: 0, since: 0 };
-    let governor = null;
-    if (thermo) {
-      const limit = thermo.unit === '°C' ? TMAX : 2, back = thermo.unit === '°C' ? TMAX - 8 : 1;
-      const tick = async () => {
-        const v = await thermo.read();
-        if (v == null) return;
-        heat.now = v; heat.peak = Math.max(heat.peak ?? v, v);
-        if (!heat.hot && v >= limit) { heat.hot = true; heat.since = Date.now(); console.log(`heat: ${v} ${thermo.unit} >= ${limit}, workers holding`); }
-        else if (heat.hot && v <= back) { heat.hot = false; heat.held += Date.now() - heat.since; console.log(`heat: ${v} ${thermo.unit}, resuming`); }
-      };
-      await tick();
-      governor = setInterval(tick, 2000).unref(); // unref: a render that throws still exits
-      console.log(`${workers} workers, QoS ${process.env.FILM_QOS || 'default'}, governor at ${limit} ${thermo.unit}${heat.now != null ? ` (now ${heat.now})` : ''}`);
-    } else console.log(`${workers} workers, QoS ${process.env.FILM_QOS || 'default'}, no thermal governor${TMAX > 0 ? ' (no thermometer here)' : ''}`);
+    const heat = startHeat(workers); await heat.ready; // the thermal governor: workers hold between frames while the chip is above TEMP_MAX
     if (SUB > 1 && SHUTTER !== 360) console.log(`shutter ${SHUTTER}°: the ${SUB} subframes cover ${+(SHUTTER / 3.6).toFixed(1)}% of each frame`);
     if (PHASE) console.log(`shutter phase ${PHASE}°: it opens ${Math.abs(PHASE / 3.6).toFixed(1)}% of a frame ${PHASE < 0 ? 'before' : 'after'} the frame's moment`);
 
@@ -678,7 +782,7 @@ try {
       if (!force && now - lastLog < 3000) return;
       lastLog = now;
       const el = (now - started) / 1000, eta = doneSub ? (now - since) / 1000 * (needSub - doneSub) / doneSub : 0; // by subframes: a fast frame is SUB_FAST/SUB as long
-      const t = heat.now != null ? `, ${heat.now} ${thermo.unit}${heat.hot ? ' (holding)' : ''}` : '';
+      const t = heat.now != null ? `, ${heat.now} ${heat.unit}${heat.hot ? ' (holding)' : ''}` : '';
       console.log(`${done}/${need} frames${reused ? ` (+${reused} chunks reused)` : ''}, ${el.toFixed(0)}s, eta ${eta.toFixed(0)}s${t}`);
     };
     // A reference frame, drawn here before the workers start: each worker's browser must draw it
@@ -735,7 +839,7 @@ try {
       } finally { await own.close(); }
     }));
     log(true);
-    if (governor) { clearInterval(governor); if (heat.hot) heat.held += Date.now() - heat.since; }
+    heat.stop();
 
     const list = join(segDir, 'list.txt');
     // each chunk's exact length: the concat demuxer otherwise takes the Matroska one, rounded to the
@@ -827,7 +931,7 @@ try {
     console.log(`checked: ${v.width}x${v.height}, ${n} frames, ${got.duration.toFixed(2)} s${gif ? '' : ', BT.709'}${ALPHA ? ', with alpha' : ''}${withAudio ? ', with sound' : ''}`);
     if (process.env.KEEP !== '1') rmSync(segDir, { recursive: true, force: true });
     console.log(`done in ${((Date.now() - started) / 1000).toFixed(0)}s → ${out}${reused ? ` (${reused} of ${chunks.length} chunks reused)` : ''}`);
-    if (heat.peak != null) console.log(`heat: peak ${heat.peak} ${thermo.unit}, workers held ${(heat.held / 1000).toFixed(0)}s`);
+    if (heat.peak != null) console.log(`heat: peak ${heat.peak} ${heat.unit}, workers held ${(heat.held / 1000).toFixed(0)}s`);
     if (chaps.length) {
       console.log('chapters, for a YouTube description (it wants the first at 0:00 and each at least 10 s):');
       for (const c of chaps) console.log(`${clock(c.s)} ${c.title}`);
@@ -836,7 +940,7 @@ try {
     const r = await beatCheck(META, PAGE_BEATS);
     if (r && !r.ok) process.exitCode = 1;
   } else {
-    console.error('usage: render.mjs stills <dir> t… | sheet <dir> [n] | looks <dir> <t> [preset…] | loopcheck | video <out> [workers] | beats');
+    console.error('usage: render.mjs stills <dir> t… | sheet <dir> [n] | looks <dir> <t> [preset…] | loopcheck | seekcheck [n] | speeds [out.json] | video <out> [workers] | beats');
     process.exitCode = 2;
   }
 } finally {
