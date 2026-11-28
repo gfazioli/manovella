@@ -23,7 +23,8 @@ def lin(c):         # an sRGB byte triple as Blender's linear colour
 
 def material(name, rgb, rough, metal=0.0, glow=0.0):
     m = bpy.data.materials.new(name)
-    m.use_nodes = True
+    if m.node_tree is None:   # before Blender 5 a new material had no nodes until asked
+        m.use_nodes = True
     p = m.node_tree.nodes['Principled BSDF']
     p.inputs['Base Color'].default_value = lin(rgb)
     p.inputs['Roughness'].default_value = rough

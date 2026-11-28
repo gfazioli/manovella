@@ -171,20 +171,22 @@ async function runBlender(bl, { file, scripts, args, onSay = () => {} }) {
     const code = await new Promise((res, rej) => {
       const p = spawn(cmd, full, { stdio: ['ignore', 'pipe', 'pipe'] });
       if (!MAC && QOS !== 'default') { try { setPriority(p.pid, osc.priority.PRIORITY_BELOW_NORMAL); } catch { /* not allowed here: normal priority */ } }
-      let part = '';
-      const take = (d) => {
-        part += d;
-        const lines = part.split(/\r?\n/); part = lines.pop();
-        for (const l of lines) {
-          if (l.startsWith('MANOVELLA ')) { try { onSay(JSON.parse(l.slice(10))); } catch { /* not ours after all */ } }
-          else { log += l + '\n'; if (process.env.VERBOSE === '1') console.log(l); }
-        }
+      const take = () => { // a stream's lines, whole: each stream keeps its own unfinished one
+        let part = '';
+        return (d) => {
+          part += d;
+          const lines = part.split(/\r?\n/); part = lines.pop();
+          for (const l of lines) {
+            if (l.startsWith('MANOVELLA ')) { try { onSay(JSON.parse(l.slice(10))); } catch { /* not ours after all */ } }
+            else { log += l + '\n'; if (process.env.VERBOSE === '1') console.log(l); }
+          }
+        };
       };
-      p.stdout.on('data', take); p.stderr.on('data', take);
+      p.stdout.on('data', take()); p.stderr.on('data', take());
       p.on('error', rej); p.on('close', res);
     });
     if (code !== 0 || !existsSync(report)) {
-      const tail = log.trim().split('\n').filter((l) => !/^(Blender \d|Read prefs|Blender quit)/.test(l)).slice(-12).join('\n');
+      const tail = log.trim().split('\n').filter((l) => !/^(Blender \d|Read prefs|Blender quit)|\| INFO|DeprecationWarning|^\s+\w+\.use_nodes = /.test(l)).slice(-12).join('\n');
       throw new Stop(`Blender ${bl.version.join('.')} stopped (exit ${code}):\n${tail}`);
     }
     return JSON.parse(readFileSync(report, 'utf8'));
@@ -297,6 +299,7 @@ async function render(argv) {
     if (!m || (m[2] && Number(m[2]) < Number(m[1]))) throw new Stop(`--frames is a frame or a range, 1-120: ${o.frames}`, 2);
     frames = [Number(m[1]), Number(m[2] ?? m[1])];
   }
+  if (src.blend && o.turntable !== undefined) throw new Stop('--turntable turns a model on the stage made for it; a .blend is rendered with its own animation', 2);
   const turntable = num(o.turntable, src.blend ? 0 : 4, '--turntable');
   if (!frames && o.seconds) {
     if (!fps) throw new Stop('--seconds needs --fps for a .blend (its own rate is only known once it is open): give --frames or --fps', 2);
@@ -371,7 +374,7 @@ async function render(argv) {
   }
   if (heat.hot) heat.held += Date.now() - heat.since;
   const name = basename(out), first = readFileSync(join(out, '0001.png'));
-  const [w, h] = [first.readUInt32BE(16), first.readUInt32BE(20)], alpha = first[25] === 6;
+  const [w, h] = [first.readUInt32BE(16), first.readUInt32BE(20)], alpha = first[25] === 6 && r.transparent; // --opaque: RGBA still, all of it solid
   // the sequence as a classic script, for the page: <script src="<dir>/sequence.js">, then SPACE.sequence('<name>')
   const seq = { name, frames: r.frames, fps: r.fps, width: w, height: h, alpha, shutter: r.shutter, phase, engine: r.engine, samples: r.samples, seed: r.seed, blender: r.blender };
   writeFileSync(join(out, 'sequence.js'), `/* a hero shot rendered by blender.mjs: SPACE.sequence(${JSON.stringify(name)}) draws frame floor(t * fps) of it */\n(window.SPACE_SEQUENCES = window.SPACE_SEQUENCES || {})[${JSON.stringify(name)}] = ${JSON.stringify(seq)};\n`);

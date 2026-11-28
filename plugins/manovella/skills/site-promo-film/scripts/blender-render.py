@@ -104,7 +104,8 @@ def stage(scene, first, fps):
     scene.camera = cam
 
     world = bpy.data.worlds.new('Studio')
-    world.use_nodes = True
+    if world.node_tree is None:   # before Blender 5 a new world had no nodes until asked
+        world.use_nodes = True
     bg = world.node_tree.nodes['Background']
     exr = os.path.join(bpy.utils.system_resource('DATAFILES'), 'studiolights', 'world', 'studio.exr')
     if os.path.exists(exr):

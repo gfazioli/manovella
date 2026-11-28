@@ -81,7 +81,8 @@ def as_pbr(mat):
             elif n.type == 'EMISSION':
                 emit = (list(n.inputs['Color'].default_value), n.inputs['Strength'].default_value)
         mat.node_tree.nodes.clear()
-    mat.use_nodes = True
+    if mat.node_tree is None:
+        mat.use_nodes = True
     nodes, links = mat.node_tree.nodes, mat.node_tree.links
     out, p = nodes.new('ShaderNodeOutputMaterial'), nodes.new('ShaderNodeBsdfPrincipled')
     p.inputs['Base Color'].default_value = col
@@ -101,7 +102,8 @@ def materials(objects):
         if not me.materials or all(m is None for m in me.materials):
             if neutral is None:
                 neutral = bpy.data.materials.new('Neutral')
-                neutral.use_nodes = True
+                if neutral.node_tree is None:
+                    neutral.use_nodes = True
                 b = neutral.node_tree.nodes['Principled BSDF']
                 b.inputs['Base Color'].default_value = (0.6, 0.6, 0.62, 1)
                 b.inputs['Roughness'].default_value = 0.5

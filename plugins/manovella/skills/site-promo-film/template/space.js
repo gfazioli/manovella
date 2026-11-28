@@ -213,6 +213,13 @@
     }
     R.gl.toneMappingExposure = o.exposure ?? 1;
     let height = null; // the default target's: half the first model's height
+    let reach = 1; // the largest model's longest side: the key light and its shadow keep that much in
+    const light = (k) => {
+      reach = k;
+      key.position.set(...rig.keyAt.map((v) => v * k));
+      Object.assign(sc, { left: -1.8 * k, right: 1.8 * k, top: 1.8 * k, bottom: -1.8 * k, near: 0.5 * k, far: 14 * k });
+      sc.updateProjectionMatrix();
+    };
     const aim = (pose) => {
       const yaw = (pose.yaw ?? 0) * RAD, pitch = (pose.pitch ?? 0) * RAD, d = pose.dist ?? 3, t = pose.target || [0, height ?? 0.5, 0];
       camera.fov = pose.fov ?? 30;
@@ -225,10 +232,11 @@
       scene, camera, renderer: R.gl, lights: { key, fill, rim }, floor, rig: name,
       async load(url, lo = {}) {
         const buf = await glbBytes(url);
-        const gltf = await new Promise((ok, ko) => new THREE.GLTFLoader().parse(buf, url.replace(/[^\\/]*$/, ''), ok, (e) => ko(new Error(`space: ${url} is not a model three.js reads: ${e.message || e}`))));
+        const gltf = await new Promise((ok, ko) => new THREE.GLTFLoader().parse(buf, url.replace(/[^\\/]*$/, ''), ok, (e) => ko(new Error(`space: ${url} is not a model this loader reads (${e.message || e}). A GLB compressed with Draco or meshopt needs a decoder the kit does not carry: scripts/blender.mjs prepare writes it plain`))));
         const m = wrapModel(THREE, gltf, lo);
         scene.add(m.object);
         height ??= m.size[1] / 2;
+        if (Math.max(...m.size) > reach) light(Math.max(...m.size)); // a model fitted larger than 1 keeps its whole shadow
         R.gl.compile(scene, camera); // its shaders, before frame 0 rather than inside it
         return m;
       },
