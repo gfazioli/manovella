@@ -1,6 +1,7 @@
 // A captioned contact sheet of a stills folder, or two or three of them side by side.
 //
 //   node contact.mjs <stillsDir> <out.png|out.jpg> [columns] [--size WxH] [--font px] [--gap px] [--pad px] [--dark]
+//   node contact.mjs <stillsDir> <out.png|out.jpg> [columns] --phone [--dark]
 //   node contact.mjs --compare <label>=<dir> <label>=<dir> [<label>=<dir>] <out.png> [--dark]
 //
 // By default the sheet is as tall as its rows make it. --size 1600x1000 makes it exactly that
@@ -13,6 +14,12 @@
 // --dark lays the sheet on #15151b with light captions (#E8E8F0) and a hairline round each still, for a
 // picture shown on a dark page (the README on GitHub's dark theme, the site's navy home); the default is
 // the light sheet (#EFEFF4, dark ink), which suits a contact sheet read in a review.
+// --phone shows each still as a phone does: 390 pt wide (iPhone-class, 9 pt there is 45 px in a 1920-wide film),
+// every still the same width whatever the film's size, four a row unless the columns say otherwise, the sheet
+// drawn at twice that (a retina screen's pixels) so the frame is scaled down as the phone scales it. Most people
+// watch on one, and a vertical cut is made for it: read the sheet at its own size, never zoomed in. A
+// look that holds at full size and not here is what layoutcheck.mjs's size check is for. Not with --size or
+// --compare.
 // Captions come from <stillsDir>/labels.json, keyed by file name without .png
 // ({"t04.00": "What you can use."}); a still is titled by its time, a look (01-aura) by its name.
 // render.mjs sheet writes that file from a timeline's checkpoints.
@@ -46,6 +53,7 @@ async function launchChrome(opts = {}) {
 const raw = process.argv.slice(2), args = [], opts = {};
 for (let i = 0; i < raw.length; i++) {
   if (raw[i] === '--dark') opts.dark = true;
+  else if (raw[i] === '--phone') opts.phone = true;
   else if (['--size', '--font', '--gap', '--pad'].includes(raw[i])) opts[raw[i].slice(2)] = raw[++i];
   else args.push(raw[i]);
 }
@@ -59,6 +67,7 @@ const caption = (f, labels) => {
   const title = /^t\d/.test(k) ? clock(Number(k.slice(1))) : k.replace(/^\d+-/, '');
   return `<b>${esc(title)}</b> ${esc(labels[k] || '')}`;
 };
+const PHONE = 390; // CSS px: a phone's screen width in points, as layoutcheck.mjs takes it
 const STYLE = opts.dark
   ? `body{margin:0;padding:24px;background:#15151b;font:500 15px system-ui;color:#E8E8F0}`
   : `body{margin:0;padding:24px;background:#EFEFF4;font:500 15px system-ui;color:#1A1C24}`;
@@ -66,6 +75,7 @@ const IMG = `figure{margin:0}img{width:100%;display:block;border-radius:8px;box-
 
 /** One folder, `cols` stills a row, each captioned under it. With `fixed` ({ width, height }) the sheet is that size. */
 function grid(dir, cols, o = {}, fixed) {
+  if (opts.phone) return phoneGrid(dir, cols);
   const labels = labelsOf(dir);
   const cells = stills(dir).map((f) => `<figure><img src="${esc(f)}"><figcaption>${caption(f, labels)}</figcaption></figure>`).join('');
   const font = Number(o.font || 15), gap = Number(o.gap || 18), pad = Number(o.pad || 24);
@@ -78,6 +88,17 @@ ${box}
 .g{display:grid;grid-template-columns:repeat(${cols},1fr);gap:${gap}px}
 ${IMG}
 figcaption{padding:7px 2px 0;line-height:1.25}b{margin-right:6px}</style><div class=g>${cells}</div>`;
+}
+
+/** One folder, `cols` stills a row, each as wide as a phone's screen (390 CSS px), captioned in a small type. */
+function phoneGrid(dir, cols) {
+  const labels = labelsOf(dir), cells = stills(dir).map((f) => `<figure><img src="${esc(f)}"><figcaption>${caption(f, labels)}</figcaption></figure>`).join('');
+  return `<!doctype html><meta charset=utf-8><style>
+${STYLE}
+body{padding:20px;font-size:13px}
+.g{display:grid;grid-template-columns:repeat(${cols},${PHONE}px);gap:22px 16px;justify-content:start}
+${IMG}
+img{border-radius:6px}figcaption{padding:6px 2px 0;line-height:1.25}b{margin-right:6px}</style><div class=g>${cells}</div>`;
 }
 
 /** What [{ label, dir }] share by file name, and what one of them lacks. */
@@ -112,12 +133,12 @@ function size(file) {
 }
 
 /** `html`, written into `dir` and screenshot whole into `out`. */
-async function shoot(html, dir, out, fixed) {
+async function shoot(html, dir, out, fixed, scale = 1, width = 1920) {
   const page = join(dir, '.contact.html');
   writeFileSync(page, html);
   const browser = await launchChrome();
   try {
-    const p = await browser.newPage({ viewport: fixed || { width: 1920, height: 400 } }); // without a size, fullPage grows it to the grid
+    const p = await browser.newPage({ viewport: fixed || { width, height: 400 }, deviceScaleFactor: scale }); // without a size, fullPage grows it to the grid
     await p.goto(pathToFileURL(page).href, { waitUntil: 'load' });
     const type = /\.jpe?g$/i.test(out) ? { type: 'jpeg', quality: 92 } : {};
     if (fixed) {
@@ -145,6 +166,7 @@ const die = (message) => { console.error(message); process.exit(2); };
 
 if (args[0] === '--compare') {
   if (['size', 'font', 'gap', 'pad'].some((k) => k in opts)) die('--size, --font, --gap and --pad are for one folder, not --compare');
+  if (opts.phone) die('--phone is for one folder, not --compare');
   const out = args.length > 1 ? resolve(args.at(-1)) : null, pairs = args.slice(1, -1);
   if (!out || pairs.length < 2 || pairs.length > 3) die(USAGE_COMPARE);
   const columns = pairs.map((p) => {
@@ -170,6 +192,8 @@ if (args[0] === '--compare') {
   const given = 'size' in opts, [, w, h] = /^(\d+)x(\d+)$/.exec(opts.size || '') || [];
   if (given && !(w > 0 && h > 0)) die(`--size is WxH, in whole px: ${opts.size}`);
   const fixed = given ? { width: +w, height: +h } : null;
-  await shoot(grid(dir, Number(colsArg || 3), opts, fixed), dir, out, fixed);
+  if (opts.phone && (given || ['font', 'gap', 'pad'].some((k) => k in opts))) die('--phone sets its own size, type and gaps: not with --size, --font, --gap or --pad');
+  const cols = Number(colsArg || (opts.phone ? 4 : 3));
+  await shoot(grid(dir, cols, opts, fixed), dir, out, fixed, opts.phone ? 2 : 1, opts.phone ? cols * PHONE + (cols - 1) * 16 + 40 : 1920);
   if (!process.exitCode) console.log('contact sheet →', out);
 }
