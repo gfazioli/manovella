@@ -1,6 +1,7 @@
 # The engine and the Studio off the maintainer's Mac: deliver.mjs's selftest, the Studio's selftest
-# (headless Chrome, every step of the wizard) and the shortest render there is (PREVIEW, half a
-# second), on Linux and on Windows. GitHub's runners carry Google Chrome; ffmpeg comes from the system's
+# (headless Chrome, every step of the wizard), one still of the 3D demo (three.js, drawn in software:
+# the runners have no GPU) and the shortest render there is (PREVIEW, half a second), on Linux and on
+# Windows. blender.mjs runs the checks that need no Blender: the runners have none. GitHub's runners carry Google Chrome; ffmpeg comes from the system's
 # packages (apt, Chocolatey). The film folder sits under the one playwright-core is installed in, so
 # render.mjs finds it by Node's own lookup, with no link (Windows makes none without privileges).
 name: Engine
@@ -65,6 +66,17 @@ jobs:
           S="$RUNNER_TEMP/story" && mkdir -p "$S" && cp "$SKILL"/scripts/voice.mjs "$SKILL"/scripts/narrate.mjs "$SKILL"/scripts/voice-torch.py "$S"/
           printf '%s' '{"mlx":{"model":"kokoro","voice":"af_heart"},"steps":[{"say":"Open Acme from the menu bar."},{"say":"Pick a project, and the film begins."}]}' > "$S/story.json"
           cd "$S" && node voice.mjs story.json && ffprobe -v error -show_entries format=duration -of csv=p=0 narration.wav
+      - name: blender.mjs (no Blender here: the checks that need none, and the rest skipped)
+        run: node "$SKILL/scripts/blender.mjs" --selftest
+      - name: A 3D still, drawn by three.js in software (no GPU here), and how long it takes
+        run: |
+          W="$RUNNER_TEMP/pw/film3d/src" && mkdir -p "$W" "$RUNNER_TEMP/shots"
+          cp -R "$SKILL"/template/space.html "$SKILL"/template/space.js "$SKILL"/template/film.js "$SKILL"/template/fx.js "$SKILL"/template/type.js "$SKILL"/template/three "$SKILL"/template/models "$SKILL"/scripts/render.mjs "$W"/
+          cd "$W" && time PAGE=space.html node render.mjs stills stills 3.25 && time PAGE=space.html node render.mjs loopcheck
+          cp stills/t03.25.png "$RUNNER_TEMP/shots/space-3d.png"
+          # the model is in the picture: its dark band, where the backdrop alone is light
+          Y=$(ffmpeg -v error -i stills/t03.25.png -vf "crop=240:80:1240:520,signalstats,metadata=print:key=lavfi.signalstats.YAVG:file=-" -f null - | sed -n 's/.*YAVG=//p')
+          echo "the band's mean luma: $Y" && awk -v y="$Y" 'BEGIN { exit !(y > 0 && y < 110) }'
       - name: Half a second of the demo, rendered
         run: |
           W="$RUNNER_TEMP/pw/film/src" && mkdir -p "$W"
@@ -112,6 +124,17 @@ jobs:
         env:
           STUDIO_TEST_IDLE: 240000
         run: node "$SKILL/studio/selftest.mjs" --roots "$GITHUB_WORKSPACE/.." --shots "$RUNNER_TEMP/shots"
+      - name: blender.mjs (no Blender here: the checks that need none, and the rest skipped)
+        run: node "$SKILL/scripts/blender.mjs" --selftest
+      - name: A 3D still, drawn by three.js in software (no GPU here), and how long it takes
+        run: |
+          W="$RUNNER_TEMP/pw/film3d/src" && mkdir -p "$W" "$RUNNER_TEMP/shots"
+          cp -R "$SKILL"/template/space.html "$SKILL"/template/space.js "$SKILL"/template/film.js "$SKILL"/template/fx.js "$SKILL"/template/type.js "$SKILL"/template/three "$SKILL"/template/models "$SKILL"/scripts/render.mjs "$W"/
+          cd "$W" && time PAGE=space.html node render.mjs stills stills 3.25 && time PAGE=space.html node render.mjs loopcheck
+          cp stills/t03.25.png "$RUNNER_TEMP/shots/space-3d.png"
+          # the model is in the picture: its dark band, where the backdrop alone is light
+          Y=$(ffmpeg -v error -i stills/t03.25.png -vf "crop=240:80:1240:520,signalstats,metadata=print:key=lavfi.signalstats.YAVG:file=-" -f null - | sed -n 's/.*YAVG=//p')
+          echo "the band's mean luma: $Y" && awk -v y="$Y" 'BEGIN { exit !(y > 0 && y < 110) }'
       - name: Half a second of the demo, rendered
         run: |
           W="$RUNNER_TEMP/pw/film/src" && mkdir -p "$W"
