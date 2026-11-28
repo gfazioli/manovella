@@ -386,7 +386,7 @@ const promo = await wizard('promo', async ({ page, idle, shot }) => {
       if (s.voicePreset && !S.voicePresets.some((p) => p.id === s.voicePreset)) out.push(`recipe ${r.id}: voice preset ${s.voicePreset}`);
     }
     for (const p of S.voicePresets) for (const [k, v] of Object.entries(p.set)) if (!has(k, v)) out.push(`voice preset ${p.id}: ${k} ${v}`);
-    for (const f of S.formats) if (f.stage && f.stage !== 'none' && !S.frames.some((x) => x.stage === f.stage)) out.push(`format ${f.id}: a stage the stand-in cannot draw (${f.stage}), so it would fall back to the window`); // stage.html, ui=: words alone, or one of the frames' (each checked to be drawn as itself)
+    for (const f of S.formats) if (f.stage && f.stage !== 'none' && f.stage !== 'object' && !S.frames.some((x) => x.stage === f.stage)) out.push(`format ${f.id}: a stage the stand-in cannot draw (${f.stage}), so it would fall back to the window`); // stage.html, ui=: words alone, or one of the frames' (each checked to be drawn as itself)
     return out;
   });
   check(drift.length === 0, `the schema and the engine name the same looks, styles, marks and transitions, and every recipe is made of them ${drift.join('; ')}`);
@@ -541,6 +541,24 @@ const promo = await wizard('promo', async ({ page, idle, shot }) => {
   const web = await stand();
   await page.click('#steps li[data-step=format] button'); await openFold(page, 'formats'); await fmtCard('Browser walkthrough'); await fmtCard('Bento'); await fmtCard('Terminal'); await page.click('#next'); await idle();
   check(web?.ui === 'browser', `promo: a Browser walkthrough first, its looks are shown in the browser (${JSON.stringify(web)})`);
+  // a Product in 3D first: the stand-in is a 3D model, drawn by three.js (space.js) where the window would be. What
+  // the stage says it drew, what drew it, and the model's share of its box against the backdrop's own colour
+  await page.click('#steps li[data-step=format] button'); await openFold(page, 'formats'); await fmtCard('Bento'); await fmtCard('Terminal'); await fmtCard('Product in 3D'); await page.click('#next'); await idle();
+  const solid = await page.evaluate(() => {
+    const n = (x) => +(new URL(x.contentWindow.location.href).searchParams.get('n') || 0);
+    const f = [...document.querySelectorAll('#liveA, #liveB')].filter((x) => x.contentWindow?.location.pathname.endsWith('/stage.html')).sort((a, b) => n(b) - n(a))[0];
+    if (!f) return null;
+    const w = f.contentWindow, M = w.PROMO_META, small = document.createElement('canvas'), g = small.getContext('2d', { willReadFrequently: true });
+    w.seek(3.95);
+    const [bx, by, bw, bh] = M.box;
+    small.width = small.height = 24; g.drawImage(w.document.querySelector('canvas'), bx, by, bw, bh, 0, 0, 24, 24);
+    const d = g.getImageData(0, 0, 24, 24).data, far = (i) => Math.abs(d[i] - d[0]) + Math.abs(d[i + 1] - d[1]) + Math.abs(d[i + 2] - d[2]) > 60;
+    let there = 0;
+    for (let i = 0; i < d.length; i += 4) if (far(i)) there++;
+    return { ui: M.product, there: +(there / 576).toFixed(2), by: w.SPACE ? w.SPACE.gpu() : null };
+  });
+  await page.click('#steps li[data-step=format] button'); await openFold(page, 'formats'); await fmtCard('Product in 3D'); await fmtCard('Bento'); await fmtCard('Terminal'); await page.click('#next'); await idle();
+  check(solid?.ui === 'object' && solid.there > 0.15 && !!solid.by, `promo: a Product in 3D first, its looks are shown on a 3D model, drawn in its box (${JSON.stringify(solid)})`);
   check(term?.ui === 'terminal' && term.dark > 0.12 && words?.ui === 'none' && win?.ui === 'window' && win.dark < 0.05, `promo: the looks are shown on the first format's shape: a terminal, the headline alone, else the window (${JSON.stringify({ term, words, win })})`);
   // the film's own device, for the rest of the wizard and the brief: a MacBook
   await page.click('#steps li[data-step=format] button'); await idle();

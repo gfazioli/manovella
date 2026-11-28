@@ -15,6 +15,12 @@ canvas{display:block}
 <script src="../template/parts.js"></script>
 <script src="../template/type.js"></script>
 <script>
+// ui=object: a 3D model stands in. three.js, space.js and the sample model are loaded for it alone
+if (new URLSearchParams(location.hash.slice(1)).get('ui') === 'object') {
+  for (const src of ['three/three.min.js', 'space.js', 'models/acme.glb.js']) document.write(`<script src="../template/${src}"><\/script>`);
+}
+</script>
+<script>
 'use strict';
 /*
  * The Studio's stage: a stand-in product on the real engine, so a choice is judged with something on
@@ -48,6 +54,9 @@ canvas{display:block}
  *   ui=browser   a web page in a browser: its own header and links, Publish beside the heading
  *   ui=bare      the UI on its own, no window and no device round it: a floating panel (the Studio's "Just the UI")
  *   ui=terminal  a terminal instead, a command typed and answered, then a second one: no cursor
+ *   ui=object    a physical product as a 3D model (space.js, the kit's Acme Pod): it turns once, its dial turns
+ *                where the click would be, lit by the rig the look's tone asks for; no cursor. A tutorial, which
+ *                is told on a UI, draws the window instead
  *   ui=none      no product at all: the headline alone, larger, in the middle (a film of words, kinetic type;
  *                a tutorial is told on a product, and draws the window instead)
  * A promo that speaks (say=1) has its subtitle low on the frame: the product, whichever it is, ends above it.
@@ -139,10 +148,10 @@ const U = Math.min(W, H) / 1080; // world units per 1080p pixel of the short sid
 // Studio's selftest checks that each is drawn as itself and touched as the schema says (META.product, META.touch).
 const PRODUCTS = {
   window: { draw: drawWindow }, macbook: { draw: drawMac, device: true }, imac: { draw: drawMac, device: true },
-  iphone: { draw: drawPhone, touch: true, device: true }, ipad: { draw: drawPad, touch: true, device: true }, browser: { draw: drawBrowser }, bare: { draw: drawBare }, terminal: { draw: drawTerminal }, none: {},
+  iphone: { draw: drawPhone, touch: true, device: true }, ipad: { draw: drawPad, touch: true, device: true }, browser: { draw: drawBrowser }, bare: { draw: drawBare }, terminal: { draw: drawTerminal }, object: { draw: drawObject }, none: {},
 };
-const ASKED = HASH.get('ui'); // a tutorial is told on a product: never on words alone
-const PRODUCT = Object.hasOwn(PRODUCTS, ASKED) && !(MODE === 'tutorial' && ASKED === 'none') ? ASKED : 'window';
+const ASKED = HASH.get('ui'); // a tutorial is told on a product's UI: never on words alone, nor on an object
+const PRODUCT = Object.hasOwn(PRODUCTS, ASKED) && !(MODE === 'tutorial' && (ASKED === 'none' || ASKED === 'object')) ? ASKED : 'window';
 const { touch: TOUCH = false, device: DEVICE = false } = PRODUCTS[PRODUCT];
 META.product = PRODUCT; META.touch = TOUCH;
 // BOX: the product's own extent in the world, its frame included: what arrives and leaves, what a cut opens from,
@@ -584,6 +593,18 @@ function drawTerminal(t, still) {
     if (caret && !still) { ctx.fillStyle = rgba(TERM_INK.ink, 0.85); ctx.fillRect(x + 2, y(out.length - 1) - size * 0.55, size * 0.55, size * 1.1); }
   });
 }
+// ui=object: the model through space.js, where the box is. The 3D layer is a frame of its own, laid on the pixel
+// grid, so the camera's zoom and the arrival are read off the context and given to the 3D camera: nearer for a
+// zoom, the picture shifted to the box's middle. It turns once and is at rest again; its dial turns at the first click's time.
+let SHOT = null, POD = null;
+function drawObject(t, still) {
+  const m = ctx.getTransform(), k = Math.hypot(m.a, m.b), cx = BOX.x + BOX.w / 2, cy = BOX.y + BOX.h / 2;
+  const live = !(still || CLOSE);
+  POD.turn(live ? 360 * spr(t, 0.9, 0.45, 1) : 0);
+  POD.pose('Dial', live ? t - CLICK1 : 0);
+  SHOT.draw(ctx, { yaw: 28, pitch: 15, fov: 30, dist: H / (0.536 * 0.8 * BOX.w * k) }, // 0.536: the frame's height at one unit away, at this field of view
+    { shift: [m.a * cx + m.c * cy + m.e - W / 2, m.b * cx + m.d * cy + m.f - H / 2] });
+}
 /** The stand-in, arriving, at rest or leaving; still: settled and staying, nothing clicked (a cut's two ends). */
 function drawProduct(t, still) {
   const draw = PRODUCTS[PRODUCT].draw;
@@ -641,6 +662,10 @@ const SAID = {
   en: ['Meet your product: everything in one place.', `Publish in one ${TOUCH ? 'tap' : 'click'}, from anywhere.`, 'Live on your site, the moment you want it.'],
   it: ['Ecco il tuo prodotto: tutto in un posto.', `Pubblica con un ${TOUCH ? 'tocco' : 'clic'}, da dove vuoi.`, 'Online sul tuo sito, quando vuoi.'],
 };
+if (PRODUCT === 'object') Object.assign(SAID, { // an object is not clicked: what a voice would say of one
+  en: ['Meet your product: made to be picked up.', 'One dial, and it is set.', 'On your desk, the moment you want it.'],
+  it: ['Ecco il tuo prodotto: fatto per essere preso in mano.', 'Una ghiera, ed è impostato.', 'Sulla tua scrivania, quando vuoi.'],
+});
 const VOICED = (SAID[(HASH.get('lang') || 'en').slice(0, 2)] || SAID.en).map((say, i) => { const [t0, t1] = [[0.7, 2.7], [3.0, 4.9], [5.15, 6.75]][i]; return { t0, t1, lines: [say] }; });
 const STORY = (TOLD[(HASH.get('lang') || 'en').slice(0, 2)] || TOLD.en).map(([title, say], i) => { const [t0, t1] = [[0.5, 2.75], [3.0, 5.05], [5.25, 6.9]][i]; return { title, t0, t1, lines: [say] }; });
 // a tutorial's camera is on the product: there is no headline to share the frame with. A window as near as it
@@ -772,6 +797,11 @@ window.ready = (async () => {
   await loadType();
   fitHead();
   await LOOK.ready;
+  if (PRODUCT === 'object') { // the model, lit for the look's tone, in the accent: ready before the first frame
+    SHOT = SPACE.shot({ W, H, rig: 'auto', tone: LOOK.tone, accent: C.accent });
+    POD = await SHOT.load('../template/models/acme.glb');
+    POD.tint('Accent', C.accent);
+  }
   if (MODE === 'trans') buildTrans();
   // a style's still is a third of the way in, where one style differs most from another; swap's is mid-change
   else if (MODE === 'text') {

@@ -1,5 +1,5 @@
 {
-  "$comment": "The Studio's single source of truth: the wizard renders its controls from `fields`, offers `recipes` as starting points, shows `formats` (a format's `stage` is what the stand-in product is in the other previews: one of the frames' stages, `none` for words alone, else a window), `frames` (what the product is shown in, when the user chooses it: the brief's `frame`, null for each format's own; a frame's `stage` is what stage.html draws for it, `ui=`, `says` how the request line puts it, `touch` that taps take the place of clicks), `looks`, `typesets`, `motion`, `picture` and `voices` as pickers, and `voicePresets` as a voice and its reading set at once. studio.mjs validates a brief against it, and the skills read the brief it writes (site-promo-film SKILL.md, Studio). Adding an option here adds it to the wizard; a look, a style or a transition must exist in fx.js, type.js or film.js too.",
+  "$comment": "The Studio's single source of truth: the wizard renders its controls from `fields`, offers `recipes` as starting points, shows `formats` (a format's `stage` is what the stand-in product is in the other previews: one of the frames' stages, `none` for words alone, `object` for a 3D model, else a window), `frames` (what the product is shown in, when the user chooses it: the brief's `frame`, null for each format's own; a frame's `stage` is what stage.html draws for it, `ui=`, `says` how the request line puts it, `touch` that taps take the place of clicks), `looks`, `typesets`, `motion`, `picture` and `voices` as pickers, and `voicePresets` as a voice and its reading set at once. studio.mjs validates a brief against it, and the skills read the brief it writes (site-promo-film SKILL.md, Studio). Adding an option here adds it to the wizard; a look, a style or a transition must exist in fx.js, type.js or film.js too.",
   "version": 3,
   "fields": {
     "kind": {
@@ -852,6 +852,20 @@
         "page": "template/reel.html",
         "chapter": "Everywhere"
       }
+    },
+    {
+      "id": "object",
+      "label": "Product in 3D",
+      "about": "A physical product as a 3D model: it turns, the camera orbits it, a part of it moves.",
+      "fits": "hardware, packaging, a hero object",
+      "stage": "object",
+      "preview": {
+        "page": "template/space.html",
+        "from": 0,
+        "to": 8,
+        "thumb": 3.25
+      },
+      "demo": "the kit's sample model, the Acme Pod; the film shows your product's own model"
     },
     {
       "id": "zoom",
