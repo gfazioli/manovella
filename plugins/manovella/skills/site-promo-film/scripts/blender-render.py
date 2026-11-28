@@ -163,14 +163,30 @@ def main():
     r.use_motion_blur = shutter > 0
     r.motion_blur_shutter = shutter / 360
     r.motion_blur_position = A.get('position') or 'START'
-    samples, seed = int(A.get('samples') or 64), int(A.get('seed') or 1)
+    samples, seed, device = int(A.get('samples') or 64), int(A.get('seed') or 1), 'CPU'
     if scene.render.engine == 'CYCLES':
         c = scene.cycles
-        c.device = 'GPU' if A.get('gpu') else 'CPU'
+        c.device = 'CPU'
+        if A.get('gpu'):   # a GPU Cycles can use: with factory settings none is switched on, and 'GPU' alone renders on the CPU
+            prefs = bpy.context.preferences.addons['cycles'].preferences
+            for kind in (['METAL'] if sys.platform == 'darwin' else ['OPTIX', 'CUDA', 'HIP', 'ONEAPI']):
+                try:
+                    prefs.compute_device_type = kind
+                except TypeError:
+                    continue
+                prefs.get_devices()
+                if any(d.type == kind for d in prefs.devices):
+                    for d in prefs.devices:
+                        d.use = d.type == kind
+                    c.device, device = 'GPU', kind
+                    break
+            else:
+                say(note='--gpu: Cycles finds no GPU it can use here: rendered on the CPU')
         c.samples, c.use_adaptive_sampling = samples, False
         c.use_denoising, c.denoiser, c.denoising_use_gpu = True, 'OPENIMAGEDENOISE', False
         c.use_animated_seed = False
     else:
+        device = 'GPU'
         scene.eevee.taa_render_samples = samples
         scene.eevee.motion_blur_steps = 8
     for name, rgb in (A.get('tint') or {}).items():
@@ -212,7 +228,7 @@ def main():
         say(frame=f, seconds=round(took[-1], 2), file=path)
     with open(A['report'], 'w', encoding='utf-8') as fh:
         json.dump({'frames': int(last) - int(first) + 1, 'first': int(first), 'fps': fps, 'size': [r.resolution_x, r.resolution_y],
-                   'engine': scene.render.engine, 'samples': samples, 'seed': seed, 'shutter': shutter,
+                   'engine': scene.render.engine, 'device': device, 'samples': samples, 'seed': seed, 'shutter': shutter,
                    'position': r.motion_blur_position, 'transparent': r.film_transparent,
                    'view': scene.view_settings.view_transform, 'seconds': [round(x, 2) for x in took],
                    'blender': bpy.app.version_string}, fh)

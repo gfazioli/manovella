@@ -39,8 +39,15 @@
 // the engine's own subframes blur it.
 //
 // Reproducible: Cycles on the CPU, a fixed sample count for every pixel, a seed per frame, the denoiser
-// on the CPU. The same frame rendered twice on one machine is the same file (the selftest checks it).
-// EEVEE needs a GPU (and a display server or EGL on Linux); Cycles on the CPU runs anywhere.
+// on the CPU, and no date or render time left in the PNGs. The same frame rendered twice on one machine
+// is the same file (the selftest checks it). What it costs, a 1920x1080 frame of the sample model, 64
+// samples, an M1 Max, 52 °C throughout:
+//   Cycles on the CPU (the default)   133 s, on 3 of 10 cores; runs on any machine
+//   Cycles with --gpu                 13 s after a first frame of 3 minutes (its kernels, built once); two
+//                                     runs differ by a few pixels (94 dB), and by 45 dB from the CPU's
+//   --engine eevee                    0.5 s, on the GPU, the same file twice; it has no shadow catcher, so a
+//                                     model made a stage here casts no shadow on the ground; on Linux it
+//                                     needs a GPU and a display or EGL
 //
 // Cool, like render.mjs: a third of the cores (THREADS=n for another count), macOS's utility QoS
 // (QOS=background | default), below-normal priority elsewhere, and the same thermal governor: the die
@@ -66,7 +73,6 @@ import { readSettings, untilde } from './settings.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const MODELS = ['.blend', '.glb', '.gltf', '.fbx', '.obj', '.stl', '.ply', '.usd', '.usda', '.usdc', '.usdz'];
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 class Stop extends Error { constructor(msg, code = 1) { super(msg); this.code = code; } }
 
 // ---------------------------------------------------------------- Blender, per system
@@ -93,7 +99,7 @@ const INSTALL = MAC ? 'https://www.blender.org/download/ (or `brew install --cas
   : WIN ? 'https://www.blender.org/download/ (or `winget install BlenderFoundation.Blender`)'
     : 'https://www.blender.org/download/ (or `sudo snap install blender --classic`, or your distribution\'s package)';
 /** { bin, version, from } or a Stop with exit 3 that says what is needed. */
-export function findBlender(env = process.env, settings = readSettings()) {
+function findBlender(env = process.env, settings = readSettings()) {
   const named = env.MANOVELLA_BLENDER ? ['MANOVELLA_BLENDER', env.MANOVELLA_BLENDER]
     : typeof settings.blender === 'string' && settings.blender.trim() ? ['"blender" in settings.json', settings.blender.trim()] : null;
   if (named) {
@@ -187,7 +193,7 @@ async function runBlender(bl, { file, scripts, args, onSay = () => {} }) {
 
 // ---------------------------------------------------------------- a GLB, read here
 /** What a GLB holds, from its own JSON: meshes, triangles, materials, animations (name, seconds), textures. */
-export function readGLB(file) {
+function readGLB(file) {
   const b = readFileSync(file);
   if (b.length < 20 || b.readUInt32LE(0) !== 0x46546C67) throw new Stop(`${file} is not a GLB (no glTF header)`);
   const len = b.readUInt32LE(12);
@@ -210,7 +216,7 @@ export function readGLB(file) {
   };
 }
 /** The GLB as a classic script beside it: the page loads it with <script src>, SPACE.load finds it by its file name. */
-export function embed(glb) {
+function embed(glb) {
   const out = glb + '.js', name = basename(glb);
   writeFileSync(out, `/* ${name} for a page opened from disk (file:// fetches nothing): blender.mjs wrote it, SPACE.load('…/${name}') reads it */\n`
     + `(window.SPACE_ASSETS = window.SPACE_ASSETS || {})[${JSON.stringify(name)}] = "${readFileSync(glb).toString('base64')}";\n`);
@@ -351,6 +357,7 @@ async function render(argv) {
       args: { input: src.blend ? null : src.file, out, frames, fps, size, engine, samples: num(o.samples, 64, '--samples'), seed: num(o.seed, 1, '--seed'),
         shutter, position, pose, turntable, tint, opaque: !!o.opaque, gpu: !!o.gpu, resume: !!o.resume, hold },
       onSay: (m) => {
+        if (m.note) console.log(`note: ${m.note}`);
         if (m.frame == null) return;
         done++;
         if (m.file && !m.reused) plainPNG(m.file);
@@ -369,7 +376,7 @@ async function render(argv) {
   const seq = { name, frames: r.frames, fps: r.fps, width: w, height: h, alpha, shutter: r.shutter, phase, engine: r.engine, samples: r.samples, seed: r.seed, blender: r.blender };
   writeFileSync(join(out, 'sequence.js'), `/* a hero shot rendered by blender.mjs: SPACE.sequence(${JSON.stringify(name)}) draws frame floor(t * fps) of it */\n(window.SPACE_SEQUENCES = window.SPACE_SEQUENCES || {})[${JSON.stringify(name)}] = ${JSON.stringify(seq)};\n`);
   const took = r.seconds.length ? r.seconds.reduce((a, b) => a + b, 0) / r.seconds.length : 0;
-  console.log(`${r.frames} frames at ${r.fps} fps (${(r.frames / r.fps).toFixed(2)} s), ${w}x${h}${alpha ? ' with alpha' : ''}, ${r.engine === 'CYCLES' ? `Cycles, ${r.samples} samples, seed ${r.seed}` : `EEVEE, ${r.samples} samples`}, shutter ${r.shutter}° (${r.position.toLowerCase()}) → ${out}`);
+  console.log(`${r.frames} frames at ${r.fps} fps (${(r.frames / r.fps).toFixed(2)} s), ${w}x${h}${alpha ? ' with alpha' : ''}, ${r.engine === 'CYCLES' ? `Cycles on the ${r.device === 'CPU' ? 'CPU' : `GPU (${r.device})`}, ${r.samples} samples, seed ${r.seed}` : `EEVEE, ${r.samples} samples`}, shutter ${r.shutter}° (${r.position.toLowerCase()}) → ${out}`);
   console.log(`  ${took.toFixed(1)} s a frame, ${((Date.now() - started) / 1000).toFixed(0)} s in all${heat.peak != null ? `; heat: peak ${heat.peak} ${thermo.unit}, held ${(heat.held / 1000).toFixed(0)} s` : ''}`);
   console.log(`  in the page: <script src="${name}/sequence.js"></script>, const HERO = await SPACE.sequence('${name}'), HERO.draw(ctx, t, { x, y, w, h })`);
   if (r.shutter && r.fps) console.log(`  its motion blur is Blender's, ${r.shutter}° of a frame: give the film the same (PROMO_META.shutter ${r.shutter}${phase ? `, shutterPhase ${phase}` : ''}) and the same fps`);
