@@ -2,7 +2,9 @@
 // voice.mjs — a story told by a voice model that runs on this Mac, instead of the Mac's own voice.
 //
 //   node voice.mjs story.json [--out <dir>] [--audition <takes>] [--recordings]
-//   node voice.mjs --setup [chatterbox] [orpheus] [kokoro] [<Hugging Face repo> …]     once on each Mac
+//   node voice.mjs --setup [chatterbox] [orpheus] [kokoro] [words] [<Hugging Face repo> …]     once on each Mac
+//   (`words`: the speech-to-text model words.mjs times a voice-over's words with, Whisper base: about 150 MB on MLX,
+//   290 MB through PyTorch; it is not a voice, and --setup words alone makes no voice's Python)
 //
 // Off a Mac (Linux, Windows) the same models run on PyTorch through voice-torch.py, from a Python 3.12:
 // `--setup kokoro` (venv-torch, on the CPU) and `--setup chatterbox orpheus` (venv-large, best on an NVIDIA
@@ -146,6 +148,15 @@ const KNOWN = {
 // text model, which no index serves and so comes from its release, at the version those pins were heard with.
 const SPACY_MODEL = 'https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl';
 const KOKORO = MODELS.kokoro;
+// The speech-to-text model words.mjs times the words with (voice-words.py): Whisper, as MLX conversions that carry their
+// processor files (what mlx-audio loads) and as OpenAI's own for Transformers. base is measured against Kokoro's own
+// word times (words.mjs says how): tiny is 79 MB and 20 ms worse in the median, small is three times base's size
+// for no gain.
+export const WORD_MODELS = {
+  mlx: { tiny: 'mlx-community/whisper-tiny-asr-fp16', base: 'mlx-community/whisper-base-asr-fp16' },
+  torch: { tiny: 'openai/whisper-tiny', base: 'openai/whisper-base' },
+};
+export const WORD_SIZE = { mlx: '150 MB', torch: '290 MB' }; // the default (base)'s download, measured
 const modelOf = (name) => MODELS[name] || name;
 // How freely each model reads, per tone (its sampling temperature); null is the model's own default.
 // Kokoro is not here: its generate takes no temperature.
@@ -235,7 +246,7 @@ function setup(names) {
   }
   const scratch = mkdtempSync(join(tmpdir(), 'film-voice-'));
   try {
-    for (const name of names) {
+    for (const name of names.filter((n) => n !== 'words')) {
       const model = modelOf(name), known = KNOWN[model], wav = join(scratch, 'probe.wav');
       console.log(`${model}: saying one line (a first run downloads the model${known?.size ? `: about ${known.size}` : ''})…`);
       say(model, known?.voice ?? null, [{ out: wav, text: PROBE.text, seed: PROBE.seed }], scratch);
@@ -246,18 +257,34 @@ function setup(names) {
       console.log(`${model}: ${seconds(wav).toFixed(2)} s, sha256 ${sha}\n  ${verdict}`);
     }
   } finally { rmSync(scratch, { recursive: true, force: true }); }
+  if (names.includes('words')) setupWords(py);
   if (!names.length) console.log('no model named: each is downloaded at the first story that uses it (or now: --setup chatterbox orpheus).');
+}
+
+/** The speech-to-text model, downloaded and run once on a second of tone (it hears nothing in it: that it runs is the test). */
+function setupWords(py) {
+  const engine = MLX ? 'mlx' : 'torch', repo = WORD_MODELS[engine].base, scratch = mkdtempSync(join(tmpdir(), 'film-words-'));
+  try {
+    console.log(`${repo}: loading Whisper base through ${MLX ? 'MLX' : 'PyTorch (the CPU)'} (a first run downloads about ${WORD_SIZE[engine]})…`);
+    const wav = join(scratch, 'tone.wav'), spec = join(scratch, 'spec.json');
+    run('ffmpeg', ['-y', '-v', 'error', '-f', 'lavfi', '-i', 'sine=f=440:d=1', '-ac', '1', '-ar', '16000', wav]);
+    writeFileSync(spec, JSON.stringify({ engine, model: repo, out: join(scratch, 'out.json'), lines: [{ wav, lang: 'en', text: '' }] }));
+    const r = spawnSync(py, [join(HERE, 'voice-words.py'), spec], { stdio: ['ignore', 'ignore', 'pipe'], encoding: 'utf8', maxBuffer: 64 << 20, env: { ...process.env, PYTHONUTF8: '1', TQDM_DISABLE: '1' } });
+    if (r.status !== 0) stop(3, `the speech-to-text model did not run (${repo}).\n${String(r.stderr || r.error?.message || '').trim().split('\n').slice(-4).join('\n')}`);
+    console.log(`${repo}: runs. words.mjs times a voice-over's words with it (--model tiny for the smaller one).`);
+  } finally { rmSync(scratch, { recursive: true, force: true }); }
 }
 
 /** Once on each machine without MLX: a Python 3.12 venv with PyTorch (CPU) and Kokoro, then one line said. */
 function setupTorch(names) {
   if (process.platform === 'darwin' && process.arch !== 'arm64') stop(3, 'PyTorch has no build for an Intel Mac since 2.3: there a story is told by `say`, or by recordings (narrate.mjs --from).');
   if (process.env.VOICE_PYTHON) stop(2, `VOICE_PYTHON is set (${process.env.VOICE_PYTHON}): --setup makes ${VENV_TORCH} and ${VENV_LARGE}, which it would not be used from. Unset it, or keep your own Python.`);
-  const unknown = names.filter((n) => !TORCH_REPO[modelOf(n)]);
-  if (unknown.length) stop(2, `${unknown.join(', ')}: not a model voice.mjs knows (kokoro, chatterbox, orpheus).`);
-  const large = names.filter((n) => modelOf(n) !== KOKORO).map(modelOf);
+  const unknown = names.filter((n) => n !== 'words' && !TORCH_REPO[modelOf(n)]);
+  if (unknown.length) stop(2, `${unknown.join(', ')}: not a model voice.mjs knows (kokoro, chatterbox, orpheus, words).`);
+  const large = names.filter((n) => n !== 'words' && modelOf(n) !== KOKORO).map(modelOf);
   if (!names.length || names.some((n) => modelOf(n) === KOKORO)) setupKokoro();
   if (large.length) setupLarge(large);
+  if (names.includes('words')) setupWordsTorch();
 }
 /** A venv at `venv` from a Python kokoro and chatterbox-tts both take: VOICE_SETUP_PYTHON, python3.12…, or Windows' launcher (py -3.12). */
 function makeVenv(venv) {
@@ -330,6 +357,16 @@ function setupLarge(models) {
       console.log(`${TORCH_REPO[model]}: ${seconds(wav).toFixed(2)} s. Hear it: the same voice as on MLX, another take.`);
     }
   } finally { rmSync(scratch, { recursive: true, force: true }); }
+}
+/** The speech-to-text model's Python off MLX: venv-torch (Kokoro's, made here when it is not there) with PyTorch, Transformers and soundfile at Kokoro's pins. */
+function setupWordsTorch() {
+  const py = ensureVenv(VENV_TORCH);
+  const pip = (...a) => spawnSync(py, ['-m', 'pip', 'install', '--quiet', '--disable-pip-version-check', ...a], { stdio: 'inherit' }).status === 0;
+  const pins = pinsFile('voice-constraints-torch.txt');
+  console.log(`PyTorch for the CPU, Transformers and soundfile, into ${VENV_TORCH} (about 1 GB the first time, less where Kokoro is set up already)…`);
+  if (!pip('-c', pins, ...(process.platform === 'darwin' ? [] : ['--extra-index-url', TORCH_INDEX]), 'torch')) stop(3, `pip could not install PyTorch into ${VENV_TORCH}.`);
+  if (!pip('-c', pins, 'transformers', 'soundfile', 'numpy')) stop(3, `pip could not install Transformers into ${VENV_TORCH}.`);
+  setupWords(py);
 }
 function setupKokoro() {
   const py = ensureVenv(VENV_TORCH);

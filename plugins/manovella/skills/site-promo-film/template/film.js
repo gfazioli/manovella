@@ -36,6 +36,8 @@
  *                                        after words and punctuation, the same on every worker
  *   FILM.captions(g, t, cues, opts)      the subtitle of the moment, low on the frame: cues [{ t0, t1, lines }]
  *                                        as scripts/narrate.mjs writes them (NARRATION.cues), for a film that is told
+ *   FILM.word(N, id, 'word', nth)       the film second a word of step `id` starts, from words.mjs's times (NARRATION.steps[i].words);
+ *                                        nth: which one when it is said twice (0, the first). Throws, listing the words, when it is not there
  *   FILM.narrated(N, make, opts)         a timeline's scenes on a narration's clock: one a step, each beginning a
  *                                        moment before its sentence and as long as the voice takes
  *
@@ -768,6 +770,17 @@ void main(){
     return c;
   }
 
+  /** The film second a word of step `id` starts. `query` is the word as written (case, accents and punctuation do not
+   *  matter) or its index in the sentence; `nth` picks the one among repeats. N.steps[i].words comes from words.mjs. */
+  function word(N, id, query, nth = 0) {
+    const step = N.steps.find((s) => s.id === id || s === id);
+    if (!step) throw new Error(`FILM.word: no step "${id}" (${N.steps.map((s) => s.id).join(', ')})`);
+    if (!step.words) throw new Error(`FILM.word: step "${step.id}" has no word times: run words.mjs on the story, then narrate.mjs`);
+    const norm = (x) => String(x).normalize('NFD').replace(/[^\p{L}\p{N}]/gu, '').toLowerCase();
+    const hit = typeof query === 'number' ? step.words[query] : step.words.filter((w) => norm(w.w) === norm(query))[nth];
+    if (!hit) throw new Error(`FILM.word: no word ${JSON.stringify(query)}${typeof query === 'number' ? '' : ` (#${nth})`} in step "${step.id}": ${step.words.map((w) => w.w).join(' ')}`);
+    return hit.t;
+  }
   /** A told film's scenes, for FILM.timeline: one for each step of a narration (narrate.mjs's
    *  NARRATION), on its clock. make(step, i) returns the scene — { draw(g, lt, info), in?, … } — and
    *  this gives it its id, its chapter and its length: scene i begins `ahead` seconds before step i is
@@ -780,7 +793,8 @@ void main(){
     // lead 0 and gap 0 would otherwise start both scenes at 0 and the first would last nothing
     const start = N.steps.map((s, i) => (i ? Math.max(0, s.t - ahead, N.steps[i - 1].t + 0.5 * (s.t - N.steps[i - 1].t)) : 0));
     const scenes = N.steps.map((s, i) => {
-      const sc = make({ ...s, at: s.t - start[i] }, i) || {}, tr = i ? { kind, dur, ...(sc.in || {}) } : null;
+      // step.word('menu') is the second the word starts in this scene's own time, as step.at is the sentence's
+      const sc = make({ ...s, at: s.t - start[i], word: (q, nth) => word(N, s.id, q, nth) - start[i] }, i) || {}, tr = i ? { kind, dur, ...(sc.in || {}) } : null;
       // a transition never longer than the steps it joins leave room for: a step of half a second is still a scene
       if (tr) tr.dur = Math.min(tr.dur, 0.45 * Math.min(start[i] - start[i - 1], (i + 1 < N.steps.length ? start[i + 1] : N.duration) - start[i]));
       return { id: s.id, ...(s.chapter ? { chapter: s.chapter } : {}), ...sc, ...(tr ? { in: tr } : {}) };
@@ -905,7 +919,7 @@ void main(){
     return { draw, duration, scenes, chapters, checkpoints, at };
   }
 
-  const exported = { stage, draw, load, tint, pyramid, trilinear, spr, track, settle, camera, ease5, beats, timeline, selective, knockout, typed, captions, narrated };
+  const exported = { stage, draw, load, tint, pyramid, trilinear, spr, track, settle, camera, ease5, beats, timeline, selective, knockout, typed, captions, word, narrated };
   exported.TRANSITIONS = Object.fromEntries(Object.entries(TRANSITIONS).map(([k, v]) => [k, v[0]]));
   exported.GL_TRANSITIONS = Object.keys(GLT); // the kinds drawn by a shader: one WebGL2 context a page between them
   window.FILM = Object.assign(window.FILM || {}, exported);

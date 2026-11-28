@@ -21,9 +21,11 @@
 //   voice/NN-<id>.aiff    one file a step, kept: a step whose sentence, voice and rate did not change
 //                         is not said again (voice/index.json holds what each file was made from)
 //   narration.wav         all of it on one clock, 48 kHz mono: AUDIO=narration.wav for render.mjs
-//   narration.js          window.NARRATION = { duration, steps: [{ id, t, dur, end, say, chapter, cues }], cues }
+//   narration.js          window.NARRATION = { duration, steps: [{ id, t, dur, end, say, chapter, cues, words? }], cues }
 //                         for the page: scene i starts at steps[i].t and lasts steps[i].end - steps[i].t;
 //                         FILM.captions(ctx, t, NARRATION.cues) draws the subtitle of the moment
+//                         words: [{ w, t, end }] is each word's film second, once words.mjs has heard the recordings
+//                         (it writes words.json; narrate.mjs reads it, or --words <file>): FILM.word(NARRATION, id, 'word')
 //   captions.srt, .vtt    the same subtitles as files, for YouTube and for a player's own track
 //
 // The voice is the Mac's (`say`), or yours. --from <dir> takes one recording a step instead, named
@@ -137,7 +139,7 @@ function twoLines(s, line) { // one line when it fits, else broken at the space 
 }
 
 /** The story on one clock, from each step's measured seconds of voice (0 for a silent step). */
-export function plan(story, seconds) {
+export function plan(story, seconds, words = null) {
   const lead = story.lead ?? 0.6, gap = story.gap ?? 0.5, tail = story.tail ?? 0.8;
   let t = lead;
   const steps = story.steps.map((s, i) => {
@@ -145,7 +147,10 @@ export function plan(story, seconds) {
     const end = t + dur + after;
     const text = shown(s.caption ?? s.say);
     const cues = cuesOf(text, t, t + dur, { linger: Math.min(0.25, after * 0.5) });
-    const step = { id: s.id || `step-${i + 1}`, t: +t.toFixed(3), dur: +dur.toFixed(3), end: +end.toFixed(3), say: shown(s.say) || null, ...(s.chapter ? { chapter: s.chapter } : {}), cues };
+    // words.mjs's: each word's film second, beside the step's own (only for a step whose sentence and recording are the ones heard)
+    const heard = words?.[stepName(s, i)], ws = heard && heard.say === shown(s.say) && Math.abs(heard.dur - dur) < 0.02 ? heard.words : null;
+    const step = { id: s.id || `step-${i + 1}`, t: +t.toFixed(3), dur: +dur.toFixed(3), end: +end.toFixed(3), say: shown(s.say) || null, ...(s.chapter ? { chapter: s.chapter } : {}),
+      ...(ws ? { words: ws.map((w) => ({ w: w.w, t: +(t + w.t0).toFixed(3), end: +(t + w.t1).toFixed(3) })) } : {}), cues };
     t = end;
     return step;
   });
@@ -186,7 +191,7 @@ export function wav(samples, ch = 1) {
 }
 
 function main() {
-  const argv = process.argv.slice(2), valued = ['--out', '--from', '--voice', '--rate'];
+  const argv = process.argv.slice(2), valued = ['--out', '--from', '--voice', '--rate', '--words'];
   const arg = (n) => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : null; };
   const file = argv.find((a, i) => !a.startsWith('--') && !valued.includes(argv[i - 1]));
   if (!file) { console.error('usage: narrate.mjs story.json [--out <dir>] [--from <dir of recordings>] [--voice <name>] [--rate <the rate given to say: 175 is its own, lower is slower>]'); process.exit(2); }
@@ -239,7 +244,13 @@ function main() {
   });
   if (!from) writeFileSync(indexFile, JSON.stringify(index, null, 1) + '\n');
 
-  const N = plan(story, clips.map((c) => (c ? c.length / RATE : 0)));
+  // word times (words.mjs): --words <file>, or the words.json beside the output
+  const wf = arg('--words') ? resolve(arg('--words')) : join(out, 'words.json'), heardWords = existsSync(wf) ? JSON.parse(readFileSync(wf, 'utf8')).steps : null;
+  const N = plan(story, clips.map((c) => (c ? c.length / RATE : 0)), heardWords);
+  if (heardWords) {
+    const stale = story.steps.map((s, i) => [s, i]).filter(([s, i]) => s.say && !N.steps[i].words).map(([, i]) => stepName(story.steps[i], i));
+    console.log(`words: ${N.steps.filter((s) => s.words).length} steps carry word times (${wf})${stale.length ? `; none for ${stale.join(', ')}: its sentence or recording changed since they were heard, run words.mjs again` : ''}`);
+  }
   const track = new Int16Array(Math.ceil(N.duration * RATE));
   clips.forEach((c, i) => {
     if (!c) return;
