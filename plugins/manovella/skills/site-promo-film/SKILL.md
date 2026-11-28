@@ -951,7 +951,7 @@ node render.mjs loopcheck                   # PSNR must be inf
   keep one gain). Under 3 s of sound loudnorm cannot ride anything: such a range gets the one gain
   the peak allows and stays under the target, which the log says too. The log prints the track's loudness and the file's, measured on the file, and
   which of the two it was. `AUDIO_LUFS=-16`
-  for another target, `AUDIO_TP=-3` for a lower true-peak ceiling before the AAC encode (§8, `--for x`), `AUDIO_NORM=0` to keep the track as it is. (Measured: a -8.9 LUFS track came out at -14.6, a -26.7 one at -15.1.) `AUDIO=click` muxes a
+  for another target, `AUDIO_NORM=0` to keep the track as it is. (Measured: a -8.9 LUFS track came out at -14.6, a -26.7 one at -15.1.) `AUDIO=click` muxes a
   metronome on the page's `bpm` instead, never normalized — the way to hear whether the cuts land
   on the beat before any music is chosen. The track is checked before the first frame: a file with no sound in it, or an `AUDIO_AT` past its end, stops the render
   there; a track that ends before the film does, and every second or more under -60 dB in the
@@ -1023,13 +1023,15 @@ node deliver.mjs <delivery> ../<name>.mp4 ../<name>-square.mp4 \
   and `trash` knows which renders left.
 - **A platform's limits** (`--for x`, and `node deliver.mjs check <file> --for x` for a file not
   delivered yet): each limit is measured on the finished file and printed with its number, and one
-  not met stops the delivery with nothing copied, naming the setting that would meet it. X video:
-  H.264 High, `yuv420p`, at most 60 fps, AAC, faststart, -14 LUFS (within 1), true peak at or
-  under -2 dBTP. The peak is the one that fails first: `render.mjs` aims at -1.5 dBTP before the
-  AAC encode, which raised it to -1.8 on a measured file, so a film for X renders with
-  `AUDIO_TP=-3` (-3.1 measured on the file) and `AUDIO_LUFS=-14`. X GIF: at most 15 MB, 1280x1080,
-  350 frames and 300 million pixels in all (`GIF_W`, `GIF_FPS`, `FROM`/`TO` bring one under). The
-  targets are a table in `deliver.mjs` (`TARGETS`): another platform is one more entry.
+  not met stops the delivery with nothing copied, naming what would meet it. X video: H.264 High,
+  `yuv420p`, at most 60 fps, AAC, faststart, -14 LUFS (within 1), true peak at or under -2 dBTP.
+  The peak fails first: `render.mjs` aims at -1.5 dBTP before the AAC encode, which raised it to
+  -1.8 on a measured file. A file that fails on loudness and peak alone is not rendered again: its
+  delivered copy (or `check <file> --for x --fix <out>`) gets its audio re-encoded through a two-pass
+  loudnorm aimed at -14 LUFS and -3 dBTP, the video stream copied, and the copy is measured (-14.1
+  LUFS, -3.0 dBTP on that file); the render's own file is never touched. X GIF: at most 15 MB,
+  1280x1080, 350 frames and 300 million pixels in all (`GIF_W`, `GIF_FPS`, `FROM`/`TO` bring one
+  under). The targets are a table in `deliver.mjs` (`TARGETS`): another platform is one more entry.
 - **A film that goes to YouTube also gets `<name>-youtube.txt`** beside it, written by hand after
   the delivery, so the title and description are ready to paste. Three sections, each with its
   count, in the film's language:

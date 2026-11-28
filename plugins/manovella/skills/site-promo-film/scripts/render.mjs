@@ -48,8 +48,8 @@
 //                never raised by more than 12 dB (a quiet stretch stays quiet rather than pumping up its
 //                noise floor), then the file is measured again and both printed.
 //                AUDIO_TP=-1.5 is that true-peak ceiling in dBTP, aimed at BEFORE the AAC encode, which raises
-//                peaks (measured on the file below); a target with a stricter limit on the encoded file takes a
-//                lower one (X: AUDIO_TP=-3, then `deliver.mjs check <file> --for x` measures the result).
+//                peaks (measured on the file below). An override only: a platform's limit on the encoded file is
+//                met by `deliver.mjs --for <target>`, which fixes its own copy of the audio and measures it.
 //                AUDIO_NORM=0 keeps the track as it is. AUDIO=click muxes a metronome on the page's bpm, to
 //                hear the cuts land (never normalized: it is a tool, not a soundtrack).
 //                Before it renders, the track's beat is measured (beats.mjs, beside this file, on the whole

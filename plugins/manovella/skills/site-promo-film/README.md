@@ -446,9 +446,9 @@ a real release film's posters went from 1.0 MB to 0.13 MB at SSIM 0.9995.
 X's limits first, each measured on the finished file and printed with its number: H.264 High,
 `yuv420p`, at most 60 fps, AAC, faststart, -14 LUFS and a true peak at or under -2 dBTP for a
 video; at most 15 MB, 1280x1080, 350 frames and 300 million pixels in all for a GIF. One not met
-stops the delivery, nothing copied, with the setting that would meet it (a film for X renders with
-`AUDIO_LUFS=-14 AUDIO_TP=-3`: the AAC encode raises the peak `render.mjs` aims at). Another platform
-is one more entry in the `TARGETS` table.
+stops the delivery, nothing copied; a video failing on loudness and true peak alone is delivered as
+a copy with its audio re-encoded (the video stream copied) and measured again, since the AAC encode
+raises the peak `render.mjs` aims at. Another platform is one more entry in the `TARGETS` table.
 
 `deliver.mjs trash` then throws the work folder away, but only once every source file in it is in
 the product's kit (committed, on a remote branch, at any path or in any commit), every render was

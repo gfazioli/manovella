@@ -13,6 +13,7 @@
 //                                                      limits (TARGETS below): every limit with its measured
 //                                                      number, and nothing is copied when one is not met
 //   node deliver.mjs check <file> … --for x             only the check, for a file not to be delivered yet
+//   node deliver.mjs check <file> --for x --fix <out>   and a copy of it with its audio fixed, when loudness and true peak are all that fail
 //   node deliver.mjs --selftest                         drives every refusal on a scratch tree
 //
 // Two folders, by convention: <work root>/<name>-work/ holds everything made along the way (the
@@ -42,6 +43,10 @@
 //   (AAC raises a peak that render.mjs held at -1.5 dBTP before the encode). Each limit prints with its
 //   number, `ok` or `FAIL`, and the setting that would meet it; exit 1 when one is not met. A target is a
 //   row of TARGETS: another platform joins by adding one (its video rules, its GIF rules).
+//   A video that fails on loudness and true peak ALONE is not sent back to the render: its delivered copy gets its audio
+//   re-encoded through a two-pass loudnorm aimed at the target's own limits (-14 LUFS, the peak a dB under -2, since AAC
+//   raises it), the video stream copied bit for bit; the result is measured on the file and that measurement decides
+//   (aimed lower and done again, up to three times, when it still misses). The render's own file is never touched.
 //   x     X video: H.264 High, yuv420p, at most 60 fps, AAC, faststart (moov before mdat), -14 LUFS
 //         (within 1 LU), true peak at or under -2 dBTP. X GIF: at most 15 MB, 1280x1080, 350 frames,
 //         300 million pixels (width x height x frames).
@@ -165,14 +170,17 @@ const MB15 = 15 * 1000 * 1000; // X's "15 MB": counted in megabytes of 10^6 byte
 const TARGETS = {
   x: {
     name: 'X',
+    // What a copy that fails on loudness and true peak ALONE is re-encoded to (audio only, the video stream copied): the
+    // limits' own numbers, the peak aimed a dB under its limit because AAC raises it; `ok` judges what is measured on the result
+    fix: { lufs: -14, tp: -3, ok: (l) => Math.abs(l.I + 14) <= 1 && l.TP <= -2 },
     video: [
       { label: 'video codec', limit: 'H.264 High', value: (f) => `${f.codec}${f.profile ? ` ${f.profile}` : ''}`, ok: (f) => f.codec === 'h264' && f.profile === 'High', fix: 'render an .mp4 with the default H.264 (no HEVC=1, no CHROMA=444)' },
       { label: 'pixel format', limit: 'yuv420p', value: (f) => f.pix_fmt, ok: (f) => f.pix_fmt === 'yuv420p', fix: 'render without CHROMA=444: 4:4:4 is a master, not a deliverable' },
       { label: 'frame rate', limit: 'at most 60 fps', value: (f) => `${+f.fps.toFixed(3)} fps`, ok: (f) => f.fps <= 60 + 1e-6, fix: 'a page at 60 fps or less (PROMO_META.fps)' },
       { label: 'audio codec', limit: 'AAC, when there is sound', value: (f) => f.audio ? f.audio.codec : 'no audio track', ok: (f) => !f.audio || f.audio.codec === 'aac', fix: 'render with AUDIO= to .mp4 (AAC); .webm carries Opus' },
       { label: 'faststart', limit: 'moov before mdat', value: (f) => (f.faststart === null ? 'not an MP4 or MOV' : f.faststart ? 'moov first' : 'mdat first'), ok: (f) => f.faststart === true, fix: 'ffmpeg -i in.mp4 -c copy -movflags +faststart out.mp4 (render.mjs does it)' },
-      { label: 'loudness', limit: '-14 LUFS, within 1 LU', value: (f) => (f.loud ? `${f.loud.I.toFixed(1)} LUFS` : 'no audio'), ok: (f) => !f.audio || (f.loud && Math.abs(f.loud.I + 14) <= 1), fix: 'render with AUDIO_LUFS=-14 (a voice film defaults to -16)' },
-      { label: 'true peak', limit: 'at most -2 dBTP, on the encoded file', value: (f) => (f.loud ? `${f.loud.TP.toFixed(1)} dBTP` : 'no audio'), ok: (f) => !f.audio || (f.loud && f.loud.TP <= -2), fix: 'render with AUDIO_TP=-3: AAC raised the -1.5 dBTP aimed at before the encode' },
+      { label: 'loudness', limit: '-14 LUFS, within 1 LU', value: (f) => (f.loud ? `${f.loud.I.toFixed(1)} LUFS` : 'no audio'), ok: (f) => !f.audio || (f.loud && Math.abs(f.loud.I + 14) <= 1), audio: true, fix: 'the delivered copy is fixed by itself (deliver --for x); for a file not delivered: check <file> --for x --fix <out>' },
+      { label: 'true peak', limit: 'at most -2 dBTP, on the encoded file', value: (f) => (f.loud ? `${f.loud.TP.toFixed(1)} dBTP` : 'no audio'), ok: (f) => !f.audio || (f.loud && f.loud.TP <= -2), audio: true, fix: 'fixed with the loudness: AAC raises the peak a render aims at, so the copy is re-encoded through loudnorm aimed lower' },
     ],
     gif: [
       { label: 'size', limit: 'at most 15 MB', value: (f) => `${(f.bytes / 1e6).toFixed(2)} MB`, ok: (f) => f.bytes <= MB15, fix: 'a lower GIF_W, a lower GIF_FPS or a shorter FROM/TO' },
@@ -210,25 +218,52 @@ function measure(file) {
   const gif = extname(file).toLowerCase() === '.gif';
   const rate = (r) => { const [n, d] = String(r || '0/1').split('/').map(Number); return d ? n / d : n; };
   const f = { gif, bytes: statSync(file).size, width: v.width, height: v.height, codec: v.codec_name, profile: v.profile, pix_fmt: v.pix_fmt,
-    fps: Math.max(rate(v.avg_frame_rate), rate(v.r_frame_rate)), audio: a ? { codec: a.codec_name } : null, faststart: gif ? null : faststart(file), loud: null, frames: null };
-  // frames counted by decoding the packets: a GIF's nb_frames is not in its header
-  const c = run('ffprobe', ['-v', 'error', '-count_packets', '-select_streams', 'v:0', '-show_entries', 'stream=nb_read_packets', '-of', 'csv=p=0', file]);
-  f.frames = Number(c.stdout.trim()) || Number(v.nb_frames) || 0;
-  if (a) { // EBU R128 on the audio as the file carries it, the true peak with it (4x oversampled)
-    const r = run('ffmpeg', ['-hide_banner', '-nostats', '-i', file, '-map', '0:a:0', '-af', 'ebur128=peak=true', '-f', 'null', '-']).stderr || '';
-    const I = (r.match(/I:\s+(-?[\d.]+) LUFS/g) || []).pop()?.match(/-?[\d.]+/)[0], TP = (r.match(/Peak:\s+(-?[\d.]+) dBFS/g) || []).pop()?.match(/-?[\d.]+/)[0];
-    if (I != null && TP != null) f.loud = { I: Number(I), TP: Number(TP) };
-  }
+    fps: Math.max(rate(v.avg_frame_rate), rate(v.r_frame_rate)), audio: a ? { codec: a.codec_name } : null, faststart: gif ? null : faststart(file), loud: a ? loudOf(file) : null, frames: null };
+  // a GIF's frames, counted by reading its packets (its nb_frames is not in the header): only a GIF's rules ask
+  if (gif) f.frames = Number(run('ffprobe', ['-v', 'error', '-count_packets', '-select_streams', 'v:0', '-show_entries', 'stream=nb_read_packets', '-of', 'csv=p=0', file]).stdout.trim()) || Number(v.nb_frames) || 0;
   return f;
 }
-/** One file against a target: prints each limit with its number and returns the rules it does not meet. */
-function checkTarget(file, target) {
+/** EBU R128 on a file's audio as it carries it, the true peak with it (4x oversampled): { I, TP } or null. */
+function loudOf(file) {
+  const r = run('ffmpeg', ['-hide_banner', '-nostats', '-i', file, '-map', '0:a:0', '-af', 'ebur128=peak=true', '-f', 'null', '-']).stderr || '';
+  const I = (r.match(/I:\s+(-?[\d.]+) LUFS/g) || []).pop()?.match(/-?[\d.]+/)[0], TP = (r.match(/Peak:\s+(-?[\d.]+) dBFS/g) || []).pop()?.match(/-?[\d.]+/)[0];
+  return I != null && TP != null ? { I: Number(I), TP: Number(TP) } : null;
+}
+/** `file`'s audio brought to the target's loudness and true peak, closed-loop: loudnorm in two passes, the video stream
+ *  copied, written to `out`, then measured on `out`; if the result still misses, the peak is aimed lower and it is done
+ *  again (up to three times). The source file is read and never written. Returns what was measured on `out`. */
+function fixAudio(file, out, fix) {
+  let tp = fix.tp, got = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const first = run('ffmpeg', ['-hide_banner', '-nostats', '-i', file, '-map', '0:a:0', '-af', `loudnorm=I=${fix.lufs}:TP=${tp}:LRA=11:print_format=json`, '-f', 'null', '-']);
+    const m = JSON.parse((first.stderr.match(/\{[^{}]*"input_i"[^{}]*\}/) || ['null'])[0]);
+    if (!m) fail(`${file}: loudnorm measured nothing (silence?): ${first.stderr.split('\n').slice(-3).join(' ').trim()}`);
+    const af = `loudnorm=I=${fix.lufs}:TP=${tp}:LRA=${Math.min(50, Math.max(11, Math.ceil(Number(m.input_lra) || 0)))}:measured_I=${m.input_i}:measured_TP=${m.input_tp}:measured_LRA=${m.input_lra}:measured_thresh=${m.input_thresh}:offset=${m.target_offset}:linear=true,aresample=48000`;
+    const r = run('ffmpeg', ['-y', '-v', 'error', '-i', file, '-map', '0:v', '-map', '0:a:0', '-map_metadata', '0', '-map_chapters', '0', '-c:v', 'copy', '-af', af, '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-movflags', '+faststart', out]);
+    if (r.status !== 0) fail(`${file}: the audio could not be re-encoded: ${r.stderr.trim()}`);
+    got = loudOf(out);
+    if (got && fix.ok(got)) return got;
+    if (got) tp -= Math.max(0.5, got.TP - (fix.tp + 1) + 0.5); // the peak AAC gave back, taken off the aim
+  }
+  return got;
+}
+/** One file against a target: prints each limit with its number. Returns { unmet: [what is not met], file }.
+ *  When it fails on loudness and true peak ALONE and `fixTo` names a file, a copy with its audio re-encoded (fixAudio,
+ *  video copied) is written there and measured again, and that measurement decides; `file` is then the copy. */
+function checkTarget(file, target, fixTo = null) {
   const f = measure(file), rules = target[f.gif ? 'gif' : 'video'];
   console.log(`${target.name} ${f.gif ? 'GIF' : 'video'}: ${basename(file)}`);
-  const w = Math.max(...rules.map((r) => r.label.length));
-  const failed = rules.filter((r) => !r.ok(f));
-  for (const r of rules) console.log(`  ${r.ok(f) ? 'ok  ' : 'FAIL'}  ${r.label.padEnd(w)}  ${String(r.value(f)).padEnd(16)} (limit: ${r.limit})${r.ok(f) ? '' : `\n        to meet it: ${r.fix}`}`);
-  return failed.map((r) => `${basename(file)}: ${r.label} ${r.value(f)}, ${r.limit}`);
+  const w = Math.max(...rules.map((r) => r.label.length)), res = rules.map((r) => ({ r, ok: r.ok(f) })), failed = res.filter((x) => !x.ok);
+  for (const { r, ok } of res) console.log(`  ${ok ? 'ok  ' : 'FAIL'}  ${r.label.padEnd(w)}  ${String(r.value(f)).padEnd(16)} (limit: ${r.limit})${ok ? '' : `\n        to meet it: ${r.fix}`}`);
+  const audioOnly = failed.length && failed.every((x) => x.r.audio) && f.audio && target.fix;
+  if (audioOnly && fixTo) {
+    console.log(`  fixing the copy: audio through loudnorm to ${target.fix.lufs} LUFS (peak aimed at ${target.fix.tp} dBTP), the video stream copied, ${basename(file)} untouched`);
+    fixAudio(file, fixTo, target.fix);
+    const g = measure(fixTo), again = rules.map((r) => ({ r, ok: r.ok(g) }));
+    for (const { r, ok } of again.filter((x) => x.r.audio)) console.log(`  ${ok ? 'ok  ' : 'FAIL'}  ${r.label.padEnd(w)}  ${String(r.value(g)).padEnd(16)} (limit: ${r.limit}) measured on the fixed copy`);
+    return { unmet: again.filter((x) => !x.ok).map(({ r }) => `${basename(file)} (fixed): ${r.label} ${r.value(g)}, ${r.limit}`), file: fixTo };
+  }
+  return { unmet: failed.map(({ r }) => `${basename(file)}: ${r.label} ${r.value(f)}, ${r.limit}`), file };
 }
 
 // ------------------------------------------------------------------ deliver
@@ -283,19 +318,26 @@ async function deliver(folderArg, specs, target = null) {
     }
   }
 
-  // A platform's limits, measured on each video as it is: one not met stops everything before a copy is made.
-  if (target) {
-    const unmet = items.filter((it) => it.kind === 'video').flatMap((it) => checkTarget(it.from, target));
-    if (!items.some((it) => it.kind === 'video')) fail(`--for ${target.name}: nothing to check, no video among the files`);
-    if (unmet.length) fail(`${unmet.length} limit(s) of ${target.name} not met, nothing was copied:\n  ${unmet.join('\n  ')}`);
-    console.log(`all of ${target.name}'s limits are met\n`);
-  }
   // Covers are optimised on a staged copy before they land, so a folder on a synced drive
   // receives the final bytes once and its trash never gets the originals.
   const images = items.filter((it) => !it.skip && it.kind === 'image');
   const stage = mkdtempSync(join(tmpdir(), 'deliver-stage-'));
   let optim = null;
   try {
+    // A platform's limits, measured on each video as it is: one not met stops everything before a copy is made. A video
+    // that fails on loudness and true peak alone is delivered as a fixed copy (audio re-encoded, video copied, measured
+    // again), staged like a cover: the render's own file is never touched.
+    if (target) {
+      if (!items.some((it) => it.kind === 'video')) fail(`--for ${target.name}: nothing to check, no video among the files`);
+      const unmet = [];
+      for (const it of items.filter((x) => x.kind === 'video' && !x.skip)) {
+        const r = checkTarget(it.from, target, join(stage, it.name));
+        if (r.file !== it.from) it.staged = r.file;
+        unmet.push(...r.unmet);
+      }
+      if (unmet.length) { rmSync(stage, { recursive: true, force: true }); fail(`${unmet.length} limit(s) of ${target.name} not met, nothing was copied:\n  ${unmet.join('\n  ')}`); }
+      console.log(`all of ${target.name}'s limits are met\n`);
+    }
     for (const it of images) copyFileSync(it.from, (it.staged = join(stage, it.name)), constants.COPYFILE_FICLONE);
     if (images.length) optim = await imageOptim(images.map((i) => i.staged));
     mkdirSync(folder, { recursive: true });
@@ -655,8 +697,15 @@ function selftest() {
       ['a GIF 1400 wide fails on width', 1, 'FAIL  width', ['check', join(T, 'xt', 'wide.gif'), '--for', 'x']],
       ['a GIF of 318 million pixels fails on the total alone', 1, 'FAIL  pixels in all', ['check', join(T, 'xt', 'heavy.gif'), '--for', 'x']],
       ['an unknown target is refused', 1, 'not a target', ['check', join(T, 'xt', 'ok.gif'), '--for', 'nowhere']],
-      ['deliver --for x refuses a file that fails, and copies nothing', 1, 'nothing was copied', [join(D, 'xtarget'), join(T, 'xt', 'xtarget.mp4'), join(T, 'xt', 'loud.mp4') + '=xtarget-loud.mp4', '--for', 'x']],
+      ['deliver --for x refuses a file that fails beyond its audio, and copies nothing', 1, 'nothing was copied', [join(D, 'xtarget'), join(T, 'xt', 'xtarget.mp4'), join(T, 'xt', 'y444.mp4') + '=xtarget-y444.mp4', '--for', 'x']],
       ['  the folder was not made', 'check', () => !existsSync(join(D, 'xtarget'))],
+      ['check --fix: a file failing on loudness and peak alone gets a fixed copy that passes, measured on it', 0, 'measured on the fixed copy', ['check', join(T, 'xt', 'loud.mp4'), '--for', 'x', '--fix', join(T, 'xt', 'loud-fixed.mp4')]],
+      ['  the fixed copy meets every limit on its own', 0, "all of X's limits are met", ['check', join(T, 'xt', 'loud-fixed.mp4'), '--for', 'x']],
+      ['  the checked file was not touched', 'check', () => run('ffprobe', ['-v', 'error', '-show_entries', 'stream=codec_name', '-of', 'csv=p=0', join(T, 'xt', 'loud.mp4')]).stdout.includes('aac') && statSync(join(T, 'xt', 'loud.mp4')).size > 0 && !readFileSync(join(T, 'xt', 'loud-fixed.mp4')).equals(readFileSync(join(T, 'xt', 'loud.mp4')))],
+      ['  the video stream was copied: the same frame count and codec', 'check', () => { const n = (f) => run('ffprobe', ['-v', 'error', '-count_packets', '-select_streams', 'v:0', '-show_entries', 'stream=nb_read_packets,codec_name', '-of', 'csv=p=0', f]).stdout.trim(); return n(join(T, 'xt', 'loud.mp4')) === n(join(T, 'xt', 'loud-fixed.mp4')); }],
+      ['  --fix never writes over an existing file', 1, 'exists', ['check', join(T, 'xt', 'loud.mp4'), '--for', 'x', '--fix', join(T, 'xt', 'loud-fixed.mp4')]],
+      ['deliver --for x delivers a fixed copy of a file that fails on its audio alone', 0, 'measured on the fixed copy', [join(D, 'xloud'), join(T, 'xt', 'loud.mp4') + '=xloud.mp4', '--for', 'x']],
+      ['  and the delivered file is not the render\'s bytes, and meets the limits', 'check', () => sha(join(D, 'xloud', 'xloud.mp4')) !== sha(join(T, 'xt', 'loud.mp4')) && run(process.execPath, [SELF, 'check', join(D, 'xloud', 'xloud.mp4'), '--for', 'x']).status === 0],
       ['deliver --for x copies a file that passes', 0, 'delivered', [join(D, 'xtarget'), join(T, 'xt', 'xtarget.mp4'), '--for', 'x']],
       ['  and it is there, byte for byte', 'check', () => existsSync(join(D, 'xtarget', 'xtarget.mp4')) && sha(join(D, 'xtarget', 'xtarget.mp4')) === sha(join(T, 'xt', 'xtarget.mp4'))],
       // a real move, where only a CI runner's trash takes it (never a person's): gio or trash-cli, the Recycle Bin
@@ -683,7 +732,7 @@ function selftest() {
 }
 
 function usage() {
-  console.error('usage: deliver.mjs <folder> <file>[=<name>] … [--for <target>] | check <file> … --for <target> | trash <work> [--kit <dir>] [--discard] | --selftest');
+  console.error('usage: deliver.mjs <folder> <file>[=<name>] … [--for <target>] | check <file> … --for <target> [--fix <out>] | trash <work> [--kit <dir>] [--discard] | --selftest');
   process.exit(2);
 }
 
@@ -694,7 +743,11 @@ if (argv[0] === '--selftest') selftest();
 else if (argv[0] === 'check') {
   if (argv.length < 2 || !forName) usage();
   const target = targetOf(forName);
-  const unmet = argv.slice(1).flatMap((f) => { if (!existsSync(f)) fail(`${f}: no such file`); return checkTarget(resolve(f), target); });
+  const fixAt = argv.indexOf('--fix'), fixTo = fixAt >= 0 ? argv.splice(fixAt, 2)[1] : null; // --fix <out>: a copy with its audio fixed, for one file
+  if (fixAt >= 0 && (!fixTo || argv.length !== 2)) fail('check <file> --for <target> --fix <out>: one file, and where its fixed copy goes');
+  if (fixTo && existsSync(fixTo)) fail(`${fixTo} exists: a fixed copy is never written over a file`);
+  if (fixTo && resolve(fixTo) === resolve(argv[1])) fail('--fix writes a new file, never over the one checked');
+  const unmet = argv.slice(1).flatMap((f) => { if (!existsSync(f)) fail(`${f}: no such file`); return checkTarget(resolve(f), target, fixTo && resolve(fixTo)).unmet; });
   if (unmet.length) { console.error(`\n${unmet.length} limit(s) of ${target.name} not met`); process.exit(1); }
   console.log(`\nall of ${target.name}'s limits are met`);
 }
