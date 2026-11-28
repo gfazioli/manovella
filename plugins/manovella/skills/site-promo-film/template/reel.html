@@ -62,6 +62,8 @@ let CAM = { x: 0, y: 0, z: 1 };
 const world = () => ctx.setTransform(CAM.z, 0, 0, CAM.z, W / 2 - CAM.x * CAM.z, H / 2 - CAM.y * CAM.z);
 const screen = () => ctx.setTransform(1, 0, 0, 1, 0, 0);
 const toScreen = (x, y, cam = CAM) => [W / 2 + (x - cam.x) * cam.z, H / 2 + (y - cam.y) * cam.z];
+/** Where the product is in the frame, for layoutcheck.mjs (PROMO_META.box: [x, y, w, h] in pixels, camera included). */
+const productBox = (r) => { const [x, y] = toScreen(r.x, r.y); META.box = [x, y, r.w * CAM.z, r.h * CAM.z]; };
 const rr = (x, y, w, h, r) => PARTS.rr(ctx, x, y, w, h, r);
 function shadow(blur, oy, col) { const m = ctx.getTransform(), k = Math.hypot(m.a, m.b); ctx.shadowBlur = blur * k; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = oy * k; ctx.shadowColor = col; }
 function noShadow() { ctx.shadowBlur = 0; ctx.shadowOffsetY = 0; ctx.shadowColor = 'transparent'; }
@@ -168,9 +170,11 @@ const MARK = new Path2D(); // the stand-in logo: a rounded square with a ring; r
 MARK.roundRect(-0.5, -0.5, 1, 1, 0.23);
 function drawMark(x, y, s, a = 1) { // centre (x, y), size s
   ctx.save(); ctx.globalAlpha *= a; ctx.translate(x, y); ctx.scale(s, s);
-  const g = ctx.createLinearGradient(-0.5, -0.5, 0.5, 0.5); g.addColorStop(0, rgba(mixc(C.accent, [255, 255, 255], 0.15))); g.addColorStop(1, rgba(mixc(C.accent, [0, 0, 0], 0.25)));
-  ctx.fillStyle = g; ctx.fill(MARK);
-  ctx.beginPath(); ctx.arc(0, 0, 0.22, 0, Math.PI * 2); ctx.lineWidth = 0.1; ctx.strokeStyle = '#fff'; ctx.stroke();
+  FILM.mark('logo', () => { // a mark: layoutcheck.mjs keeps every other text out of its box
+    const g = ctx.createLinearGradient(-0.5, -0.5, 0.5, 0.5); g.addColorStop(0, rgba(mixc(C.accent, [255, 255, 255], 0.15))); g.addColorStop(1, rgba(mixc(C.accent, [0, 0, 0], 0.25)));
+    ctx.fillStyle = g; ctx.fill(MARK);
+    ctx.beginPath(); ctx.arc(0, 0, 0.22, 0, Math.PI * 2); ctx.lineWidth = 0.1; ctx.strokeStyle = '#fff'; ctx.stroke();
+  }, { g: ctx, box: [-0.5, -0.5, 1, 1] });
   ctx.restore();
 }
 
@@ -209,7 +213,7 @@ function layoutOpen() {
 }
 function drawOpen(g, lt) {
   const LOOK = LOOKS.open;
-  CAM = OPEN.cam(lt);
+  CAM = OPEN.cam(lt); META.box = null; // no product yet: words
   LOOK.backdrop(ctx, lt, CAM, {});
   world();
   const focusOne = spr(lt, 3.3, 1.2, 0.95); // the other words step back
@@ -254,7 +258,7 @@ let WEB_BTN; // the button's centre in world units, measured once
 WEB.cursor = null;
 function drawWeb(g, lt) {
   const LOOK = LOOKS.web;
-  CAM = WEB.cam(lt);
+  CAM = WEB.cam(lt); productBox(WEB.r);
   LOOK.backdrop(ctx, lt, CAM, {});
   world();
   const r = PARTS.browser(ctx, WEB.r, { url: 'example.com' });
@@ -374,7 +378,7 @@ function drawGrid(lt) {
 }
 function drawBento(g, lt) {
   const LOOK = LOOKS.bento;
-  CAM = BENTO.cam(lt);
+  CAM = BENTO.cam(lt); productBox(BENTO);
   LOOK.backdrop(ctx, lt, CAM, {});
   world();
   const b = BENTO.blur(lt);
@@ -430,7 +434,7 @@ function termLines(lt) { // what the terminal shows at lt: a pure function of ti
 }
 function drawTerminal(g, lt) {
   const LOOK = LOOKS.terminal;
-  CAM = TERM.cam(lt);
+  CAM = TERM.cam(lt); productBox(TERM.r);
   LOOK.backdrop(ctx, lt, CAM, {});
   world();
   const e = spr(lt, 0.05, 1.6, 0.9);
@@ -508,7 +512,7 @@ function devPlace(i, k) { // a card's place in the flow: centre (x, y, z), turn 
 }
 function drawDevices(g, lt) {
   const LOOK = LOOKS.devices;
-  CAM = DEV.cam(lt);
+  CAM = DEV.cam(lt); META.box = null; // a carousel of devices: no one box
   LOOK.backdrop(ctx, lt, CAM, {});
   const k = DEV.idx(lt), gl = GL.gl, J = mainCtx.jitter;
   gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
@@ -549,7 +553,7 @@ END.cam = camera([[0.1, 0, 0, 1.0, 0.3, 1]], { x: 0, y: 30, z: 1.04 });
 END.cursor = cursorFor([[2.9, 0, 175], [5.8, 360, 330]], [4.4], [480, 420]);
 function drawEnd(g, lt) {
   const LOOK = LOOKS.end;
-  CAM = END.cam(lt);
+  CAM = END.cam(lt); META.box = null;
   LOOK.backdrop(ctx, lt, CAM, {});
   world();
   const m = spr(lt, 0.25, 1.5, 0.78);

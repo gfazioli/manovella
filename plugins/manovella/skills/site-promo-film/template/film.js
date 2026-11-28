@@ -19,6 +19,15 @@
  *   FILM.beats(times, at) → B            B(n) on a soundtrack's own beats, for a track that drifts: times from
  *                                        scripts/beats.mjs --out beats.js (BEATS.beats), at = AUDIO_AT
  *
+ * Marks: what the film keeps clear (the logo, the product's window), checked by scripts/layoutcheck.mjs
+ *   FILM.mark(name, () => { … })         run the mark's own drawing: the text it draws may lie inside its box
+ *                                        (the mark's name is PROMO_META.marks' or window.__marks(t)'s); any other
+ *                                        text drawn into the box, a headline or a card's title, fails the check
+ *                                        unless it is drawn before the mark, which then covers it
+ *   FILM.mark(name, draw, { g, box })    also says where the mark is: box [x, y, w, h] in g's transform as it stands,
+ *                                        for a mark drawn where the page has no box of its own to give (FILM.markDrawn)
+ *   FILM.markScope() → name | null       the mark being drawn now
+ *
  * Long films: scenes on a timeline, with transitions and chapters
  *   const TL = FILM.timeline({ W, H, scenes, use, under, over, trans })
  *   TL.draw(ctx, t, opts)   TL.duration   TL.chapters   TL.checkpoints   TL.at(t)
@@ -905,7 +914,20 @@ void main(){
     return { draw, duration, scenes, chapters, checkpoints, at };
   }
 
-  const exported = { stage, draw, load, tint, pyramid, trilinear, spr, track, settle, camera, ease5, beats, timeline, selective, knockout, typed, captions, narrated };
+  // Who is drawing: layoutcheck.mjs reads this to tell a mark's own text from text drawn across it.
+  let markName = null;
+  const markDrawn = []; // [{ name, box: [x, y, w, h] in the canvas's pixels, canvas }] for the marks that said where they are
+  const mark = (name, draw, at) => {
+    if (at) { // at: { g, box: [x, y, w, h] in g's current transform }: the box on the canvas, which layoutcheck.mjs reads
+      const m = at.g.getTransform(), [x, y, w, h] = at.box, xs = [], ys = [];
+      for (const [px, py] of [[x, y], [x + w, y], [x, y + h], [x + w, y + h]]) { xs.push(m.a * px + m.c * py + m.e); ys.push(m.b * px + m.d * py + m.f); }
+      markDrawn.push({ name, canvas: at.g.canvas, box: [Math.min(...xs), Math.min(...ys), Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)] });
+    }
+    const prev = markName; markName = name;
+    try { return draw(); } finally { markName = prev; }
+  };
+
+  const exported = { mark, markDrawn, markScope: () => markName, stage, draw, load, tint, pyramid, trilinear, spr, track, settle, camera, ease5, beats, timeline, selective, knockout, typed, captions, narrated };
   exported.TRANSITIONS = Object.fromEntries(Object.entries(TRANSITIONS).map(([k, v]) => [k, v[0]]));
   exported.GL_TRANSITIONS = Object.keys(GLT); // the kinds drawn by a shader: one WebGL2 context a page between them
   window.FILM = Object.assign(window.FILM || {}, exported);

@@ -57,7 +57,7 @@ const B = (n) => n * BEAT; // beat → seconds
 const REL = {
   product: 'Product', version: '2.0',
   heads: [ // one per featured change: the release notes' benefit line, a few words
-    { lines: ['Sort by', 'what matters.'], tin: 7.75, tout: 11.5 },
+    { lines: ['Sort by', 'what matters.'], tin: 8, tout: 11.75 },
     { lines: ['One keystroke', 'away.'], tin: 13.25, tout: 17.5 },
   ],
   changes: ['Faster launch', 'Sharper icons in dark mode', 'Export any view as CSV'], // the rest, verbatim
@@ -529,10 +529,15 @@ function seek(t, opts = {}) {
   LOOK.backdrop(ctx, t, CAM, opts);
   world();
   drawVersionCard(t); // beneath the shape: the window grows over the leaving title, never under it
-  const s = drawShape(t);
-  if (t > B(2.75) && t < B(27.5)) { ctx.save(); rr(s.x, s.y, s.w, s.h, s.c); ctx.clip(); drawWindow(t); drawPalette(t); ctx.restore(); }
-  drawMenuBar(t); drawMenu(t);
+  // the shape is the page's one mark (the icon, then the window): what runs in FILM.mark may put text in its box,
+  // and layoutcheck.mjs fails any other text drawn across it. The menu bar and its menu belong to the product
+  FILM.mark('product', () => {
+    const s = drawShape(t);
+    if (t > B(2.75) && t < B(27.5)) { ctx.save(); rr(s.x, s.y, s.w, s.h, s.c); ctx.clip(); drawWindow(t); drawPalette(t); ctx.restore(); }
+    drawMenuBar(t); drawMenu(t);
+  });
   screen();
+  { const { s, wts } = shapeAt(t), [x, y] = toScreen(s.x, s.y); META.box = wts[1] > 0.5 ? [x, y, s.w * CAM.z, s.h * CAM.z] : null; } // where the product is: the window, not the icon
   REL.heads.forEach((h) => drawHead(t, h));
   drawChangelog(t);
   drawKeys(t);
@@ -541,6 +546,11 @@ function seek(t, opts = {}) {
   screen();
   LOOK.finish(ctx, t, opts);
 }
+/** The box layoutcheck.mjs keeps clear (PROMO_META.marks, or this callback: the box at t, in frame pixels), called after seek(t). */
+window.__marks = (t) => {
+  const { s } = shapeAt(t), [x, y] = toScreen(s.x, s.y);
+  return [{ name: 'product', box: [x, y, s.w * CAM.z, s.h * CAM.z] }];
+};
 window.seek = seek;
 window.ready = (async () => {
   await Promise.all(FONT_FACES.map((f) => document.fonts.load(f)));
