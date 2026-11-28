@@ -11,9 +11,11 @@
 //   musicLibraryIgnore  folder names in it to skip
 //   deliverToLibrary    true: finished films go into it too, <library>/<Brand>/video/<name>/ (default false)
 //   workRoot            where a film's <name>-work and its delivery folder go; unset: ~/Downloads
+//   blender             the Blender program (or the .app on macOS) blender.mjs runs, for a film's 3D; unset: where
+//                       each system installs it. Written by hand: the Studio's Settings do not show it
 //
 // A command line or an environment variable still wins over the file, for one run: --roots or
-// MANOVELLA_ROOTS, --out, MANOVELLA_MUSIC, FILM_DOWNLOADS (deliver.mjs's tests). An older file, from when the
+// MANOVELLA_ROOTS, --out, MANOVELLA_MUSIC, MANOVELLA_BLENDER, FILM_DOWNLOADS (deliver.mjs's tests). An older file, from when the
 // music library was the brand library (brandLibrary, brandLibraryIgnore), reads as the new keys, delivering
 // into it as it did then, and is written with them at its first change.
 import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
