@@ -77,6 +77,17 @@
 //                own thermal state (holds at 'serious'). Measured on 8 s of reel.html (M5 Pro): 12 workers
 //                at full speed reached 87.9 °C inside a minute; the defaults held 80.0 °C with no pause,
 //                in three times as long. README.md beside the skill has the table.
+//   GL=software  draw WebGL (the shader looks and cuts, a 3D shot) with SwiftShader, Chrome's software
+//                renderer, as a machine without a GPU does (a CI runner, a server): to see on a machine
+//                with a GPU what such a machine renders. Unset, Chrome draws with what the system has. On
+//                macOS that is the GPU already (ANGLE on Metal): with --ignore-gpu-blocklist
+//                --use-angle=metal added, half a second of space.html and of reel.html's 3D scene rendered
+//                to the same file, byte for byte, in the same time (37 s against 39 and 41; 49 against 46;
+//                an M1 Max, Chrome 158), so render.mjs passes neither. In software the same Mac took 163 ms a
+//                subframe of space.html for 46 on the GPU, 343 for 38 on promo.html (its 2D canvas is
+//                drawn in software too), and the frames differ a little from the GPU's (PSNR 51 to 62 dB):
+//                render every part of one film on one kind of machine. A page with WebGL says what
+//                draws it, once: `webgl: ANGLE (Apple, ANGLE Metal Renderer: …)`.
 // The extension of <out> picks the format: .mp4 (H.264 or HEVC), .mov (ProRes 422 HQ, for an editor),
 // .webm (VP9, for the web), .gif (GIF_FPS=30, GIF_W=960, a palette per film). PROMO_META.chapters
 // ([{ t, title }]) becomes chapter marks in an .mp4 or .mov, and a list to paste into a YouTube
@@ -429,7 +440,11 @@ const clock = (s) => { const m = Math.floor(s / 60), r = Math.floor(s % 60); ret
 
 // Off macOS a machine may have no GPU (a server, a CI runner): Chrome then draws WebGL in software only
 // when allowed to, and the looks and cuts drawn by shaders need it. With a GPU the flag changes nothing.
-const GL = process.platform === 'darwin' ? [] : ['--enable-unsafe-swiftshader'];
+// On macOS headless Chrome already draws on the GPU, through ANGLE on Metal, and the flags said to
+// switch it on (--ignore-gpu-blocklist --use-angle=metal) change nothing: the same renderer, the same
+// frames to the byte, the same time (measured, below GL=software in the header). So none is passed.
+const GL = process.env.GL === 'software' ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader']
+  : process.platform === 'darwin' ? [] : ['--enable-unsafe-swiftshader'];
 // Google Chrome; else Edge on Windows, Chromium on Linux (Chrome has no arm64 build there); MANOVELLA_CHROME names any
 async function launchChrome(opts = {}) {
   if (process.env.MANOVELLA_CHROME) return chromium.launch({ ...opts, executablePath: process.env.MANOVELLA_CHROME });
@@ -449,6 +464,15 @@ try {
   // what the page had loaded once it was ready, taken here: a later pass that seeks (the fast frames)
   // loads more, and a resumed render skips that pass, so a list read later would differ between the two
   const OPENED = [...LOADED];
+  // what draws the page's WebGL, said once when it has any: a GPU, or SwiftShader in software (slower, and
+  // not the same pixels: about 51 to 62 dB from the GPU's). Asked on a context of its own, in the probe's
+  // page, which is closed next.
+  const DRAWS = META ? await probe.evaluate(() => {
+    if (!window.__filmGL()[1]) return null;
+    const gl = document.createElement('canvas').getContext('webgl2'), x = gl && gl.getExtension('WEBGL_debug_renderer_info');
+    return gl ? String(x ? gl.getParameter(x.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)) : null;
+  }) : null;
+  if (DRAWS) console.log(`webgl: ${DRAWS}${/swiftshader|llvmpipe|software/i.test(DRAWS) ? ' (in software: no GPU is used, each frame takes several times longer)' : ''}`);
   // the page's beats, film seconds, where it has a B(n) (the templates' beat → seconds): for the beat check
   const PAGE_BEATS = META ? await probe.evaluate((dur) => {
     if (typeof B !== 'function') return null;
