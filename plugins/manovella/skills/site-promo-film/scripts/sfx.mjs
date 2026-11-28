@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // sfx.mjs — the film's small sounds, made in code and timed from the film's own clock.
 //
-//   node sfx.mjs [page.html[#hash]] [--out sfx.wav] [--only click,cut,key] [--level 0] [--json sfx.json]
+//   node sfx.mjs [page.html[#hash]] [--out sfx.wav] [--only click,cut,key] [--json sfx.json]
 //   node sfx.mjs --selftest                      the sounds' timing and levels, with no browser
 //
 // Optional, and off unless you run it: a film with no sound effects is a film that never called this.
@@ -22,8 +22,8 @@
 //           read from FILM.typed itself, so the sound follows the picture whatever the cadence. SFX may
 //           also carry `events: [{ t, kind: 'click' | 'cut' | 'key' }]` for anything else (a toggle's snap).
 //
-// Levels, peak in dBFS at --level 0: click -18, cut -24, key -28 (a key varies by up to 3 dB and a little
-// in pitch, by its position in the line, so a line does not machine-gun). --level N moves them all by N dB.
+// Levels, peak in dBFS: click -18, cut -24, key -28 (a key varies by up to 3 dB and a little in pitch, by its
+// position in the line, so a line does not machine-gun). The balance is mix.mjs's: --sfx-gain moves them all.
 // They are sized to sit under a voice (narrate.mjs's track peaks near -3 dBFS) and a music bed:
 //   node mix.mjs --voice narration.wav --music track.mp3 --sfx sfx.wav --out mix.wav
 // with no voice and no music, AUDIO=sfx.wav AUDIO_NORM=0 for render.mjs keeps their own level (normalised
@@ -38,7 +38,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { unit, wav } from './narrate.mjs';
 
 const RATE = 48000;
-/** Peak level of each sound at --level 0, dBFS. */
+/** Peak level of each sound, dBFS. */
 export const PEAK = { click: -18, cut: -24, key: -28 };
 
 // Google Chrome, as render.mjs finds it: Edge on Windows, Chromium on Linux; MANOVELLA_CHROME names any.
@@ -138,15 +138,15 @@ export async function readPage(file, hash = '') {
 }
 
 /** The track: Int16 samples at RATE for `duration` seconds, and the events as laid (their first sample). */
-export function build({ fps, duration, events }, { only = ['click', 'cut', 'key'], level = 0 } = {}) {
+export function build({ fps, duration, events }, { only = ['click', 'cut', 'key'] } = {}) {
   const total = Math.ceil(duration * RATE), mix = new Float32Array(total), laid = [];
-  const lin = (kind) => 10 ** ((PEAK[kind] + level) / 20);
+  const lin = (kind) => 10 ** (PEAK[kind] / 20);
   events.filter((e) => only.includes(e.kind)).forEach((e, i) => {
     const at = Math.round((e.t + 1 / fps) * RATE); // one frame after the picture event
     const x = e.kind === 'click' ? click(i) : e.kind === 'key' ? key(i, e.space) : e.dur > 0.05 ? breath(i, Math.min(0.5, Math.max(0.2, e.dur))) : thud(i);
     const g = lin(e.kind);
     for (let j = 0; j < x.length && at + j < total; j++) mix[at + j] += x[j] * g;
-    laid.push({ kind: e.kind, label: e.label, event: +e.t.toFixed(4), frame: Math.round(e.t * fps), sample: at, sound: +(at / RATE).toFixed(5), peak: +(PEAK[e.kind] + level).toFixed(1) });
+    laid.push({ kind: e.kind, label: e.label, event: +e.t.toFixed(4), frame: Math.round(e.t * fps), sample: at, sound: +(at / RATE).toFixed(5), peak: PEAK[e.kind] });
   });
   return { samples: Int16Array.from(mix, (v) => Math.max(-32768, Math.min(32767, Math.round(v * 32767)))), laid };
 }
@@ -161,7 +161,6 @@ function selftest() {
     ['its first sample is nonzero, and there is silence before it', () => one.laid.every((e) => one.samples[e.sample] !== 0) && one.samples.subarray(0, one.laid[0].sample).every((v) => v === 0)],
     ['a click peaks at -18 dBFS, within 0.1 dB', () => Math.abs(peakOf(one.samples, one.laid[0].sample, one.laid[0].sample + 2880) + 18) < 0.1],
     ['a cut peaks at -24 dBFS, within 0.1 dB', () => Math.abs(peakOf(one.samples, one.laid[1].sample, one.laid[1].sample + 19200) + 24) < 0.1],
-    ['--level moves them: -6 dB halves a click', () => Math.abs(peakOf(build(page, { level: -6 }).samples, one.laid[0].sample, one.laid[0].sample + 2880) + 24) < 0.1],
     ['--only leaves the others out', () => build(page, { only: ['click'] }).laid.length === 1],
     ['the track is as long as the page', () => one.samples.length === 3 * RATE],
   ];
@@ -173,15 +172,14 @@ function selftest() {
 
 async function main() {
   if (process.argv[2] === '--selftest') return selftest();
-  const argv = process.argv.slice(2), valued = ['--out', '--only', '--level', '--json'];
+  const argv = process.argv.slice(2), valued = ['--out', '--only', '--json'];
   const arg = (n, d = null) => { const i = argv.indexOf(n); return i >= 0 && argv[i + 1] != null ? argv[i + 1] : d; };
   const spec = argv.find((a, i) => !a.startsWith('--') && !valued.includes(argv[i - 1])) || process.env.PAGE || 'promo.html';
   const [file, hash = ''] = spec.split('#'), out = resolve(arg('--out', 'sfx.wav'));
-  const only = String(arg('--only', 'click,cut,key')).split(',').map((s) => s.trim()).filter(Boolean), level = Number(arg('--level', 0));
+  const only = String(arg('--only', 'click,cut,key')).split(',').map((s) => s.trim()).filter(Boolean);
   if (only.some((k) => !(k in PEAK))) { console.error(`sfx.mjs: --only takes ${Object.keys(PEAK).join(', ')}`); process.exit(2); }
-  if (!Number.isFinite(level) || level < -30 || level > 6) { console.error('sfx.mjs: --level is dB from -30 to 6 (0 sits under a voice)'); process.exit(2); }
   if (!existsSync(file)) { console.error(`sfx.mjs: ${file}: no such page`); process.exit(2); }
-  const page = await readPage(file, hash), { samples, laid } = build(page, { only, level });
+  const page = await readPage(file, hash), { samples, laid } = build(page, { only });
   if (!laid.length) { console.error(`sfx.mjs: ${file} declares nothing to sound (no CLICKS, no timeline cuts, no SFX): nothing written`); process.exit(1); }
   writeFileSync(out, wav(samples));
   if (arg('--json')) writeFileSync(resolve(arg('--json')), JSON.stringify(laid, null, 1) + '\n');
