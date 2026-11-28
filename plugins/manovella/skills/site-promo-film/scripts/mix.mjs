@@ -3,6 +3,7 @@
 //
 //   node mix.mjs --voice narration.wav --music track.mp3 --out mix.wav
 //                [--at 0.08] [--under 14] [--lift 6] [--length <s>] [--tail <s>] [--fade 1.5]
+//                [--sfx sfx.wav] [--sfx-gain 0]
 //
 // render.mjs takes one AUDIO. A film that speaks over music gets this file as it, from its start:
 // AUDIO=mix.wav AUDIO_AT=0 AUDIO_LUFS=-16 (speech's target, render.mjs §7). The voice is the film's
@@ -23,6 +24,9 @@
 //   --length the mix is as long as that says, and --tail counts for nothing.
 // - --fade: the last seconds faded out (1.5 s), and the music's first 50 ms faded in (no click on a
 //   bar that starts mid-wave). render.mjs fades the film's last 0.6 s again, which changes nothing here.
+// - --sfx: sfx.mjs's track of small sounds (clicks, cuts, keys), on the film's clock from 0 like the voice. It is
+//   added as it is, after the balance above: not ducked, not part of the loudness the music is set by, at the
+//   levels sfx.mjs made it (peaks -18 to -28 dBFS, under a voice that peaks near -3). --sfx-gain moves it, in dB.
 // - The voice is laid in the middle of both channels, the music keeps its stereo, 48 kHz 16-bit. Were
 //   their sum to clip, the whole mix is turned down by one gain, said: render.mjs sets the loudness
 //   after, so only the balance made here matters.
@@ -40,8 +44,9 @@ const argv = process.argv.slice(2);
 const arg = (n, d = null) => { const i = argv.indexOf(n); return i >= 0 && argv[i + 1] != null ? argv[i + 1] : d; };
 const stop = (code, m) => { console.error(`mix.mjs: ${m}`); process.exit(code); };
 const VOICE = arg('--voice'), MUSIC = arg('--music'), OUT = arg('--out');
-if (!VOICE || !MUSIC || !OUT) stop(2, 'usage: mix.mjs --voice narration.wav --music track.mp3 --out mix.wav [--at <s>] [--under 14] [--lift 6] [--length <s>] [--tail <s>] [--fade 1.5]');
-const AT = Number(arg('--at', 0)), UNDER = Number(arg('--under', 14)), LIFT = Number(arg('--lift', 6)), FADE = Number(arg('--fade', 1.5)), TAIL = Number(arg('--tail', 0));
+if (!VOICE || !MUSIC || !OUT) stop(2, 'usage: mix.mjs --voice narration.wav --music track.mp3 --out mix.wav [--at <s>] [--under 14] [--lift 6] [--length <s>] [--tail <s>] [--fade 1.5] [--sfx sfx.wav] [--sfx-gain 0]');
+const SFX = arg('--sfx'), SFX_GAIN = Number(arg('--sfx-gain', 0)), AT = Number(arg('--at', 0)), UNDER = Number(arg('--under', 14)), LIFT = Number(arg('--lift', 6)), FADE = Number(arg('--fade', 1.5)), TAIL = Number(arg('--tail', 0));
+if (!Number.isFinite(SFX_GAIN)) stop(2, `--sfx-gain ${arg('--sfx-gain')}: dB`);
 if (!(AT >= 0)) stop(2, `--at ${arg('--at')}: seconds into the track, 0 or more`);
 if (!(TAIL >= 0)) stop(2, `--tail ${arg('--tail')}: seconds of the music after the voice, 0 or more`);
 if (!(UNDER >= 6 && UNDER <= 30)) stop(2, `--under ${arg('--under')}: 6 to 30 LU under the voice (12 to 15 is a voice-over's)`);
@@ -101,12 +106,16 @@ for (let i = 0; i < len; i++) {
   const f = i / FRAME, a = Math.min(n - 1, Math.floor(f)), b = Math.min(n - 1, a + 1), g = gain[a] + (gain[b] - gain[a]) * (f - a);
   lin[i] = i < have ? 10 ** (g / 20) * Math.max(0, Math.min(1, i / inN, (len - i) / fadeN, (have - i) / inN)) : 0;
 }
+// sfx.mjs's sounds, in both channels, on the film's clock
+const sfx = SFX ? pcm(resolve(SFX)) : null, sg = 10 ** (SFX_GAIN / 20);
+if (sfx && !sfx.some((x) => x !== 0)) stop(3, `${SFX} is silent`);
 // the sum, in floats, the voice in both channels; one gain down for the whole of it, were it to clip
 const mix = new Float32Array(len * 2);
 let peak = 0;
 for (let i = 0; i < len; i++) {
   const v = i < voice.length ? voice[i] : 0;
-  for (let c = 0; c < 2; c++) { const s = v + (i < have ? music[i * 2 + c] * lin[i] : 0); mix[i * 2 + c] = s; if (Math.abs(s) > peak) peak = Math.abs(s); }
+  const fx = sfx && i < sfx.length ? sfx[i] * sg : 0;
+  for (let c = 0; c < 2; c++) { const s = v + fx + (i < have ? music[i * 2 + c] * lin[i] : 0); mix[i * 2 + c] = s; if (Math.abs(s) > peak) peak = Math.abs(s); }
 }
 const trim = peak > 32767 * 0.98 ? (32767 * 0.98) / peak : 1;
 if (trim < 1) console.log(`the voice and the music together would clip: the whole mix down ${(20 * Math.log10(trim)).toFixed(2)} dB (render.mjs sets the loudness after)`);
@@ -129,4 +138,5 @@ const mUnder = lufs(speak.m, 2), mGaps = lufs(gaps.m, 2), vOn = lufs(dual(speak.
 const fmt = (x) => (x == null ? 'too short to measure' : `${x.toFixed(1)} LUFS`);
 console.log(`voice ${vL.toFixed(1)} LUFS, music ${mL.toFixed(1)} LUFS from ${AT} s: the music at ${bed >= 0 ? '+' : ''}${bed.toFixed(1)} dB to sit ${UNDER} LU under the voice, ${LIFT ? `up to ${LIFT} dB more between lines` : 'and there between lines too'}`);
 console.log(`measured on the mix: the music ${fmt(mUnder)} while the voice speaks (${fmt(vOn)})${mUnder != null && vOn != null ? `, ${(vOn - mUnder).toFixed(1)} LU under it` : ''}; ${fmt(mGaps)} between lines${mUnder != null && mGaps != null ? ` (${(mGaps - mUnder).toFixed(1)} dB up: a short pause does not reach the whole lift)` : ''}`);
+if (sfx) console.log(`sfx: ${SFX} laid in as it is${SFX_GAIN ? ` at ${SFX_GAIN > 0 ? '+' : ''}${SFX_GAIN} dB` : ''}, ${(sfx.length / RATE).toFixed(2)} s long`);
 console.log(`→ ${resolve(OUT)}: ${(len / RATE).toFixed(2)} s, stereo, 48 kHz. Render with AUDIO=${OUT} AUDIO_AT=0 AUDIO_LUFS=-16`);

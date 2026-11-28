@@ -71,6 +71,10 @@ jobs:
           cp "$SKILL"/template/promo.html "$SKILL"/template/film.js "$SKILL"/template/fx.js "$SKILL"/template/parts.js "$SKILL"/template/type.js "$SKILL"/scripts/render.mjs "$W"/
           cd "$W" && PREVIEW=1 FROM=0 TO=0.5 node render.mjs video ../preview.mp4
           ffprobe -v error -show_entries stream=codec_name,width,height:format=duration -of compact ../preview.mp4
+      - name: Sound effects, from the demo's clicks (sample offsets one frame after each)
+        run: |
+          W="$RUNNER_TEMP/pw/film/src" && cp "$SKILL"/scripts/sfx.mjs "$SKILL"/scripts/narrate.mjs "$W"/
+          node "$W/sfx.mjs" --selftest && cd "$W" && node sfx.mjs promo.html --out ../sfx.wav
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -118,6 +122,10 @@ jobs:
           cp "$SKILL"/template/promo.html "$SKILL"/template/film.js "$SKILL"/template/fx.js "$SKILL"/template/parts.js "$SKILL"/template/type.js "$SKILL"/scripts/render.mjs "$W"/
           cd "$W" && PREVIEW=1 FROM=0 TO=0.5 node render.mjs video ../preview.mp4
           ffprobe -v error -show_entries stream=codec_name,width,height:format=duration -of compact ../preview.mp4
+      - name: Sound effects, from the demo's clicks (sample offsets one frame after each)
+        run: |
+          W="$RUNNER_TEMP/pw/film/src" && cp "$SKILL"/scripts/sfx.mjs "$SKILL"/scripts/narrate.mjs "$W"/
+          node "$W/sfx.mjs" --selftest && cd "$W" && node sfx.mjs promo.html --out ../sfx.wav
       - name: Kokoro through PyTorch, telling an Italian line with accents
         run: |
           S="$RUNNER_TEMP/story" && mkdir -p "$S" && cp "$SKILL"/scripts/voice.mjs "$SKILL"/scripts/narrate.mjs "$SKILL"/scripts/voice-torch.py "$S"/

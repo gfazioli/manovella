@@ -181,6 +181,7 @@ verify); this page is the catalogue.
 | `template/film.js` | The stage (subpixel jitter), rasters that hold still, springs and cameras, the timeline, transitions, effects. |
 | `template/fx.js` | The looks: backdrops, fields, pictures, light, texture, glass, click ripples, palettes, chapter sequences. |
 | `scripts/narrate.mjs` | A tutorial's story into a voice, a clock and subtitles (`narration.wav`, `narration.js`, `captions.srt` / `.vtt`). |
+| `scripts/sfx.mjs` | Sound effects made in code, optional: clicks, cuts and typed letters from the page's own clock, each one frame after its picture event; `mix.mjs --sfx` lays them under the voice. |
 | `scripts/voice.mjs` | The story told by a voice model on the Mac instead of `say` (`voice-mlx.py`, `voice-constraints.txt`), at a tone, with a human touch; `--setup` once on each Mac. |
 | `scripts/mix.mjs` | A voice and a music track into one soundtrack: the music measured under the voice, up between lines. |
 | `template/type.js` | Headlines: thirteen styles of arrival, an emphasis, a pace, `TYPE.load` for a family's faces. |
