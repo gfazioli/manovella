@@ -150,13 +150,20 @@ const SPACY_MODEL = 'https://github.com/explosion/spacy-models/releases/download
 const KOKORO = MODELS.kokoro;
 // The speech-to-text model words.mjs times the words with (voice-words.py): Whisper, as MLX conversions that carry their
 // processor files (what mlx-audio loads) and as OpenAI's own for Transformers. base is measured against Kokoro's own
-// word times (words.mjs says how): tiny is 79 MB and 20 ms worse in the median, small is three times base's size
-// for no gain.
+// word times (words.mjs says how): tiny, 79 MB, was 50 ms worse in the median and small, three times base's size, no
+// better, so each engine has the one. `size` is its download, measured.
 export const WORD_MODELS = {
-  mlx: { tiny: 'mlx-community/whisper-tiny-asr-fp16', base: 'mlx-community/whisper-base-asr-fp16' },
-  torch: { tiny: 'openai/whisper-tiny', base: 'openai/whisper-base' },
+  mlx: { repo: 'mlx-community/whisper-base-asr-fp16', size: '150 MB' },
+  torch: { repo: 'openai/whisper-base', size: '290 MB' },
 };
-export const WORD_SIZE = { mlx: '150 MB', torch: '290 MB' }; // the default (base)'s download, measured
+/** Runs voice-words.py on a spec (its header says what is in it): null when it ran, else what went wrong, for the caller to stop with. */
+export function runWords(py, spec) {
+  const file = `${spec.out}.spec.json`;
+  writeFileSync(file, JSON.stringify(spec));
+  const r = spawnSync(py, [join(HERE, 'voice-words.py'), file], { stdio: ['ignore', 'ignore', 'pipe'], encoding: 'utf8', maxBuffer: 64 << 20, env: { ...process.env, PYTHONUTF8: '1', TQDM_DISABLE: '1' } });
+  rmSync(file, { force: true });
+  return r.status === 0 ? null : `the speech-to-text model did not run (${spec.model}).\n${String(r.stderr || r.error?.message || '').trim().split('\n').slice(-4).join('\n')}`;
+}
 const modelOf = (name) => MODELS[name] || name;
 // How freely each model reads, per tone (its sampling temperature); null is the model's own default.
 // Kokoro is not here: its generate takes no temperature.
@@ -218,8 +225,9 @@ function say(model, voice, lines, scratch, temperature = null, lang = null) {
 }
 
 /** Once on each Mac: the Python that runs the models, then each model named, downloaded and tried. */
-function setup(names) {
-  if (!MLX) return setupTorch(names);
+function setup(all) {
+  const words = all.includes('words'), names = all.filter((n) => n !== 'words'); // `words` is the speech-to-text model, not a voice
+  if (!MLX) return setupTorch(names, words);
   if (process.platform !== 'darwin' || process.arch !== 'arm64') stop(3, 'the voice models run on MLX, which is an Apple Silicon Mac\'s. On this machine a story is told by `say` or by recordings (narrate.mjs --from).');
   if (process.env.VOICE_PYTHON) stop(2, `VOICE_PYTHON is set (${process.env.VOICE_PYTHON}): --setup makes ${VENV}, which it would not be used from. Unset it, or keep your own Python.`);
   if (!existsSync(join(VENV, 'bin', 'python'))) {
@@ -246,7 +254,7 @@ function setup(names) {
   }
   const scratch = mkdtempSync(join(tmpdir(), 'film-voice-'));
   try {
-    for (const name of names.filter((n) => n !== 'words')) {
+    for (const name of names) {
       const model = modelOf(name), known = KNOWN[model], wav = join(scratch, 'probe.wav');
       console.log(`${model}: saying one line (a first run downloads the model${known?.size ? `: about ${known.size}` : ''})…`);
       say(model, known?.voice ?? null, [{ out: wav, text: PROBE.text, seed: PROBE.seed }], scratch);
@@ -257,34 +265,33 @@ function setup(names) {
       console.log(`${model}: ${seconds(wav).toFixed(2)} s, sha256 ${sha}\n  ${verdict}`);
     }
   } finally { rmSync(scratch, { recursive: true, force: true }); }
-  if (names.includes('words')) setupWords(py);
-  if (!names.length) console.log('no model named: each is downloaded at the first story that uses it (or now: --setup chatterbox orpheus).');
+  if (words) setupWords(py);
+  if (!names.length && !words) console.log('no model named: each is downloaded at the first story that uses it (or now: --setup chatterbox orpheus).');
 }
 
 /** The speech-to-text model, downloaded and run once on a second of tone (it hears nothing in it: that it runs is the test). */
 function setupWords(py) {
-  const engine = MLX ? 'mlx' : 'torch', repo = WORD_MODELS[engine].base, scratch = mkdtempSync(join(tmpdir(), 'film-words-'));
+  const engine = MLX ? 'mlx' : 'torch', { repo, size } = WORD_MODELS[engine], scratch = mkdtempSync(join(tmpdir(), 'film-words-'));
   try {
-    console.log(`${repo}: loading Whisper base through ${MLX ? 'MLX' : 'PyTorch (the CPU)'} (a first run downloads about ${WORD_SIZE[engine]})…`);
-    const wav = join(scratch, 'tone.wav'), spec = join(scratch, 'spec.json');
+    console.log(`${repo}: loading Whisper base through ${MLX ? 'MLX' : 'PyTorch (the CPU)'} (a first run downloads about ${size})…`);
+    const wav = join(scratch, 'tone.wav');
     run('ffmpeg', ['-y', '-v', 'error', '-f', 'lavfi', '-i', 'sine=f=440:d=1', '-ac', '1', '-ar', '16000', wav]);
-    writeFileSync(spec, JSON.stringify({ engine, model: repo, out: join(scratch, 'out.json'), lines: [{ wav, lang: 'en', text: '' }] }));
-    const r = spawnSync(py, [join(HERE, 'voice-words.py'), spec], { stdio: ['ignore', 'ignore', 'pipe'], encoding: 'utf8', maxBuffer: 64 << 20, env: { ...process.env, PYTHONUTF8: '1', TQDM_DISABLE: '1' } });
-    if (r.status !== 0) stop(3, `the speech-to-text model did not run (${repo}).\n${String(r.stderr || r.error?.message || '').trim().split('\n').slice(-4).join('\n')}`);
-    console.log(`${repo}: runs. words.mjs times a voice-over's words with it (--model tiny for the smaller one).`);
+    const err = runWords(py, { engine, model: repo, out: join(scratch, 'out.json'), lines: [{ wav, lang: 'en', text: '' }] });
+    if (err) stop(3, err);
+    console.log(`${repo}: runs. words.mjs times a voice-over's words with it.`);
   } finally { rmSync(scratch, { recursive: true, force: true }); }
 }
 
 /** Once on each machine without MLX: a Python 3.12 venv with PyTorch (CPU) and Kokoro, then one line said. */
-function setupTorch(names) {
+function setupTorch(names, words) {
   if (process.platform === 'darwin' && process.arch !== 'arm64') stop(3, 'PyTorch has no build for an Intel Mac since 2.3: there a story is told by `say`, or by recordings (narrate.mjs --from).');
   if (process.env.VOICE_PYTHON) stop(2, `VOICE_PYTHON is set (${process.env.VOICE_PYTHON}): --setup makes ${VENV_TORCH} and ${VENV_LARGE}, which it would not be used from. Unset it, or keep your own Python.`);
-  const unknown = names.filter((n) => n !== 'words' && !TORCH_REPO[modelOf(n)]);
-  if (unknown.length) stop(2, `${unknown.join(', ')}: not a model voice.mjs knows (kokoro, chatterbox, orpheus, words).`);
-  const large = names.filter((n) => n !== 'words' && modelOf(n) !== KOKORO).map(modelOf);
-  if (!names.length || names.some((n) => modelOf(n) === KOKORO)) setupKokoro();
+  const unknown = names.filter((n) => !TORCH_REPO[modelOf(n)]);
+  if (unknown.length) stop(2, `${unknown.join(', ')}: not a model voice.mjs knows (kokoro, chatterbox, orpheus).`);
+  const large = names.filter((n) => modelOf(n) !== KOKORO).map(modelOf);
+  if ((!names.length && !words) || names.some((n) => modelOf(n) === KOKORO)) setupKokoro();
   if (large.length) setupLarge(large);
-  if (names.includes('words')) setupWordsTorch();
+  if (words) setupWordsTorch();
 }
 /** A venv at `venv` from a Python kokoro and chatterbox-tts both take: VOICE_SETUP_PYTHON, python3.12…, or Windows' launcher (py -3.12). */
 function makeVenv(venv) {

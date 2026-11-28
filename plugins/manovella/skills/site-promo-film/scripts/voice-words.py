@@ -12,7 +12,6 @@ elsewhere through PyTorch and Transformers (CPU, venv-torch). The text the story
 (words.mjs matches it to what was heard, letter by letter): a recording that says something else is seen as such.
 """
 import json
-import subprocess
 import sys
 
 spec = json.load(open(sys.argv[1]))
@@ -29,19 +28,18 @@ if engine == "mlx":
                  for s in (r.segments or []) for w in s.get("words", [])]
         result.append({"text": r.text.strip(), "words": words})
 else:
-    import numpy as np
+    import soundfile
     import torch
     from transformers import pipeline
 
     pipe = pipeline("automatic-speech-recognition", model=repo, device="cpu", dtype=torch.float32)
     for line in lines:
-        # 16 kHz mono floats, the way Whisper reads: words.mjs wrote the WAV at that rate
-        raw = subprocess.run(["ffmpeg", "-v", "error", "-i", line["wav"], "-f", "f32le", "-ac", "1", "-ar", "16000", "-"],
-                             capture_output=True, check=True).stdout
+        # words.mjs wrote the WAV at 16 kHz mono, the way Whisper reads
+        samples, rate = soundfile.read(line["wav"], dtype="float32")
         kw = {"task": "transcribe"}
         if line.get("lang"):
             kw["language"] = line["lang"]
-        r = pipe({"raw": np.frombuffer(raw, dtype=np.float32), "sampling_rate": 16000}, return_timestamps="word", generate_kwargs=kw)
+        r = pipe({"raw": samples, "sampling_rate": rate}, return_timestamps="word", generate_kwargs=kw)
         words = [{"w": c["text"].strip(), "t0": float(c["timestamp"][0]), "t1": float(c["timestamp"][1] if c["timestamp"][1] is not None else c["timestamp"][0])}
                  for c in r["chunks"]]
         result.append({"text": r["text"].strip(), "words": words})

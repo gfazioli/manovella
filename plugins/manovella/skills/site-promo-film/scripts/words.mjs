@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // words.mjs — the second each word of a voice-over starts, so an action can land on the word that names it.
 //
-//   node words.mjs story.json [--out <dir>] [--from <dir>] [--model tiny|base]
+//   node words.mjs story.json [--out <dir>] [--from <dir>]
 //   node words.mjs --selftest                            the matching and the edges, with no model
 //   node voice.mjs --setup words                         once on each machine: the speech-to-text model
 //
@@ -18,9 +18,9 @@
 // The recordings are voice-mlx/ for a story with "mlx" (voice.mjs), voice/ for `say`'s, or the folder --from names:
 // a person's recordings too. Run it after voice.mjs or narrate.mjs, and again when a line changes.
 //
-// WHICH MODEL: Whisper, word times from its cross-attention (the method both engines share). On an Apple Silicon Mac
-// through MLX (mlx-audio, already in voice.mjs's venv), elsewhere through PyTorch on the CPU (venv-torch). --model
-// picks the size: tiny, base (the default); `voice.mjs --setup words` downloads the default and says its size.
+// WHICH MODEL: Whisper base, word times from its cross-attention (the method both engines share). On an Apple Silicon
+// Mac through MLX (mlx-audio, already in voice.mjs's venv), elsewhere through PyTorch on the CPU (venv-torch);
+// `voice.mjs --setup words` downloads it and says its size (tiny was measured 50 ms worse, small no better).
 // What the model hears is matched to the sentence the story says letter by letter, never trusted as the text: a name
 // it misspells ("Acme" heard as "ACK me") still lands on its own word, and a word it missed gets a time between
 // its neighbours'. The sentence says how much of its letters the model heard (coverage), and a step under 80 % is
@@ -31,12 +31,10 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, 
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { MLX, python, WORD_MODELS } from './voice.mjs';
-export { WORD_MODELS };
+import { MLX, python, runWords, WORD_MODELS } from './voice.mjs';
 import { pcm, shown, stepName } from './narrate.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-export const DEFAULT_SIZE = 'base';
 const METHOD = 'letters+onsets-1'; // part of a step's key: the matching or the edges changed, so the words are made again
 const LETTER = /[\p{L}\p{N}]/u;
 const letters = (s) => [...String(s).normalize('NFC').toLowerCase()].filter((c) => LETTER.test(c)).join('');
@@ -146,13 +144,12 @@ function selftest() {
 
 function main() {
   if (process.argv[2] === '--selftest') return selftest();
-  const argv = process.argv.slice(2), valued = ['--out', '--from', '--model'];
+  const argv = process.argv.slice(2), valued = ['--out', '--from'];
   const arg = (n) => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : null; };
   const file = argv.find((a, i) => !a.startsWith('--') && !valued.includes(argv[i - 1]));
   const stop = (code, m) => { console.error(`words.mjs: ${m}`); process.exit(code); };
-  if (!file) stop(2, 'usage: words.mjs story.json [--out <dir>] [--from <dir of recordings>] [--model tiny|base]');
-  const size = arg('--model') || DEFAULT_SIZE, engine = MLX ? 'mlx' : 'torch', repo = WORD_MODELS[engine][size];
-  if (!repo) stop(2, `--model ${size}: one of ${Object.keys(WORD_MODELS[engine]).join(', ')}`);
+  if (!file) stop(2, 'usage: words.mjs story.json [--out <dir>] [--from <dir of recordings>]');
+  const engine = MLX ? 'mlx' : 'torch', { repo } = WORD_MODELS[engine];
   const story = JSON.parse(readFileSync(resolve(file), 'utf8'));
   if (!Array.isArray(story.steps) || !story.steps.length) stop(2, 'the story has no steps');
   const out = resolve(arg('--out') || dirname(resolve(file)));
@@ -182,10 +179,8 @@ function main() {
         t.dur = +((statSync(wav).size - 44) / 2 / 16000).toFixed(3); // the recording's seconds, which narrate.mjs checks the words against
         return { wav, lang, text: t.text };
       });
-      const spec = join(scratch, 'spec.json'), res = join(scratch, 'out.json');
-      writeFileSync(spec, JSON.stringify({ engine, model: repo, out: res, lines }));
-      const r = spawnSync(py, [join(HERE, 'voice-words.py'), spec], { stdio: ['ignore', 'ignore', 'pipe'], encoding: 'utf8', maxBuffer: 64 << 20, env: { ...process.env, PYTHONUTF8: '1', TQDM_DISABLE: '1' } });
-      if (r.status !== 0) stop(3, `the speech-to-text model did not run (${repo}).\n${String(r.stderr || r.error?.message || '').trim().split('\n').slice(-4).join('\n')}`);
+      const res = join(scratch, 'out.json'), err = runWords(py, { engine, model: repo, out: res, lines });
+      if (err) stop(3, err);
       const heard = JSON.parse(readFileSync(res, 'utf8'));
       todo.forEach((t, i) => {
         const a = alignWords(t.text, heard[i].words);
@@ -201,7 +196,7 @@ function main() {
   }
   console.log(`${todo.length} heard now, ${Object.keys(steps).length - todo.length} kept (${repo}, ${engine}) → ${indexFile}`);
   // narrate.mjs lays the words into narration.js: its recordings are the ones just heard
-  const args = [join(HERE, 'narrate.mjs'), resolve(file), '--out', out, '--from', dir, '--words', indexFile];
+  const args = [join(HERE, 'narrate.mjs'), resolve(file), '--out', out, '--from', dir];
   const n = spawnSync(process.execPath, args, { stdio: 'inherit' });
   process.exit(n.status ?? 1);
 }
