@@ -47,6 +47,9 @@
 //                and said before the render when it does not (loudnorm then rides the level instead);
 //                never raised by more than 12 dB (a quiet stretch stays quiet rather than pumping up its
 //                noise floor), then the file is measured again and both printed.
+//                AUDIO_TP=-1.5 is that true-peak ceiling in dBTP, aimed at BEFORE the AAC encode, which raises
+//                peaks (measured on the file below); a target with a stricter limit on the encoded file takes a
+//                lower one (X: AUDIO_TP=-3, then `deliver.mjs check <file> --for x` measures the result).
 //                AUDIO_NORM=0 keeps the track as it is. AUDIO=click muxes a metronome on the page's bpm, to
 //                hear the cuts land (never normalized: it is a tool, not a soundtrack).
 //                Before it renders, the track's beat is measured (beats.mjs, beside this file, on the whole
@@ -334,8 +337,8 @@ async function fastFrames(browser, meta, F0, F1, pages, heat) {
   return v.map((x, i) => +(x > FAST || v[i - 1] > FAST || v[i + 1] > FAST)).join('');
 }
 // a soundtrack's loudness: loudnorm's first pass on the stretch the film uses, and the second pass's
-// filter built from it (linear: one gain for the whole track, unless the true peak would pass -1.5 dBTP)
-const LUFS = Number(process.env.AUDIO_LUFS || -14);
+// filter built from it (linear: one gain for the whole track, unless the true peak would pass AUDIO_TP)
+const LUFS = Number(process.env.AUDIO_LUFS || -14), TP = Number(process.env.AUDIO_TP || -1.5); // TP: the true peak aimed at before the AAC encode, which raises it
 // silencedetect rides in the same decode: the stretches under -60 dB for a second or more, in the
 // film's seconds (an input -ss starts the clock at 0). One still silent at the end runs to len.
 // src ends the input where the film ends (an input -t): under an output -t loudnorm read on past it
@@ -343,7 +346,7 @@ const LUFS = Number(process.env.AUDIO_LUFS || -14);
 // sound the film does not have set its gain.
 async function measureLoudness(src, len) {
   const r = await ffmpeg(['-hide_banner', '-nostats', ...src, '-vn',
-    '-af', `silencedetect=n=-60dB:d=1,loudnorm=I=${LUFS}:TP=-1.5:LRA=11:print_format=json`, '-f', 'null', '-'], { stdio: ['ignore', 'ignore', 'pipe'] });
+    '-af', `silencedetect=n=-60dB:d=1,loudnorm=I=${LUFS}:TP=${TP}:LRA=11:print_format=json`, '-f', 'null', '-'], { stdio: ['ignore', 'ignore', 'pipe'] });
   // the events are paired first, then held to the film, so an interval never ends past it
   const pairs = [];
   for (const [, k, v] of r.matchAll(/silence_(start|end): (-?[\d.]+(?:e[-+]?\d+)?)/g)) {
@@ -363,18 +366,18 @@ function loudnessFilter(m) {
   // under the measured one, or when the measured one is 0 (what a stretch of a few seconds gives), with
   // peak to spare either way (measured, FFmpeg 9.0.2: a 20 LU track at LRA=11 came out at 16.4 LU). So
   // it is asked for the range the track has, and told of one that is not 0. What is left is the peak:
-  // one gain that would pass -1.5 dBTP is not applied, and that is said here, before the render. With
+  // one gain that would pass the true-peak ceiling (AUDIO_TP, -1.5) is not applied, and that is said here, before the render. With
   // 3 s of sound or more loudnorm rides the level instead. With less it reaches the end inside its
   // first buffer and has nothing to ride: it gives the one gain the peak allows and stops short of the
   // target (measured: 2 s at -25.8 LUFS, true peak -3.9, came out at -23.4 for -16).
   const lra = Number(m.input_lra) || 0, gain = target - Number(m.input_i), peak = Number(m.input_tp) + gain;
-  const fits = !(peak > -1.5), held = !fits && m.seconds < 3, applied = fits ? gain : held ? -1.5 - Number(m.input_tp) : null;
-  if (!fits) console.log(`audio: ${signed(gain)} to reach ${target.toFixed(1)} LUFS would put the true peak at ${peak.toFixed(1)} dBTP, over -1.5: ${held
+  const fits = !(peak > TP), held = !fits && m.seconds < 3, applied = fits ? gain : held ? TP - Number(m.input_tp) : null;
+  if (!fits) console.log(`audio: ${signed(gain)} to reach ${target.toFixed(1)} LUFS would put the true peak at ${peak.toFixed(1)} dBTP, over ${TP}: ${held
     ? `one gain of ${signed(applied)}, all the peak allows, which leaves it near ${(Number(m.input_i) + applied).toFixed(1)} LUFS (${m.seconds.toFixed(2)} s of sound is under the 3 s loudnorm needs to ride the level)`
     : 'not one gain, the level is ridden (loudnorm\'s dynamic mode), which changes the dynamics'}`);
   return {
     from: m.input_i, peak: m.input_tp, target, gain: applied, held, // gain: the one gain applied, null when the level is ridden
-    filter: `loudnorm=I=${target.toFixed(1)}:TP=-1.5:LRA=${Math.min(50, Math.max(11, Math.ceil(lra)))}:measured_I=${m.input_i}:measured_TP=${m.input_tp}:measured_LRA=${Math.max(0.1, lra)}:measured_thresh=${m.input_thresh}:offset=${capped ? 0 : m.target_offset}:linear=true`,
+    filter: `loudnorm=I=${target.toFixed(1)}:TP=${TP}:LRA=${Math.min(50, Math.max(11, Math.ceil(lra)))}:measured_I=${m.input_i}:measured_TP=${m.input_tp}:measured_LRA=${Math.max(0.1, lra)}:measured_thresh=${m.input_thresh}:offset=${capped ? 0 : m.target_offset}:linear=true`,
   };
 }
 // The soundtrack's beat against the page's, from AUDIO_AT on (beats.mjs, beside this file)

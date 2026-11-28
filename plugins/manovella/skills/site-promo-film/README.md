@@ -194,7 +194,7 @@ verify); this page is the catalogue.
 | `scripts/settings.mjs` | The user's settings (`settings.json`): project and picture folders, the music library, where films are made and delivered. |
 | `scripts/beats.mjs` | A soundtrack's tempo, beats, bars and sections, from its samples; the bpm and `AUDIO_AT` that put the film on its beat. |
 | `scripts/thermo.swift` | The chip's temperature without sudo, for the governor. |
-| `scripts/deliver.mjs` | The finished films into a folder of their own, and the work folder to the Trash once its source is safe. |
+| `scripts/deliver.mjs` | The finished films into a folder of their own, and the work folder to the Trash once its source is safe. `--for x`: X's limits for a video or a GIF, each measured on the file. |
 | `scripts/fonts.mjs` | Another family for the kit, from Google Fonts with its licence; `check`, `list`. |
 | `guide.md` | The guided mode: what `?` does. |
 | `studio/` | The Studio: `studio.mjs` (the server, the window, the brief), the wizard (`index.html`, `studio.js`, `studio.css`), `stage.html` (the stand-in everything is previewed on), `schema.json`, `studio.json` (its name and version) and `icon-1024.png` (its window app's), `selftest.mjs` and `transcheck.mjs` (every transition, held to the pixel at both ends). |
@@ -439,6 +439,14 @@ A render keeps the chip busy for minutes, and a run of test renders once took it
 refuses a draft, probes every video (size, fps, frames, colour tags), writes the chapter list a
 YouTube description wants, and, when `/Applications/ImageOptim.app` is installed, puts each cover through it with an SSIM against the original:
 a real release film's posters went from 1.0 MB to 0.13 MB at SSIM 0.9995.
+
+`deliver.mjs <folder> <file> … --for x` (or `deliver.mjs check <file> --for x`) holds a video or a GIF to
+X's limits first, each measured on the finished file and printed with its number: H.264 High,
+`yuv420p`, at most 60 fps, AAC, faststart, -14 LUFS and a true peak at or under -2 dBTP for a
+video; at most 15 MB, 1280x1080, 350 frames and 300 million pixels in all for a GIF. One not met
+stops the delivery, nothing copied, with the setting that would meet it (a film for X renders with
+`AUDIO_LUFS=-14 AUDIO_TP=-3`: the AAC encode raises the peak `render.mjs` aims at). Another platform
+is one more entry in the `TARGETS` table.
 
 `deliver.mjs trash` then throws the work folder away, but only once every source file in it is in
 the product's kit (committed, on a remote branch, at any path or in any commit), every render was

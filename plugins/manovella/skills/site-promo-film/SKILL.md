@@ -32,7 +32,7 @@ the engine.**
 | `scripts/beats.mjs` | A soundtrack's beat, from its samples: the tempo, whether it holds, every beat, the bars, the sections, and the bpm and `AUDIO_AT` to give the page; `--out beats.js` for a page that follows a track that drifts (`FILM.beats`). `render.mjs` imports it to measure the page's beats against the track's. `--selftest`. |
 | `scripts/clickcheck.mjs` | Is every click seen: for each of the page's `CLICKS`, how fast the clicked point moves on screen and how far the cursor travels before the press and during it. Exit 1 on a click nobody will see (release-film §3b), 2 on a page with no cursor. |
 | `scripts/layoutcheck.mjs` | Is every headline in the frame, apart, big enough for a phone and readable: at each checkpoint, each headline `TYPE.draw` draws, against the safe area, the other headlines, its size on a phone and the backdrop round it (the limits are in its header). Exit 1 on a headline that fails, 2 on a page that draws none through `TYPE.draw`. |
-| `scripts/deliver.mjs` | The last step (§8): the finished videos and their covers leave the work folder for a folder of their own; once the film is out, `trash` throws the work folder away after checking its source is safe in the kit. `--selftest`. |
+| `scripts/deliver.mjs` | The last step (§8): the finished videos and their covers leave the work folder for a folder of their own; once the film is out, `trash` throws the work folder away after checking its source is safe in the kit. `--for x` (or `check <file> --for x`) measures a video or GIF against X's limits on the finished file, every limit with its number, and refuses one not met. `--selftest`. |
 | `scripts/fonts.mjs` | The kit's fonts: `add "<Family>" [axes]` from Google Fonts with its licence, `check`, `list`. |
 
 Beside them, `studio/` (the Studio, below), `guide.md` (the guided mode, below) and `README.md`
@@ -931,7 +931,7 @@ node render.mjs loopcheck                   # PSNR must be inf
   keep one gain). Under 3 s of sound loudnorm cannot ride anything: such a range gets the one gain
   the peak allows and stays under the target, which the log says too. The log prints the track's loudness and the file's, measured on the file, and
   which of the two it was. `AUDIO_LUFS=-16`
-  for another target, `AUDIO_NORM=0` to keep the track as it is. (Measured: a -8.9 LUFS track came out at -14.6, a -26.7 one at -15.1.) `AUDIO=click` muxes a
+  for another target, `AUDIO_TP=-3` for a lower true-peak ceiling before the AAC encode (§8, `--for x`), `AUDIO_NORM=0` to keep the track as it is. (Measured: a -8.9 LUFS track came out at -14.6, a -26.7 one at -15.1.) `AUDIO=click` muxes a
   metronome on the page's `bpm` instead, never normalized — the way to hear whether the cuts land
   on the beat before any music is chosen. The track is checked before the first frame: a file with no sound in it, or an `AUDIO_AT` past its end, stops the render
   there; a track that ends before the film does, and every second or more under -60 dB in the
@@ -1001,6 +1001,15 @@ node deliver.mjs <delivery> ../<name>.mp4 ../<name>-square.mp4 \
   look anyway.
 - It records what it delivered in `<name>-work/.delivered.json`: a second run skips what is there,
   and `trash` knows which renders left.
+- **A platform's limits** (`--for x`, and `node deliver.mjs check <file> --for x` for a file not
+  delivered yet): each limit is measured on the finished file and printed with its number, and one
+  not met stops the delivery with nothing copied, naming the setting that would meet it. X video:
+  H.264 High, `yuv420p`, at most 60 fps, AAC, faststart, -14 LUFS (within 1), true peak at or
+  under -2 dBTP. The peak is the one that fails first: `render.mjs` aims at -1.5 dBTP before the
+  AAC encode, which raised it to -1.8 on a measured file, so a film for X renders with
+  `AUDIO_TP=-3` (-3.1 measured on the file) and `AUDIO_LUFS=-14`. X GIF: at most 15 MB, 1280x1080,
+  350 frames and 300 million pixels in all (`GIF_W`, `GIF_FPS`, `FROM`/`TO` bring one under). The
+  targets are a table in `deliver.mjs` (`TARGETS`): another platform is one more entry.
 - **A film that goes to YouTube also gets `<name>-youtube.txt`** beside it, written by hand after
   the delivery, so the title and description are ready to paste. Three sections, each with its
   count, in the film's language:

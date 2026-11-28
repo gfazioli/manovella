@@ -9,6 +9,10 @@
 //                                                      and said it can go
 //   … trash <work> --root <dir>                        a film begun before the work root changed: the root
 //                                                      it is in (the guard below holds against that one)
+//   node deliver.mjs <folder> <file> … --for x          the same, after checking each video against a platform's
+//                                                      limits (TARGETS below): every limit with its measured
+//                                                      number, and nothing is copied when one is not met
+//   node deliver.mjs check <file> … --for x             only the check, for a file not to be delivered yet
 //   node deliver.mjs --selftest                         drives every refusal on a scratch tree
 //
 // Two folders, by convention: <work root>/<name>-work/ holds everything made along the way (the
@@ -34,6 +38,13 @@
 //     (draft, preview or wip in the name), a folder inside the work folder (it would go to the
 //     Trash with it) are refused. What was delivered is recorded in <work>/.delivered.json, so a
 //     second run skips it and trash knows which renders left.
+// --for <target>: the limits are MEASURED ON THE FINISHED FILE, never taken from the settings that made it
+//   (AAC raises a peak that render.mjs held at -1.5 dBTP before the encode). Each limit prints with its
+//   number, `ok` or `FAIL`, and the setting that would meet it; exit 1 when one is not met. A target is a
+//   row of TARGETS: another platform joins by adding one (its video rules, its GIF rules).
+//   x     X video: H.264 High, yuv420p, at most 60 fps, AAC, faststart (moov before mdat), -14 LUFS
+//         (within 1 LU), true peak at or under -2 dBTP. X GIF: at most 15 MB, 1280x1080, 350 frames,
+//         300 million pixels (width x height x frames).
 // trash:
 //   - Only a folder inside the work root whose name ends in -work and which holds a film page (an
 //     .html setting PROMO_META): a delivery folder never does.
@@ -56,7 +67,7 @@
 //     else trash-cli's trash-put; on Windows the Recycle Bin, through PowerShell.
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { constants, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { closeSync, constants, copyFileSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { homedir, platform, tmpdir } from 'node:os';
 import { basename, dirname, extname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -147,8 +158,81 @@ const dims = (file) => { const v = probe(file).streams[0]; return `${v.width}×$
 // is in render.mjs (neither script can import the other): change both.
 const hasAlpha = (v) => /^(yuva|gbrap|rgba|bgra|argb|abgr)/.test(v.pix_fmt || '') || Object.entries(v.tags || {}).some(([k, x]) => k.toLowerCase() === 'alpha_mode' && x === '1');
 
+// ------------------------------------------------------------------ targets
+// What a platform accepts, as rules over what is measured on the file: { label, limit (said), value(f) the number
+// or text shown, ok(f), fix (the setting that meets it, said when it does not) }. f is measure()'s answer.
+const MB15 = 15 * 1000 * 1000; // X's "15 MB": counted in megabytes of 10^6 bytes, the way a platform's own limit is (its tightest reading)
+const TARGETS = {
+  x: {
+    name: 'X',
+    video: [
+      { label: 'video codec', limit: 'H.264 High', value: (f) => `${f.codec}${f.profile ? ` ${f.profile}` : ''}`, ok: (f) => f.codec === 'h264' && f.profile === 'High', fix: 'render an .mp4 with the default H.264 (no HEVC=1, no CHROMA=444)' },
+      { label: 'pixel format', limit: 'yuv420p', value: (f) => f.pix_fmt, ok: (f) => f.pix_fmt === 'yuv420p', fix: 'render without CHROMA=444: 4:4:4 is a master, not a deliverable' },
+      { label: 'frame rate', limit: 'at most 60 fps', value: (f) => `${+f.fps.toFixed(3)} fps`, ok: (f) => f.fps <= 60 + 1e-6, fix: 'a page at 60 fps or less (PROMO_META.fps)' },
+      { label: 'audio codec', limit: 'AAC, when there is sound', value: (f) => f.audio ? f.audio.codec : 'no audio track', ok: (f) => !f.audio || f.audio.codec === 'aac', fix: 'render with AUDIO= to .mp4 (AAC); .webm carries Opus' },
+      { label: 'faststart', limit: 'moov before mdat', value: (f) => (f.faststart === null ? 'not an MP4 or MOV' : f.faststart ? 'moov first' : 'mdat first'), ok: (f) => f.faststart === true, fix: 'ffmpeg -i in.mp4 -c copy -movflags +faststart out.mp4 (render.mjs does it)' },
+      { label: 'loudness', limit: '-14 LUFS, within 1 LU', value: (f) => (f.loud ? `${f.loud.I.toFixed(1)} LUFS` : 'no audio'), ok: (f) => !f.audio || (f.loud && Math.abs(f.loud.I + 14) <= 1), fix: 'render with AUDIO_LUFS=-14 (a voice film defaults to -16)' },
+      { label: 'true peak', limit: 'at most -2 dBTP, on the encoded file', value: (f) => (f.loud ? `${f.loud.TP.toFixed(1)} dBTP` : 'no audio'), ok: (f) => !f.audio || (f.loud && f.loud.TP <= -2), fix: 'render with AUDIO_TP=-3: AAC raised the -1.5 dBTP aimed at before the encode' },
+    ],
+    gif: [
+      { label: 'size', limit: 'at most 15 MB', value: (f) => `${(f.bytes / 1e6).toFixed(2)} MB`, ok: (f) => f.bytes <= MB15, fix: 'a lower GIF_W, a lower GIF_FPS or a shorter FROM/TO' },
+      { label: 'width', limit: 'at most 1280', value: (f) => f.width, ok: (f) => f.width <= 1280, fix: 'GIF_W=1280 or less' },
+      { label: 'height', limit: 'at most 1080', value: (f) => f.height, ok: (f) => f.height <= 1080, fix: 'a lower GIF_W (the height follows the page\'s ratio)' },
+      { label: 'frames', limit: 'at most 350', value: (f) => f.frames, ok: (f) => f.frames <= 350, fix: 'a lower GIF_FPS or a shorter FROM/TO' },
+      { label: 'pixels in all', limit: 'at most 300 million (width x height x frames)', value: (f) => `${(f.width * f.height * f.frames / 1e6).toFixed(1)} million`, ok: (f) => f.width * f.height * f.frames <= 300e6, fix: 'a lower GIF_W, a lower GIF_FPS or a shorter FROM/TO' },
+    ],
+  },
+};
+const targetOf = (name) => TARGETS[String(name || '').toLowerCase()] || fail(`--for ${name}: not a target (${Object.keys(TARGETS).join(', ')})`);
+
+/** Whether an MP4/MOV's `moov` box comes before its `mdat` (a player can start before the file has all arrived):
+ *  the top-level boxes read by their sizes, nothing but their headers. null when it is not an ISO file. */
+function faststart(file) {
+  const fd = openSync(file, 'r'), total = statSync(file).size, h = Buffer.alloc(16);
+  try {
+    for (let at = 0, n = 0; at + 8 <= total && n < 64; n++) {
+      readSync(fd, h, 0, 16, at);
+      let size = h.readUInt32BE(0); const type = h.toString('latin1', 4, 8);
+      if (n === 0 && type !== 'ftyp') return null;
+      if (type === 'moov') return true;
+      if (type === 'mdat') return false;
+      if (size === 1) size = Number(h.readBigUInt64BE(8)); else if (size === 0) size = total - at;
+      if (size < 8) return null;
+      at += size;
+    }
+  } finally { closeSync(fd); }
+  return null;
+}
+/** What a finished file is, measured on it: the numbers the targets' rules read. */
+function measure(file) {
+  const p = probe(file), v = p.streams.find((s) => s.codec_type === 'video'), a = p.streams.find((s) => s.codec_type === 'audio');
+  if (!v) fail(`${file}: no video in it`);
+  const gif = extname(file).toLowerCase() === '.gif';
+  const rate = (r) => { const [n, d] = String(r || '0/1').split('/').map(Number); return d ? n / d : n; };
+  const f = { gif, bytes: statSync(file).size, width: v.width, height: v.height, codec: v.codec_name, profile: v.profile, pix_fmt: v.pix_fmt,
+    fps: Math.max(rate(v.avg_frame_rate), rate(v.r_frame_rate)), audio: a ? { codec: a.codec_name } : null, faststart: gif ? null : faststart(file), loud: null, frames: null };
+  // frames counted by decoding the packets: a GIF's nb_frames is not in its header
+  const c = run('ffprobe', ['-v', 'error', '-count_packets', '-select_streams', 'v:0', '-show_entries', 'stream=nb_read_packets', '-of', 'csv=p=0', file]);
+  f.frames = Number(c.stdout.trim()) || Number(v.nb_frames) || 0;
+  if (a) { // EBU R128 on the audio as the file carries it, the true peak with it (4x oversampled)
+    const r = run('ffmpeg', ['-hide_banner', '-nostats', '-i', file, '-map', '0:a:0', '-af', 'ebur128=peak=true', '-f', 'null', '-']).stderr || '';
+    const I = (r.match(/I:\s+(-?[\d.]+) LUFS/g) || []).pop()?.match(/-?[\d.]+/)[0], TP = (r.match(/Peak:\s+(-?[\d.]+) dBFS/g) || []).pop()?.match(/-?[\d.]+/)[0];
+    if (I != null && TP != null) f.loud = { I: Number(I), TP: Number(TP) };
+  }
+  return f;
+}
+/** One file against a target: prints each limit with its number and returns the rules it does not meet. */
+function checkTarget(file, target) {
+  const f = measure(file), rules = target[f.gif ? 'gif' : 'video'];
+  console.log(`${target.name} ${f.gif ? 'GIF' : 'video'}: ${basename(file)}`);
+  const w = Math.max(...rules.map((r) => r.label.length));
+  const failed = rules.filter((r) => !r.ok(f));
+  for (const r of rules) console.log(`  ${r.ok(f) ? 'ok  ' : 'FAIL'}  ${r.label.padEnd(w)}  ${String(r.value(f)).padEnd(16)} (limit: ${r.limit})${r.ok(f) ? '' : `\n        to meet it: ${r.fix}`}`);
+  return failed.map((r) => `${basename(file)}: ${r.label} ${r.value(f)}, ${r.limit}`);
+}
+
 // ------------------------------------------------------------------ deliver
-async function deliver(folderArg, specs) {
+async function deliver(folderArg, specs, target = null) {
   if (!folderArg || !specs.length) usage();
   const folder = resolve(folderArg);
   if (basename(folder).endsWith('-work')) fail(`${basename(folder)} ends in -work, the name of a folder that is thrown away`);
@@ -199,6 +283,13 @@ async function deliver(folderArg, specs) {
     }
   }
 
+  // A platform's limits, measured on each video as it is: one not met stops everything before a copy is made.
+  if (target) {
+    const unmet = items.filter((it) => it.kind === 'video').flatMap((it) => checkTarget(it.from, target));
+    if (!items.some((it) => it.kind === 'video')) fail(`--for ${target.name}: nothing to check, no video among the files`);
+    if (unmet.length) fail(`${unmet.length} limit(s) of ${target.name} not met, nothing was copied:\n  ${unmet.join('\n  ')}`);
+    console.log(`all of ${target.name}'s limits are met\n`);
+  }
   // Covers are optimised on a staged copy before they land, so a folder on a synced drive
   // receives the final bytes once and its trash never gets the originals.
   const images = items.filter((it) => !it.skip && it.kind === 'image');
@@ -538,6 +629,36 @@ function selftest() {
       ['deliver it', 0, 'flat-cover.png', [join(D, 'flat'), join(D, 'flat-work', 'cover.png') + '=flat-cover.png']],
       ['a delivered cover beside a page at the top is safe', 0, '0 kept nowhere', ['trash', join(D, 'flat-work'), '--kit', KF], { DRY: '1' }],
       ['trash refuses a loose file whose delivered copy is gone', 1, 'poster.png  (loose file, its delivered copy is gone or changed', ['trash', W, '--kit', KF], { DRY: '1' }],
+      // --for x: each limit measured on the file. A sine's loudness is its peak here, so -14 LUFS is a peak of -14 dBFS, well under -2
+      ['files for the targets', 'do', () => {
+        const X = join(T, 'xt'), vid = ['-f', 'lavfi', '-i', 'testsrc2=s=128x72:r=30:d=2'], snd = (dB) => ['-f', 'lavfi', '-i', `sine=f=1000:d=2,volume=${dB}dB,pan=stereo|c0=c0|c1=c0`];
+        const enc = ['-c:v', 'libx264', '-profile:v', 'high', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest'];
+        mkdirSync(X, { recursive: true });
+        ff([...vid, ...snd(4), ...enc, '-movflags', '+faststart', join(X, 'xtarget.mp4')]);
+        ff([...vid, ...snd(17), ...enc, '-movflags', '+faststart', join(X, 'loud.mp4')]);
+        ff([...vid, ...snd(4), ...enc, join(X, 'slow-start.mp4')]);
+        ff([...vid, ...snd(4), '-c:v', 'libx264', '-pix_fmt', 'yuv444p', '-c:a', 'aac', '-shortest', '-movflags', '+faststart', join(X, 'y444.mp4')]);
+        ff(['-f', 'lavfi', '-i', 'testsrc2=s=128x72:r=120:d=1', ...enc.slice(0, 6), '-movflags', '+faststart', join(X, 'fast.mp4')]);
+        ff(['-f', 'lavfi', '-i', 'testsrc2=s=64x64:r=10:d=1', join(X, 'ok.gif')]);
+        ff(['-f', 'lavfi', '-i', 'testsrc2=s=32x32:r=40:d=10', join(X, 'long.gif')]);                     // 400 frames
+        ff(['-f', 'lavfi', '-i', 'color=c=gray:s=1400x40:r=10:d=1', join(X, 'wide.gif')]);
+        ff(['-f', 'lavfi', '-i', 'color=c=gray:s=1280x1080:r=10:d=23', join(X, 'heavy.gif')]);          // 230 frames: 318 million pixels, under 350 frames
+      }],
+      ['a video that meets X: every limit with its number', 0, "all of X's limits are met", ['check', join(T, 'xt', 'xtarget.mp4'), '--for', 'x']],
+      ['  and prints the measured loudness and peak', 0, 'LUFS', ['check', join(T, 'xt', 'xtarget.mp4'), '--for', 'x']],
+      ['a video too loud fails on loudness and true peak', 1, 'FAIL  true peak', ['check', join(T, 'xt', 'loud.mp4'), '--for', 'x']],
+      ['a video with mdat before moov fails faststart', 1, 'FAIL  faststart', ['check', join(T, 'xt', 'slow-start.mp4'), '--for', 'x']],
+      ['a 4:4:4 video fails the pixel format', 1, 'FAIL  pixel format', ['check', join(T, 'xt', 'y444.mp4'), '--for', 'x']],
+      ['a 120 fps video fails the frame rate', 1, 'FAIL  frame rate', ['check', join(T, 'xt', 'fast.mp4'), '--for', 'x']],
+      ['a GIF within X\'s limits', 0, "all of X's limits are met", ['check', join(T, 'xt', 'ok.gif'), '--for', 'x']],
+      ['a GIF of 400 frames fails on frames', 1, 'FAIL  frames', ['check', join(T, 'xt', 'long.gif'), '--for', 'x']],
+      ['a GIF 1400 wide fails on width', 1, 'FAIL  width', ['check', join(T, 'xt', 'wide.gif'), '--for', 'x']],
+      ['a GIF of 318 million pixels fails on the total alone', 1, 'FAIL  pixels in all', ['check', join(T, 'xt', 'heavy.gif'), '--for', 'x']],
+      ['an unknown target is refused', 1, 'not a target', ['check', join(T, 'xt', 'ok.gif'), '--for', 'nowhere']],
+      ['deliver --for x refuses a file that fails, and copies nothing', 1, 'nothing was copied', [join(D, 'xtarget'), join(T, 'xt', 'xtarget.mp4'), join(T, 'xt', 'loud.mp4') + '=xtarget-loud.mp4', '--for', 'x']],
+      ['  the folder was not made', 'check', () => !existsSync(join(D, 'xtarget'))],
+      ['deliver --for x copies a file that passes', 0, 'delivered', [join(D, 'xtarget'), join(T, 'xt', 'xtarget.mp4'), '--for', 'x']],
+      ['  and it is there, byte for byte', 'check', () => existsSync(join(D, 'xtarget', 'xtarget.mp4')) && sha(join(D, 'xtarget', 'xtarget.mp4')) === sha(join(T, 'xt', 'xtarget.mp4'))],
       // a real move, where only a CI runner's trash takes it (never a person's): gio or trash-cli, the Recycle Bin
       ...(process.env.CI && process.platform !== 'darwin' ? [['trash moves a folder for real (CI, off macOS)', 0, 'moved to the Trash', ['trash', join(D, 'flat-work'), '--kit', KF]]] : []),
     ];
@@ -562,12 +683,21 @@ function selftest() {
 }
 
 function usage() {
-  console.error('usage: deliver.mjs <folder> <file>[=<name>] … | trash <work> [--kit <dir>] [--discard] | --selftest');
+  console.error('usage: deliver.mjs <folder> <file>[=<name>] … [--for <target>] | check <file> … --for <target> | trash <work> [--kit <dir>] [--discard] | --selftest');
   process.exit(2);
 }
 
 const argv = process.argv.slice(2);
+const forAt = argv.indexOf('--for'), forName = forAt >= 0 ? argv.splice(forAt, 2)[1] : null; // --for <target>, out of the way of the rest
+if (forAt >= 0 && !forName) fail(`--for names a target: ${Object.keys(TARGETS).join(', ')}`);
 if (argv[0] === '--selftest') selftest();
+else if (argv[0] === 'check') {
+  if (argv.length < 2 || !forName) usage();
+  const target = targetOf(forName);
+  const unmet = argv.slice(1).flatMap((f) => { if (!existsSync(f)) fail(`${f}: no such file`); return checkTarget(resolve(f), target); });
+  if (unmet.length) { console.error(`\n${unmet.length} limit(s) of ${target.name} not met`); process.exit(1); }
+  console.log(`\nall of ${target.name}'s limits are met`);
+}
 else if (argv[0] === 'trash') {
   const flags = { kit: null, discard: false, root: null };
   const rest = [];
@@ -579,5 +709,5 @@ else if (argv[0] === 'trash') {
   }
   if (rest.length !== 1) usage();
   trash(rest[0], flags);
-} else if (argv.length) await deliver(argv[0], argv.slice(1));
+} else if (argv.length) await deliver(argv[0], argv.slice(1), forName && targetOf(forName));
 else usage();
