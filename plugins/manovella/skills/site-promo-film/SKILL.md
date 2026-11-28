@@ -24,14 +24,15 @@ the engine.**
 | `template/fx.js` | The look, loaded by the page: a backdrop (flat, gradient, field or picture; soft brand light; dots, grid or lines in parallax; a floor in perspective; a spotlight), a finish (vignette, grain) and the effects that lean on it (frosted glass, click ripples, focus-pull headlines). Twenty-three presets and `photo`, every field overridable, documented at the top of the file. Shared with release-film. |
 | `template/type.js` | Headlines and kinetic type (§3): `TYPE.draw(ctx, t, spec)` in thirteen styles — rise, focus, settle, track, wipe, cascade, weight, split, flap, type, swap, odometer, decode — with an emphasis mark, a pace, and `TYPE.load` for a family's faces. A pure function of t, like the rest. |
 | `template/fonts/` | Twenty open-licensed families (latin + latin-ext woff2, each with its OFL.txt) and `fonts.json`, their faces. A film copies only what it uses into `src/fonts/`; `scripts/fonts.mjs add` fetches another. |
-| `scripts/render.mjs` | `stills <dir> t…`, `sheet <dir>` (the timeline's checkpoints), `looks <dir> <t>`, `loopcheck`, `video <out> [workers]`. Reads size, fps, duration and chapters from the page; jitters every subframe; renders in resumable chunks; `FROM`/`TO`, `PREVIEW=1`, `RESUME=1`, `KEEP=1`, `AUDIO=`, `SHUTTER=`; the extension picks the format (.mp4, .mov ProRes, .webm, .gif; `HEVC=1`; `ALPHA=1` for a transparent .mov or .webm); checks the track before the render and the file after it; fails a capture whose page lost a WebGL context, and a second render of a cut while one runs. Documented at the top. |
+| `scripts/render.mjs` | `stills <dir> t…`, `sheet <dir>` (the timeline's checkpoints, and the busiest frame between each two), `looks <dir> <t>`, `loopcheck`, `seekcheck [n]` (frame k cold against frame k after k-1: state carried between frames), `speeds [out.json]` (how fast each frame moves: what `motioncheck.mjs` reads), `video <out> [workers]`. Reads size, fps, duration and chapters from the page; jitters every subframe; renders in resumable chunks; `FROM`/`TO`, `PREVIEW=1`, `RESUME=1`, `KEEP=1`, `AUDIO=`, `SHUTTER=`; the extension picks the format (.mp4, .mov ProRes, .webm, .gif; `HEVC=1`; `ALPHA=1` for a transparent .mov or .webm); checks the track before the render and the file after it; fails a capture whose page lost a WebGL context, and a second render of a cut while one runs. Documented at the top. |
 | `scripts/narrate.mjs` | A film's story (`story.json`: a sentence a step, a tutorial's or a promo's that speaks) into a voice, a clock and subtitles: `voice/*.aiff`, `narration.wav` (the film's `AUDIO`), `narration.js` (each step's time, for the page) and `captions.srt` / `.vtt`. The Mac's `say`, or `--from` a folder of your own recordings. `"human": "natural"` varies the pauses as a person's; a model's sounds (`[chuckle]`) are kept out of the subtitles. Documented at the top. |
 | `scripts/voice.mjs` | (with `voice-mlx.py`, `voice-torch.py` and `voice-constraints*.txt` beside it: copy them all) The same story told by a voice model that runs on the Mac (`"mlx"` in `story.json`: Chatterbox for a lesson, Orpheus for a promo, Kokoro for a quick draft or a film in Italian), closer to a person than `say`: it says each step (`voice-mlx.py`, through mlx-audio), paces and levels it, then calls `narrate.mjs`. A take is a seed; `"tone"` (calm, warm, bright) is how freely the model reads, `"human"` varies each line's pace within 3 % and lets a line make a sound (`[chuckle]`, `[sigh]`: each model's own spelling, or left out). `--audition` compares takes, `--recordings` stops at the recordings, `--setup` makes the Python and fetches the models once on each Mac (`voice-constraints.txt` pins what it installs) and says whether that Mac repeats the takes recorded here. Documented at the top. |
 | `scripts/mix.mjs` | A voice and a music track into one soundtrack, for `AUDIO=`: both measured (EBU R128), the music `--under` LU under the voice while it speaks, `--lift` dB up between lines, down before each line begins; prints what came out, measured on the result. Documented at the top. |
-| `scripts/contact.mjs` | A captioned contact sheet of a stills or looks folder (captions from `labels.json` in it); `--size WxH` makes it exactly that size (`--font`, `--gap`, `--pad`; stills never cropped; a `.jpg` is written as JPEG); `--dark` for a dark sheet. `--compare A=<dir> B=<dir> [C=<dir>] <out.png>`: two or three folders side by side, a labelled column each and a row per still they share, for an A/B choice on one image. |
+| `scripts/contact.mjs` | A captioned contact sheet of a stills or looks folder (captions from `labels.json` in it); `--size WxH` makes it exactly that size (`--font`, `--gap`, `--pad`; stills never cropped; a `.jpg` is written as JPEG); `--dark` for a dark sheet; `--phone`: every still 390 pt wide, as a phone shows it, four a row, drawn at 2x. `--compare A=<dir> B=<dir> [C=<dir>] <out.png>`: two or three folders side by side, a labelled column each and a row per still they share, for an A/B choice on one image. |
 | `scripts/beats.mjs` | A soundtrack's beat, from its samples: the tempo, whether it holds, every beat, the bars, the sections, and the bpm and `AUDIO_AT` to give the page; `--out beats.js` for a page that follows a track that drifts (`FILM.beats`). `render.mjs` imports it to measure the page's beats against the track's. `--selftest`. |
 | `scripts/clickcheck.mjs` | Is every click seen: for each of the page's `CLICKS`, how fast the clicked point moves on screen and how far the cursor travels before the press and during it. Exit 1 on a click nobody will see (release-film §3b), 2 on a page with no cursor. |
-| `scripts/layoutcheck.mjs` | Is every headline in the frame, apart, big enough for a phone and readable: at each checkpoint, each headline `TYPE.draw` draws, against the safe area, the other headlines, its size on a phone and the backdrop round it (the limits are in its header). Exit 1 on a headline that fails, 2 on a page that draws none through `TYPE.draw`. |
+| `scripts/layoutcheck.mjs` | Is every headline in the frame, apart, big enough for a phone, on screen long enough to read, clear of what the page keeps clear and readable: at each checkpoint and at the busiest frame between two (the moments in motion), each headline `TYPE.draw` draws, against the safe area (on a 9:16 page, Reels' and Shorts' own interface bands too), the other headlines, its size on a phone and the backdrop round it; the product's width (`PROMO_META.box`, at least 170 px at 1080p); every 1/30 s, no headline or other text across a named mark (`PROMO_META.marks`, `window.__marks(t)`, `FILM.mark`) and each headline up 0.3 s a word plus 0.5 s (the limits are in its header). Exit 1 on a check that fails, 2 on a page with nothing to check. |
+| `scripts/motioncheck.mjs` | Does the film move when it should: every frame's speed (from `render.mjs speeds`) and freeze detection on a `PREVIEW=1` draft; a hold longer than 1.5 s fails unless the page planned it (`PROMO_META.holds`, a timeline's "settled" checkpoints), a planned move (`PROMO_META.moves`, a cut half way) fails unless it spikes. Writes the speed curve as `motion.png`. Exit 1 on an unplanned hold or a move that does not move. |
 | `scripts/deliver.mjs` | The last step (§8): the finished videos and their covers leave the work folder for a folder of their own; once the film is out, `trash` throws the work folder away after checking its source is safe in the kit. `--selftest`. |
 | `scripts/fonts.mjs` | The kit's fonts: `add "<Family>" [axes]` from Google Fonts with its licence, `check`, `list`. |
 
@@ -582,6 +583,11 @@ tone, its speed and how human it sounds are the user's choice. It is told as a t
   `TYPE.draw` (a counter in a dashboard) takes `ui: true`: no phone minimum, the UI rule
   above, checked by eye on the stills. A title card on a big backdrop looks fine in a
   still at full size and shrinks to a line on a phone: `layoutcheck.mjs` fails a smaller one.
+- **What converges onto a mark passes under it, or fades before it reaches a word.** Cards, notes or
+  lines gathering on a logo are drawn before it (the logo covers them), never after: drawn after, a
+  card's title shows round the logo for a few frames, mid-move, between two stills. Name the logo
+  and the product's window as marks (`FILM.mark`, `PROMO_META.marks`) and `layoutcheck.mjs` fails
+  any text drawn across one after it.
 - **Camera language varies with the format**: locked off while the UI moves (a terminal),
   a slow push (type), a rack focus (a grid), a dive (zoom-through), an orbit or a
   cover-flow in 3D (devices), a whip pan between siblings. One per film carries it.
@@ -796,7 +802,11 @@ node contact.mjs --compare before=sheet-v1 after=sheet ab.png    # and each one 
 Look at every frame yourself first: cramped, off-grid, illegible at that zoom, clip
 remnants (descenders, cut glyphs), slivers at the frame edge, empty holds, a ripple
 that is not on the cursor's tip. Run `node clickcheck.mjs <page>`: a click it fails is a click
-the viewer will not see. Run `node layoutcheck.mjs <page>` too. Fix and re-render. Then show the user the contact
+the viewer will not see. Run `node layoutcheck.mjs <page>` too (headlines, the product's size, marks, reading time, and
+the busiest frames between checkpoints), and `node motioncheck.mjs <page>` (no unplanned hold, every
+move a spike). The stills `sheet` takes include the busiest frame between each two checkpoints
+(`MOTION=0` leaves them out): look at those first, a crossing happens there. For a vertical cut look
+at it as a phone does: `node contact.mjs sheet sheet-phone.png --phone`. Fix and re-render. Then show the user the contact
 sheet with one line per scene — and the looks sheet (§4) while the look is still
 open — and **wait for a go** before the full render. Review material stays in the work
 folder, already in `~/Downloads`: end with its `open` command, never a copy in the delivery.
@@ -807,6 +817,7 @@ Scratch files too (a probe's output, a list, a test still): in the work folder, 
 ```sh
 SUB=16 node render.mjs video ../<name>.mp4  # 16 subframes per frame, a third of the cores
 node render.mjs loopcheck                   # PSNR must be inf
+node render.mjs seekcheck                   # each sampled frame the same cold and after the one before it
 ```
 
 - **16 subframes, not 4.** At 4 the motion blur shows as discrete ghost copies on any
@@ -855,6 +866,11 @@ node render.mjs loopcheck                   # PSNR must be inf
   80 °C ceiling full speed was *slower* (250 s, 198 of them cooling) and still overshot to 85.5.
   Never raise the workers or switch the governor off unless the user asks; `QOS=background` for
   the coolest long master. The table is in README.md.
+- **`seekcheck` catches state carried between frames.** It draws frame k on a fresh page and again on a page
+  that has just drawn frame k-1, at 12 frames (the checkpoints first, then evenly spread; `seekcheck 30`
+  for more), and fails below 90 dB PSNR (`SEEK_DB`): a scratch canvas carried between frames measured
+  77.7 dB. The grain is in, being a function of the frame. `motioncheck.mjs` is the check on stills' blind
+  side: a film can pass every still and hold one picture for ten seconds (§3's dead time).
 - **Jitter is on by default** (`JITTER=0` turns it off) and a page without the stage simply
   ignores `opts.jitter`, so an old kit still renders, without the benefit.
 - **The loop is checked on screenshots, never on `getImageData`.** After a few

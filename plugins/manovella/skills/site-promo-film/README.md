@@ -187,10 +187,11 @@ verify); this page is the catalogue.
 | `template/fonts/` | Twenty open-licensed families with their licences, and `fonts.json`. |
 | `template/parts.js` | Vector parts: a macOS window, a browser, a terminal, an iPhone, an iPad, a MacBook, an iMac, keycaps, a switch, a ring. |
 | `template/parts.html` | Every part on one 16:10 sheet, a page like the others: `PAGE=parts.html node render.mjs stills parts 0` makes the PNG that `docs/parts.jpg` is converted from (`sips -s format jpeg -s formatOptions 92`). |
-| `scripts/render.mjs` | `stills`, `sheet`, `looks`, `loopcheck`, `video`, `beats`: formats, chapters, resumable chunks, the heat governor, the beat check. |
-| `scripts/contact.mjs` | A captioned contact sheet of a folder of stills, at its natural height or exactly `--size WxH` (`--font`, `--gap`, `--pad`; a `.jpg` is a JPEG), light by default or `--dark` (#15151b, light captions) for a picture on a dark page. |
+| `scripts/render.mjs` | `stills`, `sheet`, `looks`, `loopcheck`, `seekcheck`, `speeds`, `video`, `beats`: formats, chapters, resumable chunks, the heat governor, the beat check. |
+| `scripts/contact.mjs` | A captioned contact sheet of a folder of stills, at its natural height or exactly `--size WxH` (`--font`, `--gap`, `--pad`; a `.jpg` is a JPEG), light by default or `--dark` (#15151b, light captions) for a picture on a dark page, or `--phone`: each still 390 pt wide, as a phone shows it. |
 | `scripts/clickcheck.mjs` | Is every click seen: the camera still, the cursor at rest before the press and through it. |
-| `scripts/layoutcheck.mjs` | Is every headline in the frame, clear of the others, big enough to read on a phone and readable on what is behind it, at each moment worth a still. |
+| `scripts/layoutcheck.mjs` | Is every headline in the frame, clear of the others and of the marks a page names, big enough to read on a phone, on screen long enough and readable on what is behind it, and the product big enough: at each moment worth a still and the busiest frame between two, and every 1/30 s for marks and reading time. A 9:16 page is held to Reels' and Shorts' own interface bands too. |
+| `scripts/motioncheck.mjs` | Does the film move when it should: the speed of every frame and freeze detection on a draft; an unplanned hold over 1.5 s fails, a planned move that does not spike fails; the speed curve as a PNG. |
 | `scripts/settings.mjs` | The user's settings (`settings.json`): project and picture folders, the music library, where films are made and delivered. |
 | `scripts/beats.mjs` | A soundtrack's tempo, beats, bars and sections, from its samples; the bpm and `AUDIO_AT` that put the film on its beat. |
 | `scripts/thermo.swift` | The chip's temperature without sudo, for the governor. |

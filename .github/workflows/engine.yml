@@ -71,6 +71,13 @@ jobs:
           cp "$SKILL"/template/promo.html "$SKILL"/template/film.js "$SKILL"/template/fx.js "$SKILL"/template/parts.js "$SKILL"/template/type.js "$SKILL"/scripts/render.mjs "$W"/
           cd "$W" && PREVIEW=1 FROM=0 TO=0.5 node render.mjs video ../preview.mp4
           ffprobe -v error -show_entries stream=codec_name,width,height:format=duration -of compact ../preview.mp4
+      - name: The checks on the demo (seek, layout and marks, motion)
+        run: |
+          W="$RUNNER_TEMP/pw/film/src"
+          cp "$SKILL"/scripts/layoutcheck.mjs "$SKILL"/scripts/motioncheck.mjs "$W"/
+          cd "$W" && node render.mjs seekcheck 4
+          MOTION=0 node layoutcheck.mjs promo.html
+          FROM=0 TO=3 node motioncheck.mjs promo.html --no-draft --png ../motion.png
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -118,6 +125,13 @@ jobs:
           cp "$SKILL"/template/promo.html "$SKILL"/template/film.js "$SKILL"/template/fx.js "$SKILL"/template/parts.js "$SKILL"/template/type.js "$SKILL"/scripts/render.mjs "$W"/
           cd "$W" && PREVIEW=1 FROM=0 TO=0.5 node render.mjs video ../preview.mp4
           ffprobe -v error -show_entries stream=codec_name,width,height:format=duration -of compact ../preview.mp4
+      - name: The checks on the demo (seek, layout and marks, motion)
+        run: |
+          W="$RUNNER_TEMP/pw/film/src"
+          cp "$SKILL"/scripts/layoutcheck.mjs "$SKILL"/scripts/motioncheck.mjs "$W"/
+          cd "$W" && node render.mjs seekcheck 4
+          MOTION=0 node layoutcheck.mjs promo.html
+          FROM=0 TO=3 node motioncheck.mjs promo.html --no-draft --png ../motion.png
       - name: Kokoro through PyTorch, telling an Italian line with accents
         run: |
           S="$RUNNER_TEMP/story" && mkdir -p "$S" && cp "$SKILL"/scripts/voice.mjs "$SKILL"/scripts/narrate.mjs "$SKILL"/scripts/voice-torch.py "$S"/
