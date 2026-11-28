@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Space</title>
+<style>
+html,body{margin:0;background:#F6F4EF;overflow:hidden}
+canvas{display:block}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script src="three/three.min.js"></script><!-- three.js, one classic script (MIT: three/LICENSE) -->
+<script src="film.js"></script><!-- the stage, springs -->
+<script src="fx.js"></script><!-- the look -->
+<script src="type.js"></script><!-- headlines -->
+<script src="space.js"></script><!-- the 3D shot: a model, a camera, lights -->
+<script src="models/acme.glb.js"></script><!-- the model as a script: a page from file:// fetches nothing -->
+<script>
+'use strict';
+/*
+ * A product in 3D: an 8 s loop of one object, the Acme Pod (models/acme.glb, the kit's sample: replace
+ * it with the product's own model, made ready by scripts/blender.mjs prepare). The model turns once,
+ * the camera goes to its dial, the dial turns (the model's own animation, set by time), and everything
+ * is back at rest on the title card where the loop closes.
+ *
+ * The order in seek(t) is the whole method: the look's backdrop (2D), then the 3D shot (space.js: every
+ * moving thing set from t, then one draw), then what sits on top of it in 2D (headlines, a callout
+ * pinned to a point of the model), then the look's finish. Nothing is carried between frames.
+ * A 3D shot is for a physical product or a hero object. The product's UI is never a 3D model of a
+ * screen: it is rebuilt as vector (parts.js) and, if it must tilt, composited as promo.html does.
+ */
+const META = { width: 1920, height: 1080, fps: 60, duration: 8, bpm: 120 };
+window.PROMO_META = META;
+const W = META.width, H = META.height, DUR = META.duration, BEAT = 60 / META.bpm;
+const cv = document.getElementById('c');
+cv.width = W; cv.height = H;
+const ctx = cv.getContext('2d');
+const STAGE = FILM.stage(ctx);
+const { spr, track } = FILM;
+const B = (n) => n * BEAT; // beat → seconds
+const DISPLAY = 'system-ui', BODY = 'system-ui'; // swap for the brand's faces
+const FONT_FACES = [];
+const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+const rgba = (c, a = 1) => `rgba(${Math.round(c[0])},${Math.round(c[1])},${Math.round(c[2])},${a})`;
+const C = { // replace with the brand's tokens
+  canvas: hex('#F6F4EF'), ink: hex('#1A1C24'), dim: hex('#6B6F7B'), accent: hex('#5B5BF7'),
+  a: hex('#2FBFA8'), b: hex('#E8833A'),
+};
+const HASH = new URLSearchParams(location.hash.slice(1));
+FX.previewAccent(C, HASH); // a preview's colour (the Studio's #accent=); a film's URL has none
+const LOOK = FX.look({ preset: HASH.get('look') || 'spotlight', palette: C }, { W, H, fps: META.fps, duration: DUR, track: (v0, keys) => track(v0, keys.map(([b, ...r]) => [B(b), ...r])), spr });
+
+// ---------------------------------------------------------------- the shot
+// One renderer, one scene. The rig follows the look: daylight on a light backdrop, a studio with a rim
+// in the accent on a dark one.
+const SHOT = SPACE.shot({ W, H, rig: 'auto', tone: LOOK.tone, accent: C.accent });
+let POD, MARK_AT; // the model; where its dial's mark is, in the dial's own space
+
+// The camera, on springs: [seconds, yaw, pitch, dist, f, zeta]. Home is the title card's view.
+const HOME = { yaw: 28, pitch: 14, dist: 2.9, fov: 30 };
+const CAM = SPACE.orbit([
+  [B(1.6), -16, 9, 2.45, 0.6, 0.95],   // swings round the front as the model turns
+  [B(8), 14, 48, 2.3, 0.8, 0.92],      // up and in, onto the dial
+  [B(12.8), HOME.yaw, HOME.pitch, HOME.dist, 1.4, 0.92],   // home, at rest before the loop point
+], HOME);
+const aimY = track(0.3, [[B(8), 0.42, 0.8, 0.92], [B(12.8), 0.3, 1.4, 0.92]]);       // what the camera looks at: the middle, then the top
+const shiftX = track(330, [[B(8), 250, 0.8, 0.92], [B(12.8), 330, 1.4, 0.92]]);     // the picture on the frame: right of the headline
+const turn = (t) => 360 * spr(t, B(1.6), 0.5, 1);                                   // one whole turn, and exactly at rest again
+const dial = (t) => Math.min(Math.max(t - B(9.2), 0), 1.5) * (1 - spr(t, B(12.4), 1.8, 1)); // the clip played in real time, then wound back
+
+// ---------------------------------------------------------------- headlines
+const HEAD = { x: 150, size: 104, family: DISPLAY, weight: 700, ls: -0.02, style: 'rise' };
+const HEADS = () => [
+  // the title card: it arrives before the loop point and leaves after it, so frame 0 is its settled state
+  { ...HEAD, lines: ['Acme Pod'], y: 470, color: LOOK.ink, at: B(13.4) - DUR, out: B(1.4) },
+  { ...HEAD, lines: ['Acme Pod'], y: 470, color: LOOK.ink, at: B(13.4) },
+  { ...HEAD, lines: ['Every side', 'of it.'], y: 440, color: LOOK.ink, at: B(2.6), out: B(7.4) },
+  { ...HEAD, lines: ['One dial.'], y: 470, color: LOOK.ink, at: B(8.8), out: B(12.4) },
+];
+const sub = (t) => { // the address under the title, with it
+  const a = t < DUR / 2 ? 1 - spr(t, B(1.2), 2.4, 1) : spr(t, B(13.6), 2.2, 1); // settled by 7.8 s: at rest at the loop point
+  if (a <= 0.002) return;
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = Math.min(1, a);
+  ctx.font = `500 34px ${BODY}`; ctx.fillStyle = rgba(LOOK.dim); ctx.textBaseline = 'alphabetic';
+  ctx.fillText('example.com', HEAD.x + 4, 632);
+  ctx.restore();
+};
+
+// ---------------------------------------------------------------- a callout pinned to the model
+// Where the dial's mark is on the frame, this frame: a point of the model, through the same camera.
+function callout(t, pose, shift) {
+  const a = spr(t, B(9.4), 2, 1) - spr(t, B(12.2), 2.6, 1);
+  if (a <= 0.002) return;
+  const p = POD.part('Dial').localToWorld(MARK_AT.clone());
+  const [x, y] = SHOT.project([p.x, p.y, p.z], pose, { shift });
+  const lx = 640, ly = 540; // where the line leaves the headline's side
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = Math.min(1, a);
+  ctx.strokeStyle = rgba(LOOK.ink, 0.55); ctx.lineWidth = 2; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(lx + (x - lx) * a, ly + (y - ly) * a); ctx.stroke();
+  ctx.beginPath(); ctx.arc(x, y, 15 * a, 0, Math.PI * 2); ctx.stroke();
+  ctx.restore();
+}
+
+// ---------------------------------------------------------------- frame
+const NOCAM = { x: 0, y: 0, z: 1 }; // the look's 2D camera: the backdrop stands still, the 3D camera does the moving
+/** opts.jitter: this subframe's subpixel offset; opts.loopcheck: leave the grain out. Both from render.mjs. */
+function seek(t, opts = {}) {
+  t = ((t % DUR) + DUR) % DUR;
+  STAGE.begin(opts);
+  LOOK.backdrop(ctx, t, NOCAM, opts);
+  // the 3D shot: everything that moves, from t; then one draw
+  const pose = { ...CAM(t), target: [0, aimY(t), 0] }, shift = [shiftX(t), 20];
+  POD.turn(turn(t));
+  POD.pose('Dial', dial(t));
+  SHOT.draw(ctx, pose, { shift });
+  // on top of it, in 2D
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  for (const h of HEADS()) TYPE.draw(ctx, t, h);
+  sub(t);
+  callout(t, pose, shift);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  LOOK.finish(ctx, t, opts);
+}
+window.seek = seek;
+META.checkpoints = [[0, 'title card'], [B(2.6), 'turning'], [B(6.5), 'its far side'], [B(11), 'the dial, turned'], [B(15), 'home']].map(([t, label]) => ({ t, label }));
+window.ready = (async () => {
+  await Promise.all(FONT_FACES.map((f) => document.fonts.load(f)));
+  await LOOK.ready;
+  POD = await SHOT.load('models/acme.glb');   // the page is ready only once the model is
+  POD.tint('Accent', C.accent);               // the product in the brand's colour
+  SHOT.scene.updateMatrixWorld(true);
+  MARK_AT = new THREE.Box3().setFromObject(POD.part('Mark')).getCenter(new THREE.Vector3());
+  POD.part('Dial').worldToLocal(MARK_AT);
+  seek(0);
+  return true;
+})();
+</script>
+</body>
+</html>
