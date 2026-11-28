@@ -26,6 +26,9 @@ canvas{display:block}
  * click ripples) comes from fx.js beside this page: set it in LOOK below.
  */
 const META = { width: 1920, height: 1080, fps: 60, duration: 8, bpm: 120 };
+// motioncheck.mjs fails a hold (nothing moving) longer than 1.5 s that the page did not plan: `holds: [{ t0, t1, label }]`
+// in PROMO_META names one on purpose (an end card left to be read), `moves: [{ t0, t1, label }]` a move that must show.
+META.moves = [{ t0: 2.1, t1: 3.0, label: 'the logo opens into the card' }];
 window.PROMO_META = META;
 const W = META.width, H = META.height, DUR = META.duration, BEAT = 60 / META.bpm;
 const cv = document.getElementById('c');
@@ -411,19 +414,27 @@ function seek(t, opts = {}) {
   ctx.save();
   LOOK.backdrop(ctx, t, CAM, opts);
   world();
-  if (t >= GL_FROM && t < GL_TO) drawIn3D(t);
-  else {
+  drawWordmark(t); // before the shape: the card grows over it and shrinks back off it, never the text across the card
+  // the shape is the page's one mark: the logo, then the card. Its own drawing runs in FILM.mark, so
+  // layoutcheck.mjs lets its text lie in its box and fails any other text drawn across it
+  if (t >= GL_FROM && t < GL_TO) FILM.mark('product', () => drawIn3D(t));
+  else FILM.mark('product', () => {
     const s = drawShape(t);
     if (t > B(4.75) && t < B(12.5)) { ctx.save(); rr(s.x, s.y, s.w, s.h, s.c); ctx.clip(); drawContent(t); ctx.restore(); }
-  }
-  drawWordmark(t);
+  });
   screen();
+  { const { s, wts } = shapeAt(t); const [x, y] = toScreen(s.x, s.y); META.box = wts[1] > 0.5 ? [x, y, s.w * CAM.z, s.h * CAM.z] : null; } // where the product is: the card, not the logo
   HEADS.forEach((h) => drawHead(t, h));
   drawCursor(t);
   ctx.restore();
   screen();
   LOOK.finish(ctx, t, opts);
 }
+/** The box layoutcheck.mjs keeps clear (PROMO_META.marks, or this callback: the box at t, in frame pixels), called after seek(t). */
+window.__marks = (t) => {
+  const { s } = shapeAt(t), [x, y] = toScreen(s.x, s.y);
+  return [{ name: 'product', box: [x, y, s.w * CAM.z, s.h * CAM.z] }];
+};
 window.seek = seek;
 window.ready = (async () => {
   await Promise.all(FONT_FACES.map((f) => document.fonts.load(f)));
